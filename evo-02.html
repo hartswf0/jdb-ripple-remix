@@ -1,0 +1,2970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RIPPLES — Recursive Life: World Jockey Edition</title>
+<style>
+:root {
+  --bg: #040811;
+  --panel: rgba(6, 14, 24, 0.96);
+  --border: #153247;
+  --border-bright: #2e5f88;
+  --text: #b7e7ff;
+  --text-dim: #74abc7;
+  --text-bright: #d8f4ff;
+  --goal: #ffd700;
+  --goal-dim: rgba(255,215,0,0.15);
+  --obstacle: #ff3333;
+  --obstacle-dim: rgba(255,51,51,0.15);
+  --shift: #00ffee;
+  --shift-dim: rgba(0,255,238,0.12);
+  --success: #39ff14;
+  --warn: #ff5533;
+  --depth1: #4af626;
+  --depth2: #00ccff;
+  --depth3: #ff44ff;
+  --depth4: #ffcc00;
+  --scan-line: rgba(0,0,0,0.12);
+  --glow: 0 0 12px rgba(0,200,255,0.25);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-ui: "Segoe UI", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#worldtext-content,
+#impact-content,
+#audit-list,
+#guide-panel-content,
+#guide-panel-content * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* SCANLINES OVERLAY */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    var(--scan-line) 2px,
+    var(--scan-line) 4px
+  );
+  pointer-events: none;
+  z-index: 1000;
+  mix-blend-mode: multiply;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, rgba(0,60,100,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 999;
+}
+
+canvas {
+  display: block;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+}
+
+/* ---- LAYOUT ---- */
+#ui-layer {
+  position: absolute; inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 200px 1fr 220px;
+  gap: 8px;
+  padding: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ---- PANEL BASE ---- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--shift), transparent);
+  opacity: 0.4;
+}
+
+.panel-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-title::before {
+  content: '▸';
+  color: var(--shift);
+  font-size: 8px;
+}
+
+/* ---- TOP BAR ---- */
+#top-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  pointer-events: none;
+}
+
+#header-brand {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 180px;
+  position: relative;
+  overflow: hidden;
+}
+
+#header-brand::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(0,255,238,0.04), transparent);
+}
+
+.brand-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 6px;
+  color: var(--shift);
+  text-shadow: 0 0 20px var(--shift), 0 0 40px rgba(0,255,238,0.3);
+  line-height: 1;
+}
+
+.brand-sub {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+#stats-bar {
+  flex: 1;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  display: flex;
+  align-items: stretch;
+  padding: 0 4px;
+  gap: 4px;
+}
+
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 12px;
+  border-right: 1px solid var(--border);
+  min-width: 70px;
+}
+
+.stat-cell:last-child { border-right: none; }
+
+.stat-label {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text);
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.stat-val {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--shift);
+  text-shadow: 0 0 8px var(--shift);
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.stat-val.warn { color: var(--warn); text-shadow: 0 0 8px var(--warn); }
+.stat-val.ok { color: var(--success); text-shadow: 0 0 8px var(--success); }
+
+#status-pill {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-bright);
+  border-left: 1px solid var(--border);
+  text-transform: uppercase;
+}
+
+#status-pill.win { color: var(--success); text-shadow: 0 0 12px var(--success); }
+#status-pill.loss { color: var(--warn); text-shadow: 0 0 12px var(--warn); }
+
+/* ---- LEFT PANEL: ENTITY POOL ---- */
+#left-panel {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#entity-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+#entity-list::-webkit-scrollbar { width: 3px; }
+#entity-list::-webkit-scrollbar-track { background: transparent; }
+#entity-list::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+.entity-item {
+  padding: 7px 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  margin-bottom: 3px;
+  transition: all 0.12s;
+  position: relative;
+}
+
+.entity-item:hover { border-color: var(--border-bright); background: rgba(0,200,255,0.04); }
+.entity-item.selected { border-color: var(--shift); background: rgba(0,255,238,0.06); }
+.entity-item.selected::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--shift);
+  box-shadow: 0 0 8px var(--shift);
+}
+
+.entity-name {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-bright);
+}
+
+.entity-state {
+  font-size: 9px;
+  color: var(--text);
+  letter-spacing: 1px;
+  margin-top: 1px;
+}
+
+.entity-depth-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.depth-pip {
+  width: 8px; height: 3px;
+  border-radius: 1px;
+  background: var(--border-bright);
+}
+
+.depth-pip.filled.d1 { background: var(--depth1); box-shadow: 0 0 4px var(--depth1); }
+.depth-pip.filled.d2 { background: var(--depth2); box-shadow: 0 0 4px var(--depth2); }
+.depth-pip.filled.d3 { background: var(--depth3); box-shadow: 0 0 4px var(--depth3); }
+.depth-pip.filled.d4 { background: var(--depth4); box-shadow: 0 0 4px var(--depth4); }
+
+/* ---- CENTER: CANVAS AREA ---- */
+#center-area {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  pointer-events: auto;
+}
+
+#center-area::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--shift), transparent);
+  z-index: 2;
+}
+
+/* ---- RIGHT PANEL: WORLDTEXT + RIPPLE ---- */
+#right-panel {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+#worldtext-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#worldtext-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+#worldtext-content::-webkit-scrollbar { width: 3px; }
+#worldtext-content::-webkit-scrollbar-track { background: transparent; }
+#worldtext-content::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+#worldtext-content p {
+  margin-bottom: 8px;
+  opacity: 0;
+  animation: fadeTextIn 0.6s forwards;
+}
+
+@keyframes fadeTextIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.worldtext-entity { color: var(--shift); font-weight: bold; cursor: pointer; }
+.worldtext-entity:hover { text-decoration: underline; }
+.worldtext-channel { color: var(--goal); }
+.worldtext-blocked { color: var(--text-dim); text-decoration: line-through; }
+.worldtext-delta { color: var(--depth3); }
+.worldtext-inference { color: #9980ff; font-style: italic; }
+
+#worldtext-placeholder {
+  color: var(--text);
+  font-size: 10px;
+  text-align: center;
+  padding: 20px;
+  line-height: 2;
+  letter-spacing: 1px;
+}
+
+/* IMPACT PANEL */
+#impact-panel {
+  flex: 0 0 auto;
+}
+
+#impact-content {
+  padding: 8px 10px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.impact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.impact-row:last-child { border-bottom: none; }
+.impact-key { color: var(--text); letter-spacing: 1px; font-size: 9px; }
+.impact-val { color: var(--text-bright); font-size: 10px; }
+.impact-val.pos { color: var(--success); }
+.impact-val.neg { color: var(--warn); }
+
+/* AUDIT LOG */
+#audit-panel { flex: 0 0 auto; max-height: 120px; overflow: hidden; }
+#audit-list { overflow-y: auto; max-height: 90px; padding: 4px 8px; }
+#audit-list::-webkit-scrollbar { width: 2px; }
+#audit-list::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+.audit-item {
+  font-size: 9px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.audit-tick { color: var(--shift); min-width: 30px; }
+.audit-entity { color: var(--text-bright); }
+.audit-vector.GOAL { color: var(--goal); }
+.audit-vector.OBSTACLE { color: var(--obstacle); }
+.audit-vector.SHIFT { color: var(--shift); }
+
+/* ---- BOTTOM BAR ---- */
+#bottom-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  pointer-events: none;
+}
+
+/* VECTOR CONTROLS */
+#vector-controls {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  align-items: center;
+}
+
+.vec-btn {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 3px;
+  padding: 10px 18px;
+  border: 1px solid;
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+  text-transform: uppercase;
+  transition: all 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+
+.vec-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.vec-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.vec-btn:not(:disabled):hover::after { opacity: 1; }
+.vec-btn:not(:disabled):active { transform: translateY(1px); }
+
+.vec-btn.goal { color: var(--goal); border-color: var(--goal); }
+.vec-btn.goal::after { background: var(--goal-dim); }
+.vec-btn.goal:not(:disabled):hover { box-shadow: 0 0 16px var(--goal-dim), inset 0 0 16px var(--goal-dim); }
+
+.vec-btn.obstacle { color: var(--obstacle); border-color: var(--obstacle); }
+.vec-btn.obstacle::after { background: var(--obstacle-dim); }
+.vec-btn.obstacle:not(:disabled):hover { box-shadow: 0 0 16px var(--obstacle-dim), inset 0 0 16px var(--obstacle-dim); }
+
+.vec-btn.shift { color: var(--shift); border-color: var(--shift); }
+.vec-btn.shift::after { background: var(--shift-dim); }
+.vec-btn.shift:not(:disabled):hover { box-shadow: 0 0 16px var(--shift-dim), inset 0 0 16px var(--shift-dim); }
+
+.vec-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  font-family: var(--font-ui);
+  margin-left: 2px;
+}
+
+/* FADER CONTROLS */
+#fader-controls {
+  flex: 1;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  display: flex;
+  gap: 12px;
+  padding: 8px 14px;
+  align-items: center;
+}
+
+.fader-row {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fader-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.fader-val { color: var(--shift); }
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type=range]:focus { outline: none; }
+
+input[type=range]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: linear-gradient(90deg, var(--shift-dim), var(--border-bright));
+  border-radius: 2px;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 14px; width: 6px;
+  background: var(--shift);
+  border-radius: 1px;
+  margin-top: -5.5px;
+  box-shadow: 0 0 8px var(--shift);
+}
+
+input[type=range]::-moz-range-track {
+  height: 3px;
+  background: var(--border-bright);
+  border-radius: 2px;
+}
+
+input[type=range]::-moz-range-thumb {
+  height: 14px; width: 6px;
+  background: var(--shift);
+  border: none;
+  border-radius: 1px;
+}
+
+/* ACTION BUTTONS */
+#action-controls {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+.act-btn {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text);
+  text-transform: uppercase;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+
+.act-btn:hover { border-color: var(--shift); color: var(--shift); }
+.act-btn.active { background: rgba(0,255,238,0.08); border-color: var(--shift); color: var(--shift); }
+.act-btn.danger { color: var(--warn); border-color: rgba(255,53,51,0.3); }
+.act-btn.danger:hover { border-color: var(--warn); background: rgba(255,51,51,0.08); }
+
+/* MODE BUTTONS */
+#mode-controls {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+/* MESSAGES */
+#messages {
+  position: absolute;
+  bottom: 80px;
+  left: 220px;
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  max-width: 300px;
+}
+
+.msg {
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  background: rgba(0,255,238,0.06);
+  border: 1px solid rgba(0,255,238,0.15);
+  color: var(--shift);
+  letter-spacing: 1px;
+  transition: opacity 0.8s;
+  display: inline-block;
+  clear: both;
+}
+
+.msg.warn { color: var(--warn); border-color: rgba(255,51,51,0.2); background: rgba(255,51,51,0.05); }
+
+/* INIT HINT */
+#init-hint {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.hint-title {
+  font-family: var(--font-ui);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: var(--shift);
+  text-shadow: 0 0 30px var(--shift), 0 0 60px rgba(0,255,238,0.3);
+  animation: flickerPulse 3s infinite;
+}
+
+.hint-sub {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text);
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.hint-sub2 {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.6;
+  text-transform: uppercase;
+  max-width: 320px;
+}
+
+@keyframes flickerPulse {
+  0%, 100% { opacity: 0.7; }
+  48% { opacity: 1; }
+  50% { opacity: 0.5; }
+  52% { opacity: 1; }
+}
+
+/* INSPECTOR OVERLAY */
+#inspector {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  background: rgba(3, 10, 18, 0.97);
+  border: 1px solid var(--shift);
+  border-radius: 3px;
+  padding: 14px;
+  z-index: 30;
+  display: none;
+  box-shadow: 0 0 30px rgba(0,255,238,0.15), inset 0 0 30px rgba(0,255,238,0.02);
+}
+
+#inspector.visible { display: block; }
+
+.insp-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.insp-name { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: var(--text-bright); letter-spacing: 1px; }
+.insp-id { font-size: 9px; color: var(--text-dim); }
+
+.insp-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.insp-row:last-of-type { border-bottom: none; }
+.insp-key { color: var(--text-dim); letter-spacing: 1px; }
+.insp-val { color: var(--text-bright); }
+
+.bar-track { width: 80px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+.bar-fill { height: 100%; background: var(--shift); box-shadow: 0 0 4px var(--shift); transition: width 0.3s; }
+
+.insp-close {
+  margin-top: 10px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.12s;
+}
+
+.insp-close:hover { border-color: var(--shift); color: var(--shift); }
+
+/* RIPPLE RING CANVAS (overlay) */
+#ripple-canvas {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ZEN MODE */
+body.zen #ui-layer { opacity: 0; pointer-events: none; }
+#zen-btn {
+  position: fixed; top: 8px; right: 8px;
+  z-index: 500;
+  background: rgba(4,12,18,0.5);
+  border: 1px solid var(--border-bright);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  display: none;
+}
+
+body.zen #zen-btn { display: block; }
+#zen-btn:hover { color: var(--shift); border-color: var(--shift); }
+
+/* DEPTH LEGEND */
+.depth-legend {
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.legend-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+
+/* SCENARIO LABEL */
+#scenario-label {
+  padding: 4px 10px 0;
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+/* AUTOPLAY PULSE */
+@keyframes autoplay-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,238,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(0,255,238,0); }
+}
+.act-btn.autoplay-on { animation: autoplay-pulse 2s infinite; }
+
+/* NO ENTITY HINT */
+#no-entity-hint {
+  position: absolute; inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ---- LLM WORKBENCH DRAWER ---- */
+#llm-drawer {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: min(560px, calc(100vw - 20px));
+  z-index: 80;
+  background: rgba(3,10,18,0.985);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.55), 0 0 20px rgba(0,255,238,0.06);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+#llm-drawer.visible { display: flex; }
+
+#llm-drawer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--shift), transparent);
+  opacity: 0.55;
+}
+
+#llm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 70;
+  display: none;
+  pointer-events: auto;
+  backdrop-filter: blur(2px);
+}
+#llm-backdrop.visible { display: block; }
+
+.llm-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.llm-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--shift);
+}
+
+.llm-sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.llm-head-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.llm-btn {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.llm-btn:hover { border-color: var(--shift); color: var(--shift); }
+.llm-btn.primary { border-color: rgba(0,255,238,0.25); color: var(--shift); }
+.llm-btn.warn { border-color: rgba(255,85,51,0.3); color: var(--warn); }
+
+.llm-body {
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr 1fr 1fr;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.llm-note {
+  border: 1px solid var(--border);
+  background: rgba(0,255,238,0.03);
+  color: var(--text);
+  padding: 8px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  line-height: 1.6;
+}
+
+.llm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.llm-field {
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.01);
+  padding: 8px;
+  display: grid;
+  gap: 5px;
+}
+
+.llm-field.wide { grid-column: 1 / -1; }
+
+.llm-label {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+}
+
+.llm-field select,
+.llm-field input,
+.llm-field textarea {
+  width: 100%;
+  background: rgba(2, 8, 13, 0.9);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 6px 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+}
+
+.llm-field select,
+.llm-field input {
+  height: 30px;
+}
+
+.llm-field textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.5;
+}
+
+#llm-drawer, #llm-drawer * {
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+}
+
+#llm-system-prompt { min-height: 120px; }
+#llm-event-json { min-height: 150px; }
+#llm-bundle { min-height: 190px; }
+
+.llm-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.llm-status {
+  font-size: 9px;
+  color: var(--text);
+  letter-spacing: 1px;
+  border: 1px dashed var(--border);
+  padding: 6px 8px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.llm-compact {
+  font-size: 9px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* GUIDE / TROUBLESHOOT PANEL */
+#guide-panel {
+  flex: 0 0 auto;
+}
+
+#guide-panel-content {
+  padding: 8px 10px;
+  display: grid;
+  gap: 8px;
+  line-height: 1.55;
+  font-size: 9px;
+  color: var(--text);
+}
+
+.guide-block {
+  border: 1px solid var(--border);
+  background: rgba(0,255,238,0.025);
+  padding: 6px 7px;
+  border-radius: 2px;
+}
+
+.guide-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.guide-list { display: grid; gap: 3px; }
+.guide-row { display: flex; gap: 5px; align-items: flex-start; }
+.guide-n { color: var(--shift); font-weight: 700; min-width: 10px; }
+.guide-code { color: var(--goal); }
+.guide-note { color: var(--text-dim); }
+.guide-warn {
+  border-color: rgba(255,85,51,0.25);
+  background: rgba(255,85,51,0.04);
+}
+
+.msg.note {
+  color: var(--text-bright);
+  border-color: rgba(216,244,255,0.18);
+  background: rgba(216,244,255,0.04);
+}
+
+@media (prefers-reduced-motion: reduce){
+  * { animation: none !important; transition: none !important; }
+}
+
+body.zen #llm-drawer,
+body.zen #llm-backdrop {
+  display: none !important;
+}
+
+@media (max-width: 980px){
+  #llm-drawer {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border-radius: 0;
+  }
+  .llm-body {
+    grid-template-rows: auto auto auto auto 1fr 1fr 1fr;
+  }
+  .llm-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="simCanvas"></canvas>
+<canvas id="rippleCanvas"></canvas>
+
+<button id="zen-btn">SHOW UI</button>
+
+<div id="ui-layer">
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div id="header-brand">
+      <div class="brand-title">RIPPLES</div>
+      <div class="brand-sub">Recursive Life · World Jockey Edition</div>
+    </div>
+    <div id="stats-bar">
+      <div class="stat-cell">
+        <div class="stat-label">Population</div>
+        <div class="stat-val" id="st-pop">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Depth Max</div>
+        <div class="stat-val" id="st-depth">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Complexity</div>
+        <div class="stat-val" id="st-k">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Tick</div>
+        <div class="stat-val" id="st-tick">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">FPS</div>
+        <div class="stat-val" id="st-fps">60</div>
+      </div>
+      <div id="status-pill">INIT</div>
+    </div>
+  </div>
+
+  <!-- LEFT: ENTITY POOL -->
+  <div class="panel" id="left-panel" style="grid-row:2; grid-column:1; display:flex; flex-direction:column;">
+    <div class="panel-title">Entity Pool</div>
+    <div id="scenario-label">CUPBOARD ECOLOGY</div>
+    <div id="entity-list"></div>
+    <div class="depth-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--depth1)"></div>Depth 1</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--depth2)"></div>Depth 2</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--depth3)"></div>Depth 3</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--depth4)"></div>Depth 4+</div>
+    </div>
+  </div>
+
+  <!-- CENTER: CANVAS -->
+  <div id="center-area" style="grid-row:2; grid-column:2;">
+    <div id="init-hint">
+      <div class="hint-title">INITIALIZE</div>
+      <div class="hint-sub">Touch or click to begin the ecology</div>
+      <div class="hint-sub2">Read Impact Record before Worldtext. The prose is interpretation of the ripple, not the ripple itself.</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: WORLDTEXT + RIPPLE + AUDIT -->
+  <div id="right-panel" style="grid-row:2; grid-column:3;">
+    <div class="panel" id="guide-panel">
+      <div class="panel-title">How To Read / Troubleshoot</div>
+      <div id="guide-panel-content">
+        <div class="guide-block">
+          <div class="guide-title">Read Order</div>
+          <div class="guide-list">
+            <div class="guide-row"><span class="guide-n">1</span><span>Select an entity and trigger <span class="guide-code">GOAL / OBSTACLE / SHIFT</span>.</span></div>
+            <div class="guide-row"><span class="guide-n">2</span><span>Check <b>Impact Record</b>: source delta, projected transfers, resistance, delay, non-effects.</span></div>
+            <div class="guide-row"><span class="guide-n">3</span><span>Read <b>Worldtext</b> as a perspective layer generated from the event record.</span></div>
+            <div class="guide-row"><span class="guide-n">4</span><span>Use <b>LLM</b> button to export prompt + JSON bundle to any model.</span></div>
+          </div>
+        </div>
+        <div class="guide-block guide-warn">
+          <div class="guide-title">Console Error Tip</div>
+          <div>If you see <span class="guide-code">content.js</span> errors like <span class="guide-code">reading 'query'</span>, that is usually a browser extension content script, not this app.</div>
+          <div class="guide-note">Quick test: open this file in an incognito/private window with extensions disabled.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="worldtext-panel">
+      <div class="panel-title">Worldtext Viewport</div>
+      <div id="worldtext-content">
+        <div id="worldtext-placeholder">
+          SELECT AN ENTITY<br>APPLY A VECTOR<br>WATCH THE RIPPLE
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="impact-panel">
+      <div class="panel-title">Impact Record</div>
+      <div id="impact-content">
+        <div id="no-entity-hint" style="position:static; padding:8px 0; font-size:9px;">No active event</div>
+      </div>
+    </div>
+
+    <div class="panel" id="audit-panel">
+      <div class="panel-title">Audit Log</div>
+      <div id="audit-list"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottom-bar">
+    <!-- VECTOR CONTROLS -->
+    <div id="vector-controls">
+      <div style="display:flex; flex-direction:column; gap:2px; margin-right:4px;">
+        <div style="font-size:8px; letter-spacing:2px; color:var(--text-dim); font-family:var(--font-ui); font-weight:600; text-transform:uppercase;">Vector</div>
+        <div style="font-size:8px; color:var(--text-dim);">Select entity first</div>
+      </div>
+      <button class="vec-btn goal" id="btn-goal" disabled>GOAL</button>
+      <button class="vec-btn obstacle" id="btn-obstacle" disabled>OBSTACLE</button>
+      <button class="vec-btn shift" id="btn-shift" disabled>SHIFT</button>
+      <div class="vec-label" style="margin-left:8px; line-height:1.8;">
+        <div>G · GOAL</div>
+        <div>O · OBSTACLE</div>
+        <div>S · SHIFT</div>
+      </div>
+    </div>
+
+    <!-- FADERS -->
+    <div id="fader-controls">
+      <div class="fader-row">
+        <div class="fader-header">
+          <span>Volatility</span>
+          <span class="fader-val" id="v-vol">20%</span>
+        </div>
+        <input type="range" id="sl-vol" min="0" max="100" value="20">
+      </div>
+      <div class="fader-row">
+        <div class="fader-header">
+          <span>Mutation</span>
+          <span class="fader-val" id="v-mut">3%</span>
+        </div>
+        <input type="range" id="sl-mut" min="0" max="100" value="30">
+      </div>
+      <div class="fader-row">
+        <div class="fader-header">
+          <span>Sim Speed</span>
+          <span class="fader-val" id="v-spd">1x</span>
+        </div>
+        <input type="range" id="sl-spd" min="1" max="4" value="1" step="1">
+      </div>
+      <div class="fader-row">
+        <div class="fader-header">
+          <span>Brush Size</span>
+          <span class="fader-val" id="v-brush">5</span>
+        </div>
+        <input type="range" id="sl-brush" min="2" max="12" value="5" step="1">
+      </div>
+    </div>
+
+    <!-- MODE + ACTIONS -->
+    <div id="mode-controls">
+      <div class="panel-title" style="border-bottom:none; padding:0 0 4px; margin-bottom:2px;">Brush Mode</div>
+      <button class="act-btn active" id="btn-inspect">Inspect</button>
+      <button class="act-btn" id="btn-feed">Feed</button>
+      <button class="act-btn" id="btn-wall">Wall</button>
+    </div>
+
+    <div id="action-controls">
+      <div class="panel-title" style="border-bottom:none; padding:0 0 4px; margin-bottom:2px;">System</div>
+      <button class="act-btn" id="btn-autoplay">Autoplay</button>
+      <button class="act-btn" id="btn-pause">Pause</button>
+      <button class="act-btn" id="btn-llm">LLM</button>
+      <button class="act-btn" id="btn-hide">Hide UI</button>
+      <button class="act-btn danger" id="btn-reset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- INSPECTOR OVERLAY -->
+<div id="inspector">
+  <div class="insp-header">
+    <div class="insp-name" id="insp-name">ENTITY</div>
+    <div class="insp-id" id="insp-id">#000</div>
+  </div>
+  <div id="insp-rows"></div>
+  <div class="bar-track" style="margin-top:6px;"><div class="bar-fill" id="insp-energy-bar" style="width:50%"></div></div>
+  <button class="insp-close" id="insp-close">CLOSE</button>
+</div>
+
+<!-- MESSAGES -->
+<div id="messages"></div>
+
+<!-- LLM WORKBENCH (standalone, embedded prompt + event export) -->
+<div id="llm-backdrop" aria-hidden="true"></div>
+<section id="llm-drawer" aria-label="LLM Workbench">
+  <div class="llm-head">
+    <div>
+      <div class="llm-title">LLM Workbench</div>
+      <div class="llm-sub">ANGEL TRACE / MASK PERSPECTIVE · Event JSON · Prompt Bundle</div>
+    </div>
+    <div class="llm-head-actions">
+      <button class="llm-btn" id="btn-llm-copy-json" type="button">Copy JSON</button>
+      <button class="llm-btn primary" id="btn-llm-copy-bundle" type="button">Copy Bundle</button>
+      <button class="llm-btn warn" id="btn-llm-close" type="button">Close</button>
+    </div>
+  </div>
+
+  <div class="llm-body">
+    <div class="llm-note">
+      Standalone LLM mode: this file now embeds a prompt scaffold and event packaging logic. Trigger a vector event, then export a ready-to-paste bundle for an LLM. The system records what changed, likely transfers, delays, resistance, and non-effects.
+    </div>
+
+    <div class="llm-grid">
+      <div class="llm-field">
+        <label class="llm-label" for="llm-mode">Prompt Mode</label>
+        <select id="llm-mode">
+          <option value="angel_trace">Angel Trace (Recommended)</option>
+          <option value="audit_causal">Audit Causal Summary</option>
+          <option value="worldtext_only">Perspective Worldtext</option>
+          <option value="raw_json">Raw Event JSON Only</option>
+        </select>
+      </div>
+      <div class="llm-field">
+        <label class="llm-label" for="llm-style">Style Mode</label>
+        <select id="llm-style">
+          <option value="cold_instrument">cold_instrument (Recommended)</option>
+          <option value="panicky_cacophony">panicky_cacophony</option>
+          <option value="balanced">balanced</option>
+        </select>
+      </div>
+      <div class="llm-field">
+        <label class="llm-label" for="llm-perspective">Perspective</label>
+        <select id="llm-perspective">
+          <option value="source">source (selected entity)</option>
+        </select>
+      </div>
+      <div class="llm-field">
+        <label class="llm-label" for="llm-autobuild">Bundle Behavior</label>
+        <select id="llm-autobuild">
+          <option value="auto">Auto-refresh on event (Recommended)</option>
+          <option value="manual">Manual refresh only</option>
+        </select>
+      </div>
+      <div class="llm-field wide">
+        <label class="llm-label" for="llm-stone">Optional Stone (single extra premise)</label>
+        <input id="llm-stone" type="text" placeholder="Leave blank to use the vector event as the only stone" />
+      </div>
+    </div>
+
+    <div class="llm-row-actions">
+      <button class="llm-btn" id="btn-llm-refresh" type="button">Refresh from Current Event</button>
+      <button class="llm-btn" id="btn-llm-copy-prompt" type="button">Copy Prompt</button>
+      <button class="llm-btn" id="btn-llm-copy-user" type="button">Copy User Payload</button>
+    </div>
+
+    <div class="llm-status" id="llm-status">No event packaged yet. Select an entity and trigger GOAL / OBSTACLE / SHIFT.</div>
+
+    <div class="llm-field">
+      <label class="llm-label" for="llm-system-prompt">Embedded Prompt (system / instruction scaffold)</label>
+      <textarea id="llm-system-prompt" spellcheck="false"></textarea>
+      <div class="llm-compact">Includes Angel Lens + Mask Lens, recursive therefore chain, fracture extraction, and evidence wall checks.</div>
+    </div>
+
+    <div class="llm-field">
+      <label class="llm-label" for="llm-event-json">Event JSON (structured input)</label>
+      <textarea id="llm-event-json" spellcheck="false"></textarea>
+    </div>
+
+    <div class="llm-field">
+      <label class="llm-label" for="llm-bundle">LLM Bundle (paste-ready)</label>
+      <textarea id="llm-bundle" spellcheck="false"></textarea>
+    </div>
+  </div>
+</section>
+
+<script>
+// ====================================================
+// RIPPLES — Recursive Life: World Jockey Edition
+// Merging: RIPPLES causal worldtext + evolutionary sim
+// ====================================================
+
+// === AUDIO ENGINE ===
+const Audio = {
+  ctx: null,
+  master: null,
+  conv: null,
+  drone: null,
+  droneGain: null,
+  pack: {
+    scale: [196, 220, 261.63, 293.66, 329.63, 392, 440, 523.25],
+    droneFreq: 48.99,
+    reverb: 2.5
+  },
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AC();
+    const comp = this.ctx.createDynamicsCompressor();
+    comp.threshold.setValueAtTime(-24, this.ctx.currentTime);
+    comp.ratio.setValueAtTime(12, this.ctx.currentTime);
+    comp.connect(this.ctx.destination);
+    this.master = comp;
+    this.setupReverb();
+    this.startDrone();
+  },
+  setupReverb() {
+    if (this.conv) this.conv.disconnect();
+    this.conv = this.ctx.createConvolver();
+    const rate = this.ctx.sampleRate;
+    const len = rate * this.pack.reverb;
+    const buf = this.ctx.createBuffer(2, len, rate);
+    for (let i = 0; i < 2; i++) {
+      const ch = buf.getChannelData(i);
+      for (let j = 0; j < len; j++) ch[j] = (Math.random()*2-1) * Math.pow(1-j/len, 3);
+    }
+    this.conv.buffer = buf;
+    this.conv.connect(this.master);
+  },
+  startDrone() {
+    const osc = this.ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = this.pack.droneFreq;
+    const g = this.ctx.createGain();
+    g.gain.value = 0.04;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 180;
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.08;
+    const lg = this.ctx.createGain();
+    lg.gain.value = 80;
+    lfo.connect(lg); lg.connect(f.frequency);
+    osc.connect(f); f.connect(g); g.connect(this.conv); g.connect(this.master);
+    osc.start(); lfo.start();
+    this.droneGain = g;
+  },
+  tone(type, vector) {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    const pan = this.ctx.createStereoPanner();
+    pan.pan.value = (Math.random()*2)-1;
+    let freq = this.pack.scale[Math.floor(Math.random()*this.pack.scale.length)];
+    let atk=0.05, rel=1.0, vol=0.05;
+
+    if (type==='birth') { freq*=2; atk=0.01; rel=0.3; vol=0.04; osc.type='sine'; }
+    else if (type==='merge') { freq/=2; atk=0.15; rel=2.5; vol=0.12; osc.type='triangle'; }
+    else if (type==='death') { freq=60+Math.random()*40; atk=0.05; rel=0.4; vol=0.02; osc.type='sawtooth'; }
+    else if (type==='goal') { freq*=1.5; atk=0.02; rel=0.8; vol=0.06; osc.type='sine'; }
+    else if (type==='obstacle') { freq=80+Math.random()*60; atk=0.03; rel=0.6; vol=0.05; osc.type='square'; }
+    else if (type==='shift') { atk=0.1; rel=1.5; vol=0.08; osc.type='triangle'; }
+
+    osc.frequency.value = freq;
+    const now = this.ctx.currentTime;
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(vol, now+atk);
+    g.gain.exponentialRampToValueAtTime(0.001, now+atk+rel);
+    osc.connect(pan); pan.connect(g); g.connect(this.conv); g.connect(this.master);
+    osc.start(now); osc.stop(now+atk+rel+0.1);
+  },
+  updateDrone(n) {
+    if (!this.droneGain) return;
+    const t = 0.02 + Math.min(n/500, 0.12);
+    this.droneGain.gain.setTargetAtTime(t, this.ctx.currentTime, 1.0);
+  }
+};
+
+// === HAPTICS ===
+const Haptic = { trigger(p) { if(navigator.vibrate) navigator.vibrate(p); }};
+
+// === RNG ===
+class RNG {
+  constructor(s) { this.s = s||Date.now(); }
+  next() {
+    let t = this.s += 0x6D2B79F5;
+    t = Math.imul(t^(t>>>15), t|1);
+    t ^= t + Math.imul(t^(t>>>7), t|61);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  }
+  r(min,max) { return min+this.next()*(max-min); }
+  ri(min,max) { return Math.floor(this.r(min,max)); }
+}
+
+const rng = new RNG(42069);
+
+// === CONFIG ===
+const C = {
+  GW: 128, GH: 128,
+  MAX_AGENTS: 600,
+  TICK_MS: 20,
+  AGENT_R: 0.42,
+  WIN_DEPTH: 4,
+  WIN_COUNT: 3,
+  COLLAPSE_THRESH: 0.85,
+};
+
+// === AGENT ===
+class Agent {
+  constructor(x, y, depth=1) {
+    this.id = Math.floor(rng.next()*1000000);
+    this.pos = {x, y};
+    this.vel = {x:rng.r(-0.1,0.1), y:rng.r(-0.1,0.1)};
+    this.energy = 0.5;
+    this.age = 0;
+    this.depth = depth;
+    this.stability = 1.0;
+    this.genome = Array.from({length:4+depth*2}, ()=>rng.ri(0,255));
+    let n = [rng.next(), rng.next(), rng.next()];
+    const nl = Math.hypot(...n); this.niche = n.map(v=>v/nl);
+    this.complexity = this.calcK();
+    this.metaRate = 0.005*(1+(this.genome[0]%10)/20);
+    this.repThresh = 0.6+(this.genome[1]%10)/50;
+    this.sensorRad = 2+(this.genome[2]%5);
+    this.rippleIntensity = 0;
+    this.rippleColor = null;
+    // RIPPLES worldtext entity type
+    this.type = 'animate';
+    this.vectorHistory = [];
+  }
+  calcK() {
+    const counts = {};
+    this.genome.forEach(g=>counts[g]=(counts[g]||0)+1);
+    let e = 0;
+    for (let k in counts) { const p=counts[k]/this.genome.length; e-=p*Math.log2(p); }
+    return e*10 + this.depth*20;
+  }
+}
+
+// === GAME STATE ===
+let SIM = {
+  agents: [],
+  resources: new Float32Array(C.GW*C.GH),
+  walls: new Uint8Array(C.GW*C.GH),
+  spatial: [],
+  ticks: 0,
+  lastTime: 0,
+  acc: 0,
+  paused: false,
+  speed: 1,
+  mode: 'inspect',
+  settings: { vol:20, mut:0.03, brushSize:5 },
+  selectedAgent: null,
+  selectedEntityId: null,
+  autoplay: false,
+  autoTimer: null,
+  status: 'INIT',
+  lastEvent: null,
+  lastEventRecord: null,
+  auditEvents: [],
+  eventSeq: 0,
+  frameTime: 16,
+  tempCanvas: null, tempCtx: null, tempImg: null,
+  lastTouch: null,
+  audioReady: false,
+  rippleRings: [],
+  stats: { pop:0, maxDepth:0, maxK:0 }
+};
+
+// === WORLD INIT ===
+function initWorld() {
+  SIM.agents = [];
+  SIM.ticks = 0;
+  SIM.status = 'RUNNING';
+  SIM.acc = 0;
+  SIM.lastTime = performance.now();
+  SIM.rippleRings = [];
+  SIM.lastEvent = null;
+  SIM.lastEventRecord = null;
+  SIM.auditEvents = [];
+  SIM.eventSeq = 0;
+  SIM.spatial = new Array(C.GW*C.GH).fill(null).map(()=>[]);
+  for (let i=0;i<SIM.resources.length;i++) SIM.resources[i]=rng.next()*0.5;
+  SIM.walls.fill(0);
+  for (let i=0;i<120;i++) {
+    SIM.agents.push(new Agent(rng.r(5,C.GW-5), rng.r(5,C.GH-5)));
+  }
+  if (SIM.audioReady) Audio.updateDrone(120);
+  updateEntityPool();
+  setWorldtext(null, null, null);
+  resetImpact();
+  updateLLMWorkbench(null);
+  logMsg('System initialized. Ecology active.', false);
+  document.getElementById('init-hint').style.display = 'none';
+}
+
+// === SPATIAL HASH ===
+function updateSpatialHash() {
+  for(let i=0;i<SIM.spatial.length;i++) SIM.spatial[i].length=0;
+  SIM.agents.forEach(a => {
+    const x=(Math.floor(a.pos.x)+C.GW)%C.GW;
+    const y=(Math.floor(a.pos.y)+C.GH)%C.GH;
+    SIM.spatial[y*C.GW+x].push(a);
+  });
+}
+
+function getNeighbors(a) {
+  const list=[];
+  const cx=Math.floor(a.pos.x), cy=Math.floor(a.pos.y);
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) {
+    const nx=(cx+dx+C.GW)%C.GW, ny=(cy+dy+C.GH)%C.GH;
+    for(let o of SIM.spatial[ny*C.GW+nx]) if(o!==a) list.push(o);
+  }
+  return list;
+}
+
+// === TICK ===
+function tick() {
+  if(SIM.paused) return;
+  SIM.ticks++;
+  const GW=C.GW, GH=C.GH;
+
+  // Volatility event
+  if(SIM.ticks%20===0 && rng.next()<SIM.settings.vol/100) {
+    const cx=rng.ri(0,GW), cy=rng.ri(0,GH), r=rng.ri(5,15);
+    for(let y=-r;y<=r;y++) for(let x=-r;x<=r;x++) {
+      if(x*x+y*y<=r*r) SIM.resources[((cy+y+GH)%GH)*GW+((cx+x+GW)%GW)]+=0.2;
+    }
+  }
+
+  // Decay
+  for(let i=0;i<SIM.resources.length;i++) {
+    SIM.resources[i]*=0.995;
+    if(SIM.walls[i]) SIM.resources[i]=0;
+  }
+
+  updateSpatialHash();
+
+  const next=[], births=[];
+  let deadCount=0;
+
+  for(let a of SIM.agents) {
+    // Sense
+    let bv=-1, bd={x:0,y:0};
+    const cx=Math.floor(a.pos.x), cy=Math.floor(a.pos.y);
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) {
+      if(!dx&&!dy) continue;
+      const nx=(cx+dx+GW)%GW, ny=(cy+dy+GH)%GH;
+      let v=SIM.resources[ny*GW+nx];
+      if(SIM.walls[ny*GW+nx]) v=-100;
+      if(v>bv){bv=v;bd={x:dx,y:dy};}
+    }
+
+    const neighbors=getNeighbors(a);
+    let crowd={x:0,y:0};
+    let cn=0;
+    for(let n of neighbors) {
+      const d=Math.hypot(a.pos.x-n.pos.x, a.pos.y-n.pos.y);
+      if(d<1.0){crowd.x+=(a.pos.x-n.pos.x)*(1-d);crowd.y+=(a.pos.y-n.pos.y)*(1-d);cn++;}
+    }
+
+    a.vel.x+=bd.x*0.05+crowd.x*0.1+(rng.next()-0.5)*0.05;
+    a.vel.y+=bd.y*0.05+crowd.y*0.1+(rng.next()-0.5)*0.05;
+    a.vel.x*=0.9; a.vel.y*=0.9;
+
+    const nx2=a.pos.x+a.vel.x, ny2=a.pos.y+a.vel.y;
+    const ci=((Math.floor(ny2+GH)%GH)*GW)+(Math.floor(nx2+GW)%GW);
+    if(SIM.walls[ci]){a.vel.x*=-0.5;a.vel.y*=-0.5;}
+    else {a.pos.x=(nx2+GW)%GW;a.pos.y=(ny2+GH)%GH;}
+
+    // Metabolism
+    const idx=Math.floor(a.pos.y)*GW+Math.floor(a.pos.x);
+    const avail=SIM.resources[idx];
+    const consume=Math.min(avail,0.05*a.depth);
+    SIM.resources[idx]-=consume;
+    a.energy+=consume*5;
+    a.energy-=a.metaRate*a.depth;
+    a.age++;
+    if(cn>3) a.energy-=0.002*cn;
+
+    // Ripple intensity decay
+    if(a.rippleIntensity>0) a.rippleIntensity=Math.max(0, a.rippleIntensity-0.03);
+
+    // Merge
+    let merged=false;
+    if(a.energy>0.4 && neighbors.length>0 && rng.next()<0.05) {
+      for(let n of neighbors) {
+        if(n.depth+a.depth<=5 && n.energy>0.4) {
+          const d=Math.hypot(a.pos.x-n.pos.x, a.pos.y-n.pos.y);
+          if(d<1.2) {
+            const dot=a.niche.reduce((s,v,i)=>s+v*n.niche[i],0);
+            if(dot>0.8||(rng.next()<0.05)) {
+              n.energy=-1; a.energy=-1;
+              const child=new Agent(a.pos.x,a.pos.y,Math.max(a.depth,n.depth)+1);
+              child.energy=0.8;
+              child.genome=a.genome.map((g,i)=>(g+(n.genome[i]||0))%256);
+              child.niche=child.niche.map((_,i)=>(a.niche[i]+n.niche[i])/2);
+              child.complexity=child.calcK();
+              births.push(child);
+              merged=true;
+              logMsg(`Symbiogenesis — depth ${child.depth}`, false);
+              Audio.tone('merge');
+              addRippleRing(a.pos.x, a.pos.y, child.depth);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Replicate
+    if(!merged && a.energy>a.repThresh && a.age>20) {
+      if(SIM.agents.length+births.length<C.MAX_AGENTS) {
+        a.energy*=0.5;
+        const child=new Agent(a.pos.x,a.pos.y,a.depth);
+        child.genome=[...a.genome]; child.niche=[...a.niche];
+        const gOld=child.genome.map(g=>g);
+        if(rng.next()<SIM.settings.mut) {
+          const gi=rng.ri(0,child.genome.length);
+          child.genome[gi]=(child.genome[gi]+rng.ri(-5,5)+256)%256;
+        }
+        child.complexity=child.calcK();
+        child.energy=0.4;
+        births.push(child);
+        if(rng.next()<0.08) Audio.tone('birth');
+      }
+    }
+
+    // Decompose
+    if(!merged && a.depth>1 && a.energy<0.1 && rng.next()<0.1) {
+      a.energy=-1;
+      births.push(new Agent(a.pos.x,a.pos.y,a.depth-1));
+      births.push(new Agent(a.pos.x,a.pos.y,a.depth-1));
+    }
+
+    if(a.energy>0 && a.age<2000 && !merged) next.push(a);
+    else {
+      deadCount++;
+      if(idx>=0&&idx<SIM.resources.length) SIM.resources[idx]+=0.1*a.depth;
+      if(deadCount%5===0) Audio.tone('death');
+    }
+  }
+
+  SIM.agents=next.concat(births);
+  if(SIM.ticks%10===0) Audio.updateDrone(SIM.agents.length);
+  checkConditions();
+}
+
+function addRippleRing(gx, gy, depth) {
+  const can = document.getElementById('simCanvas');
+  const x = (gx/C.GW)*can.width;
+  const y = (gy/C.GH)*can.height;
+  const colors = ['#4af626','#00ccff','#ff44ff','#ffcc00'];
+  SIM.rippleRings.push({x, y, r:0, maxR:80, alpha:0.8, color:colors[Math.min(depth-1,3)]});
+}
+
+function addVectorRipple(gx, gy, vector) {
+  const can = document.getElementById('simCanvas');
+  const x = (gx/C.GW)*can.width;
+  const y = (gy/C.GH)*can.height;
+  const colMap = {GOAL:'#ffd700', OBSTACLE:'#ff3333', SHIFT:'#00ffee'};
+  SIM.rippleRings.push({x, y, r:0, maxR:120, alpha:1.0, color:colMap[vector]||'#00ffee'});
+}
+
+function checkConditions() {
+  if(SIM.agents.length===0&&SIM.ticks>10) { SIM.status='EXTINCTION'; return; }
+  let simple=0, maxDepth=0, maxDepthCnt=0, maxK=0;
+  SIM.agents.forEach(a => {
+    if(a.depth===1) simple++;
+    if(a.depth>maxDepth){maxDepth=a.depth;maxDepthCnt=1;}
+    else if(a.depth===maxDepth) maxDepthCnt++;
+    if(a.complexity>maxK) maxK=a.complexity;
+  });
+  SIM.stats.pop=SIM.agents.length;
+  SIM.stats.maxDepth=maxDepth;
+  SIM.stats.maxK=Math.floor(maxK);
+  if(maxDepth>=C.WIN_DEPTH&&maxDepthCnt>=C.WIN_COUNT) SIM.status='TRANSCENDENCE';
+  else if(SIM.agents.length>50&&simple/SIM.agents.length>C.COLLAPSE_THRESH&&SIM.ticks>500) SIM.status='COLLAPSE';
+  else SIM.status='RUNNING';
+}
+
+// === DRAW ===
+function draw() {
+  const can = document.getElementById('simCanvas');
+  const W=can.width, H=can.height;
+
+  if(!SIM.tempCanvas){
+    SIM.tempCanvas=document.createElement('canvas');
+    SIM.tempCanvas.width=C.GW; SIM.tempCanvas.height=C.GH;
+    SIM.tempCtx=SIM.tempCanvas.getContext('2d');
+    SIM.tempImg=SIM.tempCtx.createImageData(C.GW,C.GH);
+  }
+
+  const td=SIM.tempImg.data;
+  for(let i=0;i<C.GW*C.GH;i++) {
+    const r=SIM.resources[i], wall=SIM.walls[i], idx=i*4;
+    if(wall){td[idx]=30;td[idx+1]=40;td[idx+2]=50;td[idx+3]=255;}
+    else {
+      const v=Math.floor(Math.min(r,1)*100);
+      td[idx]=0;td[idx+1]=v/3;td[idx+2]=v;td[idx+3]=255;
+    }
+  }
+  SIM.tempCtx.putImageData(SIM.tempImg,0,0);
+
+  const ctx2=can.getContext('2d',{alpha:false});
+  ctx2.imageSmoothingEnabled=false;
+  ctx2.drawImage(SIM.tempCanvas,0,0,W,H);
+
+  const scaleX=W/C.GW, scaleY=H/C.GH;
+
+  // Draw ripple rings
+  const rcan = document.getElementById('rippleCanvas');
+  const rc = rcan.getContext('2d');
+  rc.clearRect(0,0,W,H);
+  SIM.rippleRings=SIM.rippleRings.filter(ring=>{
+    ring.r+=4; ring.alpha-=0.02;
+    if(ring.alpha<=0) return false;
+    rc.beginPath();
+    rc.arc(ring.x,ring.y,ring.r,0,Math.PI*2);
+    rc.strokeStyle=ring.color;
+    rc.globalAlpha=ring.alpha;
+    rc.lineWidth=2;
+    rc.stroke();
+    rc.globalAlpha=1;
+    return true;
+  });
+
+  // Agents
+  ctx2.lineWidth=1.5;
+  for(let a of SIM.agents) {
+    const sx=(a.pos.x/C.GW)*W, sy=(a.pos.y/C.GH)*H;
+    const r=(C.AGENT_R*scaleX)*(0.8+a.depth*0.4);
+
+    let col;
+    if(a.depth===1) col=`rgba(74,246,38,${0.2+a.energy*0.8})`;
+    else if(a.depth===2) col=`rgba(0,204,255,${0.2+a.energy*0.8})`;
+    else if(a.depth===3) col=`rgba(255,68,255,${0.3+a.energy*0.7})`;
+    else col=`rgba(255,204,0,${0.5+a.energy*0.5})`;
+
+    ctx2.beginPath();
+    ctx2.arc(sx,sy,r,0,Math.PI*2);
+    ctx2.fillStyle=col;
+    ctx2.fill();
+
+    if(a.rippleIntensity>0.1) {
+      ctx2.beginPath();
+      ctx2.arc(sx,sy,r+4*a.rippleIntensity,0,Math.PI*2);
+      ctx2.strokeStyle=a.rippleColor||'#00ffee';
+      ctx2.globalAlpha=a.rippleIntensity*0.6;
+      ctx2.stroke();
+      ctx2.globalAlpha=1;
+    }
+
+    if(SIM.selectedAgent===a) {
+      ctx2.beginPath(); ctx2.arc(sx,sy,r+3,0,Math.PI*2);
+      ctx2.strokeStyle='#fff'; ctx2.lineWidth=1.5; ctx2.stroke();
+      ctx2.beginPath(); ctx2.arc(sx,sy,r+8,0,Math.PI*2);
+      ctx2.strokeStyle='#00ffee'; ctx2.lineWidth=1; ctx2.stroke();
+    }
+  }
+
+  // Brush indicator
+  if(SIM.lastTouch&&(SIM.mode==='feed'||SIM.mode==='wall')) {
+    const {x,y}=SIM.lastTouch;
+    const br=(SIM.settings.brushSize/C.GW)*W*2;
+    ctx2.beginPath(); ctx2.arc(x,y,br,0,Math.PI*2);
+    ctx2.strokeStyle=SIM.mode==='feed'?'rgba(74,246,38,0.5)':'rgba(255,100,100,0.5)';
+    ctx2.lineWidth=1; ctx2.stroke();
+  }
+}
+
+// === WORLDTEXT (RIPPLES Engine) ===
+const WORLDTEXT = {
+  GOAL: [
+    (a)=>`The ${entityLabel(a)} intensifies its orientation toward available resources. Activity: ${fmt(a.energy*100,0)}% energy. Antennae sweep chemical gradients — the vector resolves as forward pressure. <span class="worldtext-channel">Channel: resource-gradient</span>. The environment is now a probability map of reward.`,
+    (a)=>`Depth-${a.depth} entity locks onto an energy differential. It has found the trace. <span class="worldtext-channel">Transfer: chemical/kinetic</span>, delay minimal, coupling high. The world tilts toward the gradient. Adjacent entities register the movement — some align, some are crowded outward.`,
+    (a)=>`Something in the local field shifts as the ${entityLabel(a)} moves. Resource cells ahead deplete. <span class="worldtext-channel">Channel: consumption-wake</span>. The transfer propagates to neighbors: they receive a reduced resource field. <span class="worldtext-inference">Inference: competitors will redirect soon</span>.`,
+  ],
+  OBSTACLE: [
+    (a)=>`The ${entityLabel(a)} meets resistance. Energy: ${fmt(a.energy*100,0)}%. Velocity reverses. The obstacle is not a wall but a density — <span class="worldtext-channel">channel: pressure/crowding</span> coupling 0.8, resistance 0.2. The entity is compressed against its own niche boundary. Neighbors absorb the deflection force.`,
+    (a)=>`Depth-${a.depth} agent enters a low-resource zone. Metabolic deficit begins. The expected gradient is absent — the search pattern lengthens. <span class="worldtext-channel">Channel: absence-signal</span>. <span class="worldtext-blocked">Transfer to energy reserves: blocked by deficit threshold.</span> The world has become a negative space.`,
+    (a)=>`Contact with barrier detected. Velocity vector inverts. The ${entityLabel(a)} registers the wall as solid absence — a place where the resource map returns zero. <span class="worldtext-channel">Channel: surface-contact, resistance: 1.0</span>. <span class="worldtext-inference">Inference: prolonged contact increases energy cost.</span>`,
+  ],
+  SHIFT: [
+    (a)=>`The ${entityLabel(a)} undergoes metabolic state change. Genome expression alters. Complexity reading: <span class="worldtext-delta">${Math.floor(a.complexity)}</span>. The niche vector rotates — what was attractive is now ambiguous. <span class="worldtext-channel">Channel: genetic/behavioral</span>. Adjacent entities sense a different signature from this position.`,
+    (a)=>`Depth-${a.depth} entity shifts its tempo. Replication threshold changes from pressure to surplus. The world looks the same; the entity reads it differently. <span class="worldtext-channel">Channel: internal-state, delay: generational</span>. <span class="worldtext-blocked">No immediate transfer to neighbors detected. Effect is latent.</span>`,
+    (a)=>`Something in the ${entityLabel(a)}'s gradient interpretation rotates. The map stays the same — the reading changes. Energy allocation shifts toward stability over growth. <span class="worldtext-delta">Stability +${fmt(rng.r(0.05,0.2),2)}</span> as metabolic overhead decreases. <span class="worldtext-inference">Inference: this shift may produce a new niche boundary.</span>`,
+  ],
+};
+
+function entityLabel(a) {
+  const labels1=['forager','basic agent','pioneer organism'];
+  const labels2=['merged pair','symbiont','bonded entity'];
+  const labels3=['colony node','cluster intelligence','nested entity'];
+  const labels4=['transcendent','level-4 intelligence','apex hierarchy'];
+  if(a.depth===1) return labels1[a.id%3];
+  if(a.depth===2) return labels2[a.id%3];
+  if(a.depth===3) return labels3[a.id%3];
+  return labels4[a.id%3];
+}
+
+function fmt(n, d) { return n.toFixed(d); }
+
+// === LLM / EVENT RECORD HELPERS ===
+const LLM_PROMPTS = {
+  angel_trace: ({ styleMode, stone, perspective }) => `You are the Angel of Ripples (Ripple Architect).
+
+Trace the event record first. Do not invent causality.
+Then return through the chosen entity perspective.
+
+Dual lens:
+1) Angel Lens = source delta, transfers, resistance, delay, non-effects
+2) Mask Lens = perspective-locked narration through ${perspective || 'the source entity'}
+
+Style mode: ${styleMode}
+${stone ? `Optional Stone (single extra premise): ${stone}` : 'No extra Stone. The vector event is the only stone.'}
+
+Rules:
+- No leapfrogging.
+- Evidence wall check (mark inferences explicitly).
+- Include at least one blocked/non-effect path if present.
+- No poetic vagueness in place of mechanism.
+- End with unresolved pressure, not closure.
+
+Output sections (exact):
+EVENT_ANCHOR
+THEREFORE_CHAIN (L0..L4)
+FRACTURE_POINT
+PERSPECTIVE_WORLDTEXT
+OPERATOR_NEXT_MOVES
+MISSING_EVIDENCE`,
+
+  audit_causal: ({ styleMode }) => `You are a causal audit writer for RIPPLES.
+
+Use the structured event record only.
+Describe:
+- source perturbation
+- source before/after delta
+- transfers (channel, delay, resistance, intensity)
+- non-effects / blocked paths
+- strongest and weakest consequences
+- explicit missing evidence
+
+Mark all inferences as "Inference:".
+Style mode: ${styleMode}.`,
+
+  worldtext_only: ({ styleMode, perspective }) => `You are writing perspective-locked worldtext for RIPPLES.
+
+Write from the perspective of ${perspective || 'the source entity'}.
+Ground every consequential claim in the event record.
+Must include:
+- one source delta
+- one transfer with channel + delay
+- one blocked path or resistance condition (if present)
+- one unresolved ambiguity
+
+Avoid generic atmosphere loops.
+Style mode: ${styleMode}.`,
+
+  raw_json: () => `Return structured analysis only. No prose. Summarize the event record and identify missing fields for stronger causal inference.`
+};
+
+function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+function r2(n){ return Math.round(n * 100) / 100; }
+function r3(n){ return Math.round(n * 1000) / 1000; }
+
+function getAgentStateSnapshot(a) {
+  const neighbors = getNeighbors(a);
+  const speed = Math.hypot(a.vel.x, a.vel.y);
+  return {
+    activity: r3(clamp01(speed * 4)),
+    stability: r3(clamp01(a.stability)),
+    exposure: r3(clamp01(neighbors.length / 8)),
+    resource: r3(clamp01(a.energy)),
+    signal: r3(clamp01(a.complexity / 120)),
+    depth: a.depth,
+    complexity: r3(a.complexity),
+    energy: r3(a.energy),
+    neighborCount: neighbors.length
+  };
+}
+
+function diffState(before, after) {
+  const keys = ['activity','stability','exposure','resource','signal'];
+  const out = {};
+  keys.forEach(k => out[k] = r3((after[k] || 0) - (before[k] || 0)));
+  return out;
+}
+
+function strongestDeltaKey(delta) {
+  return ['activity','stability','exposure','resource','signal']
+    .sort((a,b)=>Math.abs(delta[b]||0)-Math.abs(delta[a]||0))[0] || 'signal';
+}
+
+function inferTransferChannel(vector, source, target, dist, index) {
+  const base = {
+    GOAL: ['resource-gradient','consumption-wake','chemical/kinetic','attention-field'],
+    OBSTACLE: ['pressure/contact','deflection-force','absence-signal','barrier-shadow'],
+    SHIFT: ['genetic/behavioral','internal-state','signature-shift','tempo-relabel']
+  };
+  const pool = base[vector] ? [...base[vector]] : ['signal'];
+
+  if (target.depth > source.depth) pool.unshift('hierarchy-pressure');
+  if (target.depth < source.depth) pool.unshift('downstream-noise');
+  if (dist < 1.5) pool.unshift('surface-contact');
+  if (target.energy < 0.25) pool.unshift('deficit-coupling');
+  if (target.complexity > source.complexity) pool.unshift('signal-refraction');
+
+  return pool[index % pool.length];
+}
+
+function stateBiasFromChannel(channel) {
+  const map = {
+    'resource-gradient': { resource: 0.12, activity: 0.08, signal: 0.03 },
+    'consumption-wake': { resource: -0.08, exposure: 0.07, signal: 0.03 },
+    'chemical/kinetic': { activity: 0.09, exposure: 0.06, stability: -0.04 },
+    'attention-field': { signal: 0.1, exposure: 0.05 },
+    'pressure/contact': { stability: -0.12, activity: -0.03, exposure: 0.04 },
+    'deflection-force': { stability: -0.08, signal: 0.04, activity: 0.02 },
+    'absence-signal': { resource: -0.1, signal: 0.06, activity: -0.03 },
+    'barrier-shadow': { exposure: -0.07, signal: 0.05, stability: 0.02 },
+    'genetic/behavioral': { signal: 0.12, activity: 0.03, stability: -0.03 },
+    'internal-state': { signal: 0.08, stability: 0.02, activity: -0.02 },
+    'signature-shift': { signal: 0.14, exposure: 0.03 },
+    'tempo-relabel': { activity: 0.05, signal: 0.06, stability: -0.02 },
+    'hierarchy-pressure': { stability: -0.08, signal: 0.06 },
+    'downstream-noise': { signal: 0.04, exposure: 0.04 },
+    'surface-contact': { stability: -0.05, exposure: 0.05, activity: 0.02 },
+    'deficit-coupling': { resource: -0.06, stability: -0.04, signal: 0.03 },
+    'signal-refraction': { signal: 0.12, resource: -0.03, exposure: 0.02 },
+  };
+  return map[channel] || { signal: 0.05 };
+}
+
+function vectorBias(vector) {
+  return {
+    GOAL: { activity: 0.08, resource: 0.1, signal: 0.03, exposure: 0.04, stability: -0.02 },
+    OBSTACLE: { stability: -0.12, resource: -0.08, signal: 0.05, exposure: 0.03, activity: -0.03 },
+    SHIFT: { signal: 0.12, activity: 0.02, exposure: 0.05, stability: -0.03, resource: 0.01 }
+  }[vector] || { signal: 0.04 };
+}
+
+function predictTransferForLLM(source, target, vector, sourceDelta, index) {
+  const dist = Math.hypot(source.pos.x - target.pos.x, source.pos.y - target.pos.y);
+  const distNorm = Math.min(dist / 8, 1);
+  const coupling = clamp01(0.78 - distNorm * 0.55 + (source.depth - 1) * 0.04);
+  const resistance = clamp01((1 - target.stability) * 0.15 + (target.energy < 0.25 ? 0.18 : 0.05) + distNorm * 0.35 + (target.depth > source.depth ? 0.06 : 0));
+  const delayMs = Math.round(80 + dist * 35 + index * 40);
+  const sourceMag = (Math.abs(sourceDelta.activity)+Math.abs(sourceDelta.stability)+Math.abs(sourceDelta.exposure)+Math.abs(sourceDelta.resource)+Math.abs(sourceDelta.signal)) / 5;
+  const intensity = clamp01(sourceMag * coupling * (1 - resistance) * 2.2);
+  const channel = inferTransferChannel(vector, source, target, dist, index);
+
+  const targetBefore = getAgentStateSnapshot(target);
+  const chBias = stateBiasFromChannel(channel);
+  const vBias = vectorBias(vector);
+  const delta = {};
+  ['activity','stability','exposure','resource','signal'].forEach(k => {
+    const sourceTerm = (sourceDelta[k] || 0) * 0.35;
+    const vecTerm = (vBias[k] || 0) * 0.4;
+    const chTerm = (chBias[k] || 0) * 0.6;
+    delta[k] = r3(Math.max(-0.25, Math.min(0.25, (sourceTerm + vecTerm + chTerm) * intensity)));
+  });
+
+  const targetAfter = { ...targetBefore };
+  ['activity','stability','exposure','resource','signal'].forEach(k => {
+    targetAfter[k] = r3(clamp01((targetBefore[k] || 0) + (delta[k] || 0)));
+  });
+  targetAfter.depth = targetBefore.depth;
+  targetAfter.complexity = targetBefore.complexity;
+  targetAfter.energy = targetBefore.energy;
+  targetAfter.neighborCount = targetBefore.neighborCount;
+
+  const strongest = strongestDeltaKey(delta);
+  const outcome = intensity < 0.08 ? 'mostly_blocked' :
+    resistance > 0.65 ? 'dampened' :
+    intensity > 0.33 ? 'amplified' :
+    (channel.includes('signal') || channel.includes('shift')) ? 'rerouted' : 'transferred';
+
+  return {
+    targetBefore, targetAfter, delta, coupling: r3(coupling), resistance: r3(resistance),
+    delayMs, intensity: r3(intensity), channel, strongest, outcome, dist: r3(dist)
+  };
+}
+
+function buildRippleEventRecord(agent, vector, sourceBefore) {
+  const sourceAfter = getAgentStateSnapshot(agent);
+  const sourceDelta = diffState(sourceBefore, sourceAfter);
+  const neighbors = getNeighbors(agent).slice()
+    .sort((a,b)=>Math.hypot(agent.pos.x-a.pos.x,agent.pos.y-a.pos.y)-Math.hypot(agent.pos.x-b.pos.x,agent.pos.y-b.pos.y))
+    .slice(0, 6);
+
+  const transfers = [];
+  const nonEffects = [];
+
+  neighbors.forEach((n, idx) => {
+    const tr = predictTransferForLLM(agent, n, vector, sourceDelta, idx);
+    const payload = {
+      fromId: agent.id,
+      targetId: n.id,
+      targetLabel: entityLabel(n),
+      pathDelayMs: tr.delayMs,
+      edge: {
+        channel: tr.channel,
+        coupling: tr.coupling,
+        resistance: tr.resistance
+      },
+      intensity: tr.intensity,
+      before: {
+        activity: tr.targetBefore.activity,
+        stability: tr.targetBefore.stability,
+        exposure: tr.targetBefore.exposure,
+        resource: tr.targetBefore.resource,
+        signal: tr.targetBefore.signal
+      },
+      after: {
+        activity: tr.targetAfter.activity,
+        stability: tr.targetAfter.stability,
+        exposure: tr.targetAfter.exposure,
+        resource: tr.targetAfter.resource,
+        signal: tr.targetAfter.signal
+      },
+      delta: tr.delta,
+      outcome: tr.outcome,
+      evidence: {
+        strongest_dimension: tr.strongest,
+        distance_cells: tr.dist
+      },
+      inferred: true
+    };
+
+    if (tr.intensity >= 0.06) transfers.push(payload);
+    else nonEffects.push({
+      fromId: agent.id,
+      targetId: n.id,
+      targetLabel: entityLabel(n),
+      pathDelayMs: tr.delayMs,
+      edge: { channel: tr.channel, coupling: tr.coupling, resistance: tr.resistance },
+      reasonCode: 'below_visible_threshold',
+      reason: 'Predicted transfer intensity did not cross visible threshold.',
+      inferred: true
+    });
+  });
+
+  const strongestTransfer = transfers.slice().sort((a,b)=>b.intensity-a.intensity)[0] || null;
+  const blocked = nonEffects[0] || null;
+  const eventId = `evt-${String(++SIM.eventSeq).padStart(5, '0')}`;
+  const timestamp = new Date();
+
+  const event = {
+    eventId,
+    tick: SIM.ticks,
+    scenarioId: 'cupboard-ecology-sim',
+    source: {
+      entityId: agent.id,
+      entityLabel: entityLabel(agent),
+      depth: agent.depth,
+      vector
+    },
+    origin: SIM.autoplay ? 'autoplay' : 'manual',
+    timestamp: timestamp.toISOString(),
+    sourceDelta: {
+      before: {
+        activity: sourceBefore.activity,
+        stability: sourceBefore.stability,
+        exposure: sourceBefore.exposure,
+        resource: sourceBefore.resource,
+        signal: sourceBefore.signal
+      },
+      after: {
+        activity: sourceAfter.activity,
+        stability: sourceAfter.stability,
+        exposure: sourceAfter.exposure,
+        resource: sourceAfter.resource,
+        signal: sourceAfter.signal
+      },
+      delta: sourceDelta
+    },
+    transfers,
+    nonEffects,
+    promptProvenance: {
+      mode: 'embedded-evo-02-llm-workbench',
+      promptProfile: 'angel-trace-lite.v1',
+      source: 'evo-02.html'
+    },
+    simContext: {
+      population: SIM.agents.length,
+      maxDepth: SIM.stats.maxDepth || 0,
+      maxComplexity: SIM.stats.maxK || 0,
+      status: SIM.status
+    },
+    notes: {
+      transfer_model: 'Predicted relational transfer derived from proximity, depth, source delta, and vector bias (inferred for LLM analysis).',
+      source_delta_is_measured: true
+    },
+    operatorNextMoves: [],
+    worldtextSummary: '',
+    strongestTransfer: strongestTransfer ? {
+      targetId: strongestTransfer.targetId,
+      channel: strongestTransfer.edge.channel,
+      intensity: strongestTransfer.intensity,
+      delayMs: strongestTransfer.pathDelayMs
+    } : null,
+    firstBlockedPath: blocked ? {
+      targetId: blocked.targetId,
+      channel: blocked.edge.channel,
+      reason: blocked.reason
+    } : null
+  };
+
+  if (strongestTransfer) {
+    event.operatorNextMoves.push(`Select entity #${strongestTransfer.targetId} (${strongestTransfer.targetLabel}) and test SHIFT to see if ${strongestTransfer.edge.channel} amplifies or reroutes.`);
+  }
+  if (blocked) {
+    event.operatorNextMoves.push(`Probe #${blocked.targetId} with GOAL or SHIFT; path via ${blocked.edge.channel} is currently below visible threshold.`);
+  }
+  event.operatorNextMoves.push(`Re-trigger source #${agent.id} with ${vector === 'SHIFT' ? 'GOAL' : 'SHIFT'} and compare source/resource delta against tick ${SIM.ticks}.`);
+
+  return event;
+}
+
+function summarizeEventForWorldtext(event) {
+  const src = event.source;
+  const sd = event.sourceDelta.delta;
+  const strong = event.strongestTransfer;
+  const blocked = event.firstBlockedPath;
+  const deltaKey = strongestDeltaKey(sd);
+  const deltaVal = sd[deltaKey] || 0;
+  let line = `Measured source delta: ${deltaKey} ${deltaVal>=0?'+':''}${fmt(deltaVal,2)}. `;
+  if (strong) line += `Strongest transfer: #${strong.targetId} via ${strong.channel}, intensity ${fmt(strong.intensity,2)}, delay ${strong.delayMs}ms. `;
+  if (blocked) line += `Blocked/non-visible path: #${blocked.targetId} via ${blocked.channel}. `;
+  line += `Perspective remains locked to ${src.entityLabel} (#${src.entityId}).`;
+  return line;
+}
+
+function getLLMFormOptions() {
+  const mode = (document.getElementById('llm-mode') || {}).value || 'angel_trace';
+  const style = (document.getElementById('llm-style') || {}).value || 'cold_instrument';
+  const perspective = (document.getElementById('llm-perspective') || {}).value || 'source';
+  const stone = ((document.getElementById('llm-stone') || {}).value || '').trim();
+  return { mode, style, perspective, stone };
+}
+
+function getPerspectiveLabelFromEvent(event, perspectiveValue) {
+  if (!event) return 'the source entity';
+  if (perspectiveValue === 'source') return `${event.source.entityLabel} (#${event.source.entityId})`;
+  const tr = event.transfers.find(t => `target:${t.targetId}` === perspectiveValue);
+  if (tr) return `${tr.targetLabel} (#${tr.targetId})`;
+  const nf = event.nonEffects.find(n => `target:${n.targetId}` === perspectiveValue);
+  if (nf) return `${nf.targetLabel} (#${nf.targetId})`;
+  return `${event.source.entityLabel} (#${event.source.entityId})`;
+}
+
+function buildLLMSystemPrompt(event) {
+  const opts = getLLMFormOptions();
+  const perspectiveLabel = getPerspectiveLabelFromEvent(event, opts.perspective);
+  const factory = LLM_PROMPTS[opts.mode] || LLM_PROMPTS.angel_trace;
+  return factory({ styleMode: opts.style, stone: opts.stone, perspective: perspectiveLabel });
+}
+
+function buildLLMUserPayload(event) {
+  if (!event) return 'No event available yet. Trigger GOAL / OBSTACLE / SHIFT on a selected entity.';
+  const opts = getLLMFormOptions();
+  const perspectiveLabel = getPerspectiveLabelFromEvent(event, opts.perspective);
+  const packageEvent = JSON.parse(JSON.stringify(event));
+  packageEvent.llmControl = {
+    mode: opts.mode,
+    styleMode: opts.style,
+    perspective: opts.perspective,
+    perspectiveLabel,
+    stone: opts.stone || null
+  };
+  return [
+    'RIPPLES LLM PACKAGE',
+    `mode=${opts.mode}`,
+    `style=${opts.style}`,
+    `perspective=${perspectiveLabel}`,
+    '',
+    'EVENT_RECORD_JSON',
+    JSON.stringify(packageEvent, null, 2)
+  ].join('\\n');
+}
+
+function buildLLMCombinedBundle(event) {
+  return [
+    '=== SYSTEM / INSTRUCTION PROMPT ===',
+    buildLLMSystemPrompt(event),
+    '',
+    '=== USER PAYLOAD ===',
+    buildLLMUserPayload(event)
+  ].join('\\n');
+}
+
+function populateLLMPerspectiveOptions(event) {
+  const sel = document.getElementById('llm-perspective');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const addOpt = (value, label) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    sel.appendChild(o);
+  };
+  addOpt('source', 'source (selected entity)');
+  if (event) {
+    event.transfers.slice(0, 4).forEach(tr => addOpt(`target:${tr.targetId}`, `target #${tr.targetId} (${tr.targetLabel})`));
+    event.nonEffects.slice(0, 2).forEach(nf => addOpt(`target:${nf.targetId}`, `blocked #${nf.targetId} (${nf.targetLabel})`));
+  }
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+function updateLLMWorkbench(event) {
+  const status = document.getElementById('llm-status');
+  const promptEl = document.getElementById('llm-system-prompt');
+  const jsonEl = document.getElementById('llm-event-json');
+  const bundleEl = document.getElementById('llm-bundle');
+  if (!status || !promptEl || !jsonEl || !bundleEl) return;
+
+  populateLLMPerspectiveOptions(event);
+
+  if (!event) {
+    promptEl.value = buildLLMSystemPrompt(null);
+    jsonEl.value = '{\\n  \"event\": null\\n}';
+    bundleEl.value = 'Trigger a vector event to generate a paste-ready LLM bundle.';
+    status.textContent = 'No event packaged yet. Select an entity and trigger GOAL / OBSTACLE / SHIFT.';
+    return;
+  }
+
+  const eventForLLM = JSON.parse(JSON.stringify(event));
+  eventForLLM.worldtextSummary = summarizeEventForWorldtext(event);
+  promptEl.value = buildLLMSystemPrompt(event);
+  jsonEl.value = JSON.stringify(eventForLLM, null, 2);
+    bundleEl.value = buildLLMCombinedBundle(event);
+  status.textContent = `Packed ${event.eventId} · T${event.tick} · ${event.source.vector} on #${event.source.entityId} · ${event.transfers.length} transfers · ${event.nonEffects.length} non-effects`;
+}
+
+async function copyTextFrom(elId, fallbackBtnId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const txt = el.value || el.textContent || '';
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(txt);
+    } else {
+      el.focus();
+      el.select();
+      document.execCommand('copy');
+    }
+  } catch (_err) {
+    try { el.focus(); el.select(); } catch (_e) {}
+  }
+  const btn = fallbackBtnId ? document.getElementById(fallbackBtnId) : null;
+  if (btn) {
+    const old = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = old; }, 700);
+  }
+}
+
+async function copyRawText(txt, fallbackBtnId) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(txt);
+  } catch (_err) {}
+  const btn = fallbackBtnId ? document.getElementById(fallbackBtnId) : null;
+  if (btn) {
+    const old = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = old; }, 700);
+  }
+}
+
+function llmAutobuildEnabled() {
+  const sel = document.getElementById('llm-autobuild');
+  return !sel || sel.value === 'auto';
+}
+
+function openLLMDrawer() {
+  document.getElementById('llm-drawer')?.classList.add('visible');
+  document.getElementById('llm-backdrop')?.classList.add('visible');
+  document.getElementById('btn-llm')?.classList.add('active');
+}
+
+function closeLLMDrawer() {
+  document.getElementById('llm-drawer')?.classList.remove('visible');
+  document.getElementById('llm-backdrop')?.classList.remove('visible');
+  document.getElementById('btn-llm')?.classList.remove('active');
+}
+
+function refreshLLMFromCurrentEvent() {
+  updateLLMWorkbench(SIM.lastEventRecord || null);
+  if (SIM.lastEventRecord) openLLMDrawer();
+}
+
+function maybeAutoRefreshLLM(event) {
+  if (!llmAutobuildEnabled()) return;
+  updateLLMWorkbench(event);
+}
+
+function setWorldtext(agent, vector, eventData) {
+  const el = document.getElementById('worldtext-content');
+  if(!agent||!vector) {
+    el.innerHTML = '<div id="worldtext-placeholder">SELECT AN ENTITY<br>APPLY A VECTOR<br>WATCH THE RIPPLE</div>';
+    return;
+  }
+
+  const templates = WORLDTEXT[vector];
+  const t = templates[Math.floor(Math.random()*templates.length)];
+  const text = t(agent);
+
+  el.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.style.cssText='font-size:8px;letter-spacing:2px;color:var(--text-dim);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px;';
+  const vColors={GOAL:'var(--goal)',OBSTACLE:'var(--obstacle)',SHIFT:'var(--shift)'};
+  header.innerHTML = `<span style="color:${vColors[vector]}">${vector}</span> → DEPTH ${agent.depth} ENTITY · TICK ${SIM.ticks}`;
+  el.appendChild(header);
+
+  const p = document.createElement('p');
+  p.innerHTML = text;
+  el.appendChild(p);
+
+  if (eventData) {
+    const evidence = document.createElement('div');
+    evidence.style.cssText='margin-top:8px;padding:6px 8px;border:1px solid var(--border);background:rgba(0,255,238,0.03);font-size:9px;line-height:1.5;color:var(--text-bright);';
+    evidence.innerHTML = `<span style="color:var(--shift);letter-spacing:1px;">EVENT EVIDENCE</span><br>${summarizeEventForWorldtext(eventData)}`;
+    el.appendChild(evidence);
+  }
+
+  // THEREFORE CHAIN
+  const chain = document.createElement('div');
+  chain.style.cssText='margin-top:10px;font-size:9px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:8px;';
+  const sourceDelta = eventData ? eventData.sourceDelta.delta : null;
+  const topTransfer = eventData && eventData.transfers && eventData.transfers.length
+    ? eventData.transfers.slice().sort((a,b)=>b.intensity-a.intensity)[0]
+    : null;
+  chain.innerHTML = `
+    <div style="letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;">THEREFORE CHAIN</div>
+    <div>L1 → Source Δ <span style="color:var(--shift)">${sourceDelta ? (strongestDeltaKey(sourceDelta)+' '+(sourceDelta[strongestDeltaKey(sourceDelta)]>=0?'+':'')+fmt(sourceDelta[strongestDeltaKey(sourceDelta)],2)) : ('Energy '+fmt(agent.energy*100,0)+'%')}</span> · Age ${agent.age}</div>
+    <div>L2 → ${eventData ? ('Transfers <span style="color:var(--shift)">'+eventData.transfers.length+'</span> · Non-effects <span style="color:var(--text-dim)">'+eventData.nonEffects.length+'</span>') : ('Neighbors: <span style="color:var(--shift)">'+getNeighbors(agent).length+'</span> within range')}</div>
+    <div>L3 → ${topTransfer ? ('Strongest edge <span style="color:var(--goal)">'+topTransfer.edge.channel+'</span> → #'+topTransfer.targetId+' ('+fmt(topTransfer.intensity,2)+')') : ('Complexity <span style=\"color:var(--depth3)\">'+Math.floor(agent.complexity)+'</span> · Depth '+agent.depth)}</div>
+    <div>L4 → <span style="color:var(--goal);font-style:italic;">Perspective locked to entity #${agent.id}</span></div>
+  `;
+  el.appendChild(chain);
+
+  // Unresolved
+  const unresolved = document.createElement('div');
+  unresolved.style.cssText='margin-top:8px;font-size:9px;color:#9980ff;font-style:italic;';
+  unresolved.textContent = eventData && eventData.nonEffects && eventData.nonEffects[0]
+    ? `∿ Ambiguity: ${eventData.nonEffects[0].targetLabel || ('entity #'+eventData.nonEffects[0].targetId)} did not cross visible threshold via ${eventData.nonEffects[0].edge.channel}.`
+    : '∿ Ambiguity: niche boundary shift unconfirmed pending 3+ ticks.';
+  el.appendChild(unresolved);
+}
+
+function setImpact(agent, vector, eventData) {
+  if(!agent && !eventData) { resetImpact(); return; }
+  const el = document.getElementById('impact-content');
+  const vColors={GOAL:'var(--goal)',OBSTACLE:'var(--obstacle)',SHIFT:'var(--shift)'};
+  if (eventData) {
+    const sd = eventData.sourceDelta.delta || {};
+    const strongest = strongestDeltaKey(sd);
+    const strongestVal = sd[strongest] || 0;
+    const topTransfer = eventData.transfers && eventData.transfers.length
+      ? eventData.transfers.slice().sort((a,b)=>b.intensity-a.intensity)[0]
+      : null;
+    const blocked = eventData.nonEffects && eventData.nonEffects[0];
+    el.innerHTML = `
+      <div class="impact-row"><span class="impact-key">EVENT</span><span class="impact-val">${eventData.eventId}</span></div>
+      <div class="impact-row"><span class="impact-key">VECTOR</span><span class="impact-val" style="color:${vColors[eventData.source.vector]}">${eventData.source.vector}</span></div>
+      <div class="impact-row"><span class="impact-key">SOURCE</span><span class="impact-val">#${eventData.source.entityId} · D${eventData.source.depth}</span></div>
+      <div class="impact-row"><span class="impact-key">SOURCE Δ</span><span class="impact-val ${strongestVal>=0?'pos':'neg'}">${strongest} ${strongestVal>=0?'+':''}${fmt(strongestVal,2)}</span></div>
+      <div class="impact-row"><span class="impact-key">TRANSFERS</span><span class="impact-val">${eventData.transfers.length}</span></div>
+      <div class="impact-row"><span class="impact-key">NON-EFFECTS</span><span class="impact-val">${eventData.nonEffects.length}</span></div>
+      <div class="impact-row"><span class="impact-key">TOP EDGE</span><span class="impact-val">${topTransfer ? topTransfer.edge.channel : 'none'}</span></div>
+      <div class="impact-row"><span class="impact-key">TOP INTENSITY</span><span class="impact-val">${topTransfer ? fmt(topTransfer.intensity,2) : '0.00'}</span></div>
+      <div class="impact-row"><span class="impact-key">TOP DELAY</span><span class="impact-val">${topTransfer ? topTransfer.pathDelayMs+'ms' : '—'}</span></div>
+      <div class="impact-row"><span class="impact-key">BLOCKED</span><span class="impact-val">${blocked ? (blocked.edge.channel+' / '+blocked.reasonCode) : 'none'}</span></div>
+    `;
+    return;
+  }
+
+  const eBefore = Math.max(0, agent.energy - rng.r(0.05,0.2));
+  const eAfter = agent.energy;
+  const delta = eAfter - eBefore;
+  const col = delta>=0 ? 'pos':'neg';
+
+  el.innerHTML = `
+    <div class="impact-row">
+      <span class="impact-key">VECTOR</span>
+      <span class="impact-val" style="color:${vColors[vector]}">${vector}</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">DEPTH</span>
+      <span class="impact-val">${agent.depth}</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">ENERGY Δ</span>
+      <span class="impact-val ${col}">${delta>=0?'+':''}${fmt(delta*100,1)}%</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">COMPLEXITY</span>
+      <span class="impact-val">${Math.floor(agent.complexity)}</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">CHANNEL</span>
+      <span class="impact-val">${vector==='GOAL'?'gradient/kinetic':vector==='OBSTACLE'?'pressure/contact':'genetic/behavioral'}</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">RESISTANCE</span>
+      <span class="impact-val">${fmt(rng.r(0.1,0.6),2)}</span>
+    </div>
+    <div class="impact-row">
+      <span class="impact-key">DELAY</span>
+      <span class="impact-val">${rng.ri(80,400)}ms</span>
+    </div>
+  `;
+}
+
+function resetImpact() {
+  document.getElementById('impact-content').innerHTML='<div style="font-size:9px;color:var(--text-dim);padding:8px;letter-spacing:1px;">No active event</div>';
+}
+
+function addAuditEntry(agent, vector, eventData) {
+  const list = document.getElementById('audit-list');
+  const item = document.createElement('div');
+  item.className='audit-item';
+  if (eventData) {
+    SIM.auditEvents.unshift(eventData);
+    item.dataset.eventId = eventData.eventId;
+    const strongest = eventData.transfers && eventData.transfers.length
+      ? eventData.transfers.slice().sort((a,b)=>b.intensity-a.intensity)[0]
+      : null;
+    item.innerHTML=`<span class="audit-tick">${eventData.tick}</span><span class="audit-entity">D${agent.depth}·#${agent.id%999}</span><span class="audit-vector ${vector}">${vector}</span><span style="margin-left:auto;color:var(--text-dim)">${strongest ? strongest.edge.channel : (eventData.nonEffects[0]?.edge.channel || 'local')}</span>`;
+    item.style.cursor='pointer';
+    item.title = eventData.eventId;
+    item.onclick = () => focusAuditEvent(eventData.eventId);
+  } else {
+    item.innerHTML=`<span class="audit-tick">${SIM.ticks}</span><span class="audit-entity">D${agent.depth}·#${agent.id%999}</span><span class="audit-vector ${vector}">${vector}</span>`;
+  }
+  list.prepend(item);
+  if(list.children.length>20) list.lastChild.remove();
+  if(SIM.auditEvents.length>50) SIM.auditEvents.length=50;
+}
+
+function focusAuditEvent(eventId) {
+  const ev = SIM.auditEvents.find(e => e.eventId === eventId);
+  if (!ev) return;
+  SIM.lastEventRecord = ev;
+
+  const agent = SIM.agents.find(a => a.id === ev.source.entityId);
+  if (agent) {
+    SIM.selectedAgent = agent;
+    updateInspector(agent);
+    document.querySelectorAll('.entity-item').forEach(el=>{
+      el.classList.toggle('selected', el.dataset.id==agent.id);
+    });
+    enableVectors(true);
+    setWorldtext(agent, ev.source.vector, ev);
+    setImpact(agent, ev.source.vector, ev);
+  } else {
+    setImpact(null, null, ev);
+    const wt = document.getElementById('worldtext-content');
+    wt.innerHTML = `<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;">AUDIT RECALL · ${ev.eventId}</div><p>Source entity #${ev.source.entityId} is no longer present in the live ecology. Loaded archived event record instead.</p><div style="margin-top:8px;font-size:9px;color:var(--text-bright);">${summarizeEventForWorldtext(ev)}</div>`;
+  }
+
+  updateLLMWorkbench(ev);
+  openLLMDrawer();
+}
+
+// === ENTITY POOL UI ===
+function updateEntityPool() {
+  const list = document.getElementById('entity-list');
+  if(SIM.agents.length===0) { list.innerHTML='<div style="font-size:9px;color:var(--text-dim);padding:8px;letter-spacing:1px;">No entities</div>'; return; }
+
+  // Sample up to 15 interesting agents
+  const sorted = [...SIM.agents].sort((a,b)=>b.depth-a.depth||b.complexity-a.complexity).slice(0,15);
+
+  list.innerHTML='';
+  for(let a of sorted) {
+    const item = document.createElement('div');
+    item.className='entity-item' + (SIM.selectedAgent===a?' selected':'');
+    item.dataset.id=a.id;
+
+    const dColor=['','var(--depth1)','var(--depth2)','var(--depth3)','var(--depth4)'];
+    const pips=Array.from({length:4},(_,i)=>`<div class="depth-pip${i<a.depth?' filled d'+Math.min(a.depth,4):''}"></div>`).join('');
+
+    item.innerHTML=`
+      <div class="entity-name" style="color:${dColor[Math.min(a.depth,4)]}">${entityLabel(a).toUpperCase()}</div>
+      <div class="entity-state">#${a.id%9999} · E:${fmt(a.energy*100,0)}%</div>
+      <div class="entity-depth-bar">${pips}</div>
+    `;
+    item.onclick=()=>selectAgent(a);
+    list.appendChild(item);
+  }
+}
+
+function selectAgent(a) {
+  SIM.selectedAgent=a;
+  document.querySelectorAll('.entity-item').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.id==a.id);
+  });
+  enableVectors(true);
+  updateInspector(a);
+  Haptic.trigger(10);
+}
+
+function enableVectors(on) {
+  ['btn-goal','btn-obstacle','btn-shift'].forEach(id=>{
+    document.getElementById(id).disabled=!on;
+  });
+}
+
+// === INSPECTOR ===
+function updateInspector(a) {
+  if(!a || !SIM.agents.includes(a)) {
+    document.getElementById('inspector').classList.remove('visible');
+    return;
+  }
+  document.getElementById('insp-name').textContent=entityLabel(a).toUpperCase();
+  document.getElementById('insp-id').textContent='#'+a.id;
+  document.getElementById('insp-energy-bar').style.width=Math.min(100,a.energy*100)+'%';
+  document.getElementById('insp-rows').innerHTML=`
+    <div class="insp-row"><span class="insp-key">DEPTH</span><span class="insp-val">${a.depth}</span></div>
+    <div class="insp-row"><span class="insp-key">ENERGY</span><span class="insp-val">${fmt(a.energy*100,0)}%</span></div>
+    <div class="insp-row"><span class="insp-key">COMPLEXITY</span><span class="insp-val">${Math.floor(a.complexity)}</span></div>
+    <div class="insp-row"><span class="insp-key">AGE</span><span class="insp-val">${a.age} ticks</span></div>
+    <div class="insp-row"><span class="insp-key">STABILITY</span><span class="insp-val">${fmt(a.stability,2)}</span></div>
+  `;
+}
+
+// === INPUT HANDLING ===
+function handleInput(x, y, type) {
+  SIM.lastTouch={x,y};
+  if(type==='start') {
+    if(!SIM.audioReady) {
+      Audio.init();
+      SIM.audioReady=true;
+      const hint=document.getElementById('init-hint');
+      if(hint) hint.style.display='none';
+    }
+  }
+  const gx=Math.floor((x/document.getElementById('simCanvas').width)*C.GW);
+  const gy=Math.floor((y/document.getElementById('simCanvas').height)*C.GH);
+
+  if(SIM.mode==='inspect'&&type==='start') {
+    const can=document.getElementById('simCanvas');
+    let minD=9999, best=null;
+    for(let a of SIM.agents) {
+      const sx=(a.pos.x/C.GW)*can.width;
+      const sy=(a.pos.y/C.GH)*can.height;
+      const d=Math.hypot(sx-x,sy-y);
+      if(d<50&&d<minD){minD=d;best=a;}
+    }
+    if(best) { selectAgent(best); document.getElementById('inspector').classList.add('visible'); Audio.tone('birth'); }
+    else { SIM.selectedAgent=null; document.getElementById('inspector').classList.remove('visible'); enableVectors(false); }
+  } else if(SIM.mode==='feed') {
+    const r=SIM.settings.brushSize;
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) {
+      if(dx*dx+dy*dy<=r*r) {
+        const nx=(gx+dx+C.GW)%C.GW, ny=(gy+dy+C.GH)%C.GH;
+        SIM.resources[ny*C.GW+nx]=1.0;
+      }
+    }
+    if(type==='start') Haptic.trigger(5);
+  } else if(SIM.mode==='wall') {
+    const r=Math.floor(SIM.settings.brushSize/2);
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) {
+      const nx=(gx+dx+C.GW)%C.GW, ny=(gy+dy+C.GH)%C.GH;
+      SIM.walls[ny*C.GW+nx]=1;
+    }
+    if(type==='start') Haptic.trigger(15);
+  }
+}
+
+// === VECTOR TRIGGER ===
+function triggerVector(vector) {
+  if(!SIM.selectedAgent||!SIM.agents.includes(SIM.selectedAgent)) { logMsg('No entity selected', true); return; }
+  const a=SIM.selectedAgent;
+  const sourceBefore = getAgentStateSnapshot(a);
+  Audio.tone(vector.toLowerCase());
+  Haptic.trigger([30,30,80]);
+
+  // Apply effect
+  if(vector==='GOAL') {
+    a.energy=Math.min(1, a.energy+rng.r(0.05,0.15));
+    a.rippleColor='var(--goal)';
+  } else if(vector==='OBSTACLE') {
+    a.energy=Math.max(0, a.energy-rng.r(0.05,0.2));
+    a.vel.x*=-1; a.vel.y*=-1;
+    a.rippleColor='var(--obstacle)';
+  } else if(vector==='SHIFT') {
+    a.genome[rng.ri(0,a.genome.length)]=(a.genome[rng.ri(0,a.genome.length)]+rng.ri(-20,20)+256)%256;
+    a.complexity=a.calcK();
+    a.rippleColor='var(--shift)';
+  }
+  a.rippleIntensity=1.0;
+  addRippleRing(a.pos.x, a.pos.y, a.depth);
+  addVectorRipple(a.pos.x, a.pos.y, vector);
+
+  const eventRecord = buildRippleEventRecord(a, vector, sourceBefore);
+  SIM.lastEventRecord = eventRecord;
+
+  setWorldtext(a, vector, eventRecord);
+  setImpact(a, vector, eventRecord);
+  addAuditEntry(a, vector, eventRecord);
+  updateInspector(a);
+  maybeAutoRefreshLLM(eventRecord);
+  if (!llmAutobuildEnabled()) {
+    const s = document.getElementById('llm-status');
+    if (s) s.textContent = `New event captured (${eventRecord.eventId}) · manual refresh enabled.`;
+  }
+
+  logMsg(`${vector} → ${entityLabel(a).toUpperCase()}`, false);
+  SIM.lastEvent={agentId:a.id, vector, eventId:eventRecord.eventId};
+}
+
+// === CANVAS INPUT ===
+const sim = document.getElementById('simCanvas');
+['mousedown','touchstart'].forEach(e=>sim.addEventListener(e, ev=>{
+  ev.preventDefault();
+  const r=sim.getBoundingClientRect();
+  const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+  const y=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+  SIM.mouseDown=true;
+  handleInput(x,y,'start');
+},{passive:false}));
+
+['mousemove','touchmove'].forEach(e=>sim.addEventListener(e, ev=>{
+  ev.preventDefault();
+  if(!SIM.mouseDown) return;
+  const r=sim.getBoundingClientRect();
+  const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+  const y=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+  handleInput(x,y,'move');
+},{passive:false}));
+
+['mouseup','touchend'].forEach(e=>window.addEventListener(e,()=>SIM.mouseDown=false));
+
+// === BUTTONS ===
+document.getElementById('btn-goal').onclick=()=>triggerVector('GOAL');
+document.getElementById('btn-obstacle').onclick=()=>triggerVector('OBSTACLE');
+document.getElementById('btn-shift').onclick=()=>triggerVector('SHIFT');
+
+// Keyboard shortcuts
+window.addEventListener('keydown', e=>{
+  if(e.key.toLowerCase()==='g') triggerVector('GOAL');
+  if(e.key.toLowerCase()==='o') triggerVector('OBSTACLE');
+  if(e.key.toLowerCase()==='s') triggerVector('SHIFT');
+  if(e.key.toLowerCase()==='l') {
+    const open = document.getElementById('llm-drawer').classList.contains('visible');
+    if(open) closeLLMDrawer();
+    else { refreshLLMFromCurrentEvent(); openLLMDrawer(); }
+  }
+  if(e.key==='Escape' && document.getElementById('llm-drawer').classList.contains('visible')) {
+    closeLLMDrawer();
+  }
+  if(e.key===' ') { e.preventDefault(); toggleAutoplay(); }
+  if(e.key==='p') togglePause();
+});
+
+function setMode(mode) {
+  SIM.mode=mode;
+  ['btn-inspect','btn-feed','btn-wall'].forEach(id=>{
+    document.getElementById(id).classList.remove('active');
+  });
+  const modeBtn={'inspect':'btn-inspect','feed':'btn-feed','wall':'btn-wall'};
+  document.getElementById(modeBtn[mode]).classList.add('active');
+  Haptic.trigger(8);
+}
+
+document.getElementById('btn-inspect').onclick=()=>setMode('inspect');
+document.getElementById('btn-feed').onclick=()=>setMode('feed');
+document.getElementById('btn-wall').onclick=()=>setMode('wall');
+
+function togglePause() {
+  SIM.paused=!SIM.paused;
+  document.getElementById('btn-pause').textContent=SIM.paused?'Resume':'Pause';
+  Haptic.trigger(20);
+}
+
+document.getElementById('btn-pause').onclick=togglePause;
+document.getElementById('btn-reset').onclick=()=>{
+  SIM.selectedAgent=null;
+  enableVectors(false);
+  document.getElementById('inspector').classList.remove('visible');
+  initWorld();
+  Audio.tone('death');
+  Haptic.trigger(50);
+};
+document.getElementById('btn-hide').onclick=()=>{
+  document.body.classList.add('zen');
+  document.getElementById('zen-btn').style.display='block';
+};
+document.getElementById('zen-btn').onclick=()=>{
+  document.body.classList.remove('zen');
+};
+document.getElementById('insp-close').onclick=()=>{
+  document.getElementById('inspector').classList.remove('visible');
+};
+
+// Autoplay
+function toggleAutoplay() {
+  SIM.autoplay=!SIM.autoplay;
+  const btn=document.getElementById('btn-autoplay');
+  btn.classList.toggle('active',SIM.autoplay);
+  btn.classList.toggle('autoplay-on',SIM.autoplay);
+  btn.textContent=SIM.autoplay?'Autoplay ▶':'Autoplay';
+  if(SIM.autoplay) startAutoplay();
+  else if(SIM.autoTimer) clearInterval(SIM.autoTimer);
+}
+document.getElementById('btn-autoplay').onclick=toggleAutoplay;
+
+function startAutoplay() {
+  if(SIM.autoTimer) clearInterval(SIM.autoTimer);
+  SIM.autoTimer=setInterval(()=>{
+    if(!SIM.autoplay||SIM.agents.length===0) return;
+    const a=SIM.agents[rng.ri(0,Math.min(SIM.agents.length,30))];
+    if(!a) return;
+    selectAgent(a);
+    const vecs=['GOAL','OBSTACLE','SHIFT'];
+    const v=vecs[rng.ri(0,3)];
+    triggerVector(v);
+  }, 3000);
+}
+
+// Sliders
+document.getElementById('sl-vol').oninput=e=>{
+  SIM.settings.vol=parseInt(e.target.value);
+  document.getElementById('v-vol').textContent=SIM.settings.vol+'%';
+};
+document.getElementById('sl-mut').oninput=e=>{
+  SIM.settings.mut=parseInt(e.target.value)/100;
+  document.getElementById('v-mut').textContent=Math.round(SIM.settings.mut*100)+'%';
+};
+document.getElementById('sl-spd').oninput=e=>{
+  SIM.speed=parseInt(e.target.value);
+  document.getElementById('v-spd').textContent=SIM.speed+'x';
+};
+document.getElementById('sl-brush').oninput=e=>{
+  SIM.settings.brushSize=parseInt(e.target.value);
+  document.getElementById('v-brush').textContent=SIM.settings.brushSize;
+};
+
+// === LLM WORKBENCH UI ===
+document.getElementById('btn-llm').onclick=()=>{
+  if (document.getElementById('llm-drawer').classList.contains('visible')) closeLLMDrawer();
+  else {
+    refreshLLMFromCurrentEvent();
+    openLLMDrawer();
+  }
+};
+document.getElementById('btn-llm-close').onclick=closeLLMDrawer;
+document.getElementById('llm-backdrop').onclick=closeLLMDrawer;
+
+document.getElementById('btn-llm-refresh').onclick=refreshLLMFromCurrentEvent;
+document.getElementById('btn-llm-copy-json').onclick=()=>copyTextFrom('llm-event-json', 'btn-llm-copy-json');
+document.getElementById('btn-llm-copy-prompt').onclick=()=>copyTextFrom('llm-system-prompt', 'btn-llm-copy-prompt');
+document.getElementById('btn-llm-copy-user').onclick=()=>copyRawText(buildLLMUserPayload(SIM.lastEventRecord || null), 'btn-llm-copy-user');
+document.getElementById('btn-llm-copy-bundle').onclick=()=>copyTextFrom('llm-bundle', 'btn-llm-copy-bundle');
+
+['llm-mode','llm-style','llm-perspective','llm-autobuild'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>updateLLMWorkbench(SIM.lastEventRecord || null));
+});
+document.getElementById('llm-stone').addEventListener('input', ()=>{
+  if (llmAutobuildEnabled()) updateLLMWorkbench(SIM.lastEventRecord || null);
+});
+
+// === MESSAGES ===
+function logMsg(txt, warn=false) {
+  const el=document.getElementById('messages');
+  const m=document.createElement('div');
+  const mode = warn===true ? 'warn' : (warn==='note' ? 'note' : '');
+  m.className='msg'+(mode ? ` ${mode}` : '');
+  m.textContent=`▸ ${txt}`;
+  el.prepend(m);
+  while(el.children.length>5) el.lastChild.remove();
+  setTimeout(()=>{m.style.opacity=0;setTimeout(()=>m.remove(),800);},3500);
+}
+
+let externalContentScriptWarned = false;
+function maybeWarnExternalContentScriptError(raw) {
+  if (externalContentScriptWarned) return;
+  const txt = String(raw || '');
+  if (!txt) return;
+  const looksLikeExtensionContentScript =
+    /content\.js/i.test(txt) ||
+    (/reading ['"]query['"]/i.test(txt) && /TypeError/i.test(txt));
+  if (!looksLikeExtensionContentScript) return;
+  externalContentScriptWarned = true;
+  logMsg('Extension content script error detected (content.js). Usually not from evo-02.html. Test with extensions disabled.', 'note');
+}
+
+window.addEventListener('error', (e) => {
+  const blob = [e.message, e.filename, e.error && e.error.stack].filter(Boolean).join(' | ');
+  maybeWarnExternalContentScriptError(blob);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e.reason;
+  const blob = [r && r.message, r && r.stack, String(r || '')].filter(Boolean).join(' | ');
+  maybeWarnExternalContentScriptError(blob);
+});
+
+// === UI UPDATE ===
+let lastUIUpdate=0;
+function updateUI(t) {
+  if(t-lastUIUpdate<100) return;
+  lastUIUpdate=t;
+
+  document.getElementById('st-pop').textContent=SIM.stats.pop||SIM.agents.length;
+  document.getElementById('st-depth').textContent=SIM.stats.maxDepth||0;
+  document.getElementById('st-k').textContent=SIM.stats.maxK||0;
+  document.getElementById('st-tick').textContent=SIM.ticks;
+  document.getElementById('st-fps').textContent=Math.round(1000/(SIM.frameTime||16));
+
+  const pill=document.getElementById('status-pill');
+  const s=SIM.status;
+  pill.textContent=s;
+  pill.className='';
+  if(s==='TRANSCENDENCE') pill.className='win';
+  else if(s==='EXTINCTION'||s==='COLLAPSE') pill.className='loss';
+
+  // Entity pool every 1s
+  if(t-lastUIUpdate<900) updateEntityPool();
+
+  // Update inspector if visible
+  if(SIM.selectedAgent) {
+    if(SIM.agents.includes(SIM.selectedAgent)) updateInspector(SIM.selectedAgent);
+    else {
+      document.getElementById('insp-rows').innerHTML='<div class="insp-row"><span class="insp-key" style="color:var(--warn)">SIGNAL LOST</span></div>';
+    }
+  }
+}
+
+let poolTimer=0;
+// === MAIN LOOP ===
+function loop(t) {
+  const dt=t-SIM.lastTime;
+  SIM.lastTime=t;
+  SIM.frameTime=dt;
+
+  if(!SIM.paused) {
+    SIM.acc+=dt;
+    const step=1000/50;
+    while(SIM.acc>=step){tick();SIM.acc-=step;}
+    if(SIM.acc>500) SIM.acc=0;
+    if(SIM.speed>1) for(let k=1;k<SIM.speed;k++) tick();
+  }
+
+  draw();
+  updateUI(t);
+
+  if(t-poolTimer>1000){updateEntityPool();poolTimer=t;}
+
+  requestAnimationFrame(loop);
+}
+
+// === RESIZE ===
+function resize() {
+  const can=document.getElementById('simCanvas');
+  const rcan=document.getElementById('rippleCanvas');
+  can.width=window.innerWidth;
+  can.height=window.innerHeight;
+  rcan.width=window.innerWidth;
+  rcan.height=window.innerHeight;
+  SIM.tempCanvas=null;
+}
+
+window.onresize=resize;
+resize();
+initWorld();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

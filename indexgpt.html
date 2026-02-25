@@ -43,6 +43,8 @@
         <div class="panel-header">
           <div class="panel-title">SCENE / GRID</div>
           <div class="row">
+            <button class="micro-btn mobile-only" id="openEntitiesBtn" type="button">ENTITIES</button>
+            <button class="micro-btn mobile-only" id="openInspectBtn" type="button">INSPECT</button>
             <span class="k">←</span>
             <span class="k">→</span>
             <select id="scenarioSelect" aria-label="Scenario select">
@@ -54,6 +56,7 @@
 
         <div class="panel-body grid-wrap">
           <svg class="links" id="linkLayer"></svg>
+          <svg class="links pulses" id="linkPulseLayer"></svg>
           <div class="grid" id="grid">
             <!-- grid cells inserted by JS -->
           </div>
@@ -65,6 +68,8 @@
         <div class="panel-header">
           <div class="panel-title">VECTOR CONTROLS</div>
           <div class="row">
+            <button class="micro-btn" id="openGuideBtn" type="button">GUIDE</button>
+            <button class="micro-btn" id="openLlmBtn" type="button">LLM</button>
             <div class="switch">
               <div class="toggle" id="autoplayToggle" role="switch" aria-checked="false"></div>
               <div>
@@ -133,19 +138,45 @@
 
       <div class="panel-body right-stack">
 
+        <!-- GUIDE / INTRO -->
+        <section class="panel nested" id="guidePanel">
+          <div class="panel-header">
+            <div class="panel-title">GUIDE / READ ORDER</div>
+            <div class="pill">intro</div>
+          </div>
+          <div class="panel-body">
+            <div class="guide" id="guideContent">
+              <!-- populated by JS -->
+            </div>
+          </div>
+        </section>
+
         <!-- WORLDTEXT VIEWPORT -->
         <div class="worldtext flicker" id="worldtext">
           <!-- text injected by JS -->
         </div>
 
+        <!-- IMPACT PANEL -->
+        <section class="panel nested">
+          <div class="panel-header">
+            <div class="panel-title">IMPACT PANEL</div>
+            <div class="pill">causal</div>
+          </div>
+          <div class="panel-body">
+            <div class="impact" id="impactPanel">
+              <!-- populated by JS -->
+            </div>
+          </div>
+        </section>
+
         <!-- LATENT LIBRARY -->
         <section class="panel nested">
           <div class="panel-header">
-            <div class="panel-title">LATENT LIBRARY</div>
-            <div class="pill">preview</div>
+            <div class="panel-title">PROMPTS / LATENT</div>
+            <div class="pill">layers</div>
           </div>
           <div class="panel-body">
-            <div class="latent-grid" id="latentPanel">
+            <div class="latent-grid" id="promptPanel">
               <!-- populated by JS -->
             </div>
           </div>
@@ -168,6 +199,89 @@
     </section>
 
   </div>
+
+  <div class="ui-backdrop" id="uiBackdrop" hidden></div>
+
+  <div class="mobile-dock" id="mobileDock" aria-label="Mobile quick controls">
+    <button class="dock-btn" id="dockEntitiesBtn" type="button">Entities</button>
+    <button class="dock-btn" id="dockInspectBtn" type="button">Inspect</button>
+    <button class="dock-btn" id="dockGuideBtn" type="button">Guide</button>
+    <button class="dock-btn" id="dockLlmBtn" type="button">LLM</button>
+  </div>
+
+  <section class="llm-drawer" id="llmDrawer" aria-label="LLM Export Workbench" aria-hidden="true">
+    <div class="llm-head">
+      <div>
+        <div class="llm-title">LLM WORKBENCH</div>
+        <div class="llm-sub">RIPPLES causal event → prompt bundle / JSON export</div>
+      </div>
+      <div class="llm-head-actions">
+        <button class="micro-btn" id="llmRefreshBtn" type="button">REFRESH</button>
+        <button class="micro-btn" id="llmCopyJsonBtn" type="button">COPY JSON</button>
+        <button class="micro-btn" id="llmCopyBundleBtn" type="button">COPY BUNDLE</button>
+        <button class="micro-btn" id="llmCloseBtn" type="button">CLOSE</button>
+      </div>
+    </div>
+    <div class="llm-body">
+      <div class="llm-note" id="llmStatusLine">
+        Trigger a ripple event, then export a paste-ready bundle for any LLM. The event record is the source of truth.
+      </div>
+      <div class="llm-grid">
+        <label>
+          Prompt mode
+          <select id="llmModeSelect">
+            <option value="angel_trace">Angel Trace (therefore chain)</option>
+            <option value="audit_causal">Audit Causal Summary</option>
+            <option value="worldtext">Perspective Worldtext</option>
+            <option value="raw_json">Raw JSON Reflection</option>
+          </select>
+        </label>
+        <label>
+          Style
+          <select id="llmStyleSelect">
+            <option value="legible">Legible / Operator</option>
+            <option value="hybrid">Hybrid / Angel+Mask</option>
+            <option value="poetic">Poetic / Mask</option>
+          </select>
+        </label>
+        <label>
+          Perspective
+          <select id="llmPerspectiveSelect">
+            <option value="source">source</option>
+          </select>
+        </label>
+        <label>
+          Bundle mode
+          <select id="llmBundleModeSelect">
+            <option value="combined">System + User Bundle</option>
+            <option value="prompt_only">User Prompt Only</option>
+            <option value="json_only">JSON Only</option>
+          </select>
+        </label>
+        <label class="wide">
+          Optional Stone / Constraint
+          <input id="llmStoneInput" type="text" placeholder="e.g. trace resistance at the fracture point" />
+        </label>
+      </div>
+      <div class="llm-actions">
+        <button class="micro-btn" id="llmBuildBtn" type="button">BUILD</button>
+        <button class="micro-btn" id="llmCopyPromptBtn" type="button">COPY PROMPT</button>
+        <button class="micro-btn" id="llmCopyUserBtn" type="button">COPY USER PAYLOAD</button>
+      </div>
+      <label class="llm-field">
+        System / Instruction Scaffold
+        <textarea id="llmSystemPrompt" readonly></textarea>
+      </label>
+      <label class="llm-field">
+        Event JSON
+        <textarea id="llmEventJson" readonly></textarea>
+      </label>
+      <label class="llm-field">
+        LLM Bundle (paste-ready)
+        <textarea id="llmBundleText" readonly></textarea>
+      </label>
+    </div>
+  </section>
 
   <!-- External JavaScript -->
   <script src="gpt.js"></script>

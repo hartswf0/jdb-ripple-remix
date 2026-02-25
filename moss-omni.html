@@ -1,0 +1,3833 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ORCA // MOSS_MONITOR_V16</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="ripple-llm-adapter.js"></script>
+    <style>
+        :root {
+            --color-bg: #050505;
+            --color-primary: #72dec2;
+            /* Orca Teal */
+            --color-secondary: #666666;
+            /* Orca Grey */
+            --color-dim: #222222;
+            --color-highlight: #ffffff;
+            /* Orca White */
+            --color-alert: #ff7272;
+            /* Orca Red */
+            --color-shift: #72a5ff;
+            /* Orca Blue */
+            --color-gold: #ffcc00;
+            --font-stack: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: var(--font-stack);
+            overflow: hidden;
+            background-image: radial-gradient(circle at center, #111 0%, #000 90%);
+        }
+
+        /* --- THE CHASSIS --- */
+        .monitor-frame {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+        }
+
+        /* --- CRT SCREEN --- */
+        .crt-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            color: var(--color-primary);
+            /* Grid layout for remaining interactive elements */
+            display: grid;
+            grid-template-rows: 60px 1fr 100px;
+            grid-template-columns: 1fr;
+            z-index: 1;
+        }
+
+        /* CANVAS LAYER (Interactive) */
+        #viz-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            /* Base layer */
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.15;
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+            0% {
+                opacity: 0.15;
+            }
+
+            50% {
+                opacity: 0.12;
+            }
+
+            100% {
+                opacity: 0.18;
+            }
+        }
+
+        /* --- BREATHING ANIMATION --- */
+        @keyframes breathe {
+            0% {
+                opacity: 0.9;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.01);
+            }
+
+            100% {
+                opacity: 0.9;
+                transform: scale(1);
+            }
+        }
+
+        /* --- UI ELEMENTS (Floating TUI) --- */
+
+        /* HEADER (Canvas drawn now, but buttons remain) */
+        .header-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            pointer-events: auto;
+            display: flex;
+            gap: 15px;
+            animation: breathe 6s infinite ease-in-out;
+        }
+
+        .menu-toggle,
+        .help-toggle,
+        .ripples-toggle,
+        .pause-toggle,
+        .logs-toggle,
+        .llm-toggle {
+            pointer-events: auto;
+            cursor: pointer;
+            color: var(--color-secondary);
+            font-size: 1.2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 5px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .menu-toggle:hover,
+        .help-toggle:hover,
+        .ripples-toggle:hover,
+        .pause-toggle:hover,
+        .logs-toggle:hover,
+        .llm-toggle:hover {
+            color: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+
+        .pause-toggle.warn {
+            color: var(--color-gold);
+            border-color: rgba(255, 204, 0, 0.35);
+        }
+
+        .logs-toggle.active,
+        .llm-toggle.active,
+        .ripples-toggle.active {
+            color: #fff;
+            border-color: rgba(114, 222, 194, 0.35);
+            background: rgba(114, 222, 194, 0.06);
+        }
+
+        /* SIDEBAR (Floating Text) */
+        .sidebar {
+            position: absolute;
+            left: 20px;
+            top: 230px;
+            bottom: 120px;
+            width: 220px;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: var(--color-secondary);
+
+            /* Transparent Container - "Display Surface" */
+            background: transparent;
+            pointer-events: none;
+            animation: breathe 8s infinite ease-in-out;
+            /* Syncs roughly with world */
+
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease;
+            transform: translateX(0);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            .sidebar.active {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .status-block {
+            pointer-events: auto;
+            padding-left: 0.5rem;
+            border-left: 1px solid rgba(114, 222, 194, 0.3);
+            /* Minimal background to let grid show through */
+            background: linear-gradient(90deg, rgba(0, 0, 0, 0.4) 0%, transparent 100%);
+            padding: 5px 10px;
+            margin-bottom: 5px;
+        }
+
+        .label {
+            color: var(--color-primary);
+            font-size: 0.65rem;
+            display: block;
+            margin-bottom: 0.1rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .value {
+            font-size: 0.85rem;
+            color: #fff;
+            font-weight: bold;
+            font-family: var(--font-stack);
+        }
+
+        .entity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 1rem;
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 5px;
+            pointer-events: auto;
+        }
+
+        /* TUI Buttons - Integrated Look */
+        .entity-btn {
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            border-left: 2px solid transparent;
+            color: var(--color-secondary);
+            padding: 8px 10px;
+            text-align: left;
+            font-family: var(--font-stack);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+
+        .entity-btn:hover,
+        .entity-btn.active {
+            color: #fff;
+            border-left-color: var(--color-primary);
+            background: linear-gradient(90deg, rgba(114, 222, 194, 0.1) 0%, transparent 100%);
+        }
+
+        /* BOTTOM BAR (Floating Runes) */
+        .controls-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            min-height: 100px;
+            z-index: 30;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            pointer-events: none;
+            padding-bottom: calc(45px + env(safe-area-inset-bottom, 0px));
+            animation: breathe 7s infinite ease-in-out;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+        }
+
+        .vector-group {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .vector-label {
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            opacity: 0.6;
+            font-weight: bold;
+            color: var(--color-highlight);
+        }
+
+        /* Rune Buttons - See-through Glass */
+        .vector-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--color-secondary);
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-stack);
+            transition: all 0.2s;
+            backdrop-filter: blur(2px);
+        }
+
+        .vector-btn i {
+            font-size: 1.4rem;
+            font-style: normal;
+            font-weight: bold;
+        }
+
+        .vector-group:hover .vector-btn {
+            border-color: var(--color-highlight);
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .vector-group:active .vector-btn {
+            transform: scale(0.95);
+        }
+
+        .vector-btn.active {
+            background: rgba(192, 132, 252, 0.2);
+            border-color: #c084fc;
+            box-shadow: 0 0 10px rgba(192, 132, 252, 0.3);
+        }
+
+        .btn-goal i {
+            color: var(--color-gold);
+        }
+
+        .btn-obstacle i {
+            color: var(--color-alert);
+        }
+
+        .btn-shift i {
+            color: var(--color-shift);
+        }
+
+        .btn-inspect i {
+            color: #c084fc;
+        }
+
+        /* HUD / MINIMAP */
+        .hud-overlay {
+            position: absolute;
+            bottom: 100px;
+            right: 10px;
+            z-index: 25;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+
+        .hud-panel {
+            background: transparent;
+            text-shadow: 0 1px 2px #000;
+            padding: 0;
+            font-size: 0.65rem;
+            color: var(--color-secondary);
+            pointer-events: auto;
+        }
+
+        .hud-minimap-container {
+            width: 80px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            pointer-events: auto;
+            position: relative;
+            backdrop-filter: blur(2px);
+        }
+
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .toggle-mode-btn {
+            background: transparent;
+            color: #888;
+            border: 1px solid #333;
+            padding: 4px 8px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            font-family: var(--font-stack);
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+            transition: 0.2s;
+        }
+
+        .toggle-mode-btn:hover {
+            color: #fff;
+            border-color: #666;
+        }
+
+        .toggle-mode-btn.active {
+            color: var(--color-gold);
+            border-color: var(--color-gold);
+            background: rgba(255, 204, 0, 0.1);
+        }
+
+        /* --- NEURAL INTERFACE (Context Menu) --- */
+        #neural-context-menu {
+            position: absolute;
+            display: none;
+            width: 240px;
+            /* Glass Terminal Look */
+            background: rgba(5, 5, 5, 0.85);
+            border: 1px solid var(--color-primary);
+            border-top: 3px solid var(--color-primary);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            font-family: var(--font-stack);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            padding: 0;
+            color: #fff;
+
+            /* Rising Animation */
+            transform-origin: bottom center;
+            animation: riseUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes riseUp {
+            from {
+                transform: scale(0.9) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .neural-header {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(114, 222, 194, 0.15);
+            padding: 8px 10px;
+            font-size: 0.7rem;
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        .neural-options {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 4px;
+        }
+
+        .patch-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #aaa;
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: var(--font-stack);
+            transition: 0.2s;
+        }
+
+        .patch-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: var(--color-primary);
+        }
+
+        .patch-icon {
+            font-weight: bold;
+            width: 20px;
+            display: inline-block;
+            text-align: center;
+            margin-right: 5px;
+        }
+
+        .patch-transform .patch-icon {
+            color: var(--color-primary);
+        }
+
+        .patch-branch .patch-icon {
+            color: var(--color-gold);
+        }
+
+        .patch-seed .patch-icon {
+            color: var(--color-shift);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 1001;
+            border: 1px solid #444;
+            display: none;
+        }
+
+        /* Boot & Help modals kept minimal */
+        #boot-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 30000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+            color: #72dec2;
+        }
+
+        #help-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            max-width: 400px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid #72dec2;
+            padding: 20px;
+            z-index: 20000;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- RIPPLES BRIDGE CONSOLE (GPT + EVO LEGIBILITY LAYER) --- */
+        .ripples-console {
+            position: absolute;
+            right: 20px;
+            top: 80px;
+            bottom: 120px;
+            width: 360px;
+            z-index: 35;
+            border: 1px solid rgba(114, 222, 194, 0.25);
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(8px);
+            color: var(--color-primary);
+            display: flex;
+            flex-direction: column;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 0 24px rgba(114, 222, 194, 0.08);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .ripples-console.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(18px);
+        }
+
+        .rc-head {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: linear-gradient(180deg, rgba(114, 222, 194, 0.04), rgba(114, 222, 194, 0.01));
+        }
+
+        .rc-title {
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            font-weight: bold;
+            color: var(--color-primary);
+        }
+
+        .rc-sub {
+            font-size: 0.62rem;
+            color: #88b8ad;
+            margin-top: 2px;
+            letter-spacing: 1px;
+        }
+
+        .rc-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .rc-btn {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--color-primary);
+            border: 1px solid rgba(114, 222, 194, 0.18);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.62rem;
+            letter-spacing: 1px;
+            padding: 4px 7px;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+
+        .rc-btn:hover {
+            border-color: var(--color-primary);
+            color: #fff;
+            background: rgba(114, 222, 194, 0.06);
+        }
+
+        .rc-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rc-body::-webkit-scrollbar { width: 4px; }
+        .rc-body::-webkit-scrollbar-thumb { background: rgba(114, 222, 194, 0.22); }
+
+        .rc-block {
+            border: 1px solid rgba(114, 222, 194, 0.14);
+            border-radius: 6px;
+            background: rgba(114, 222, 194, 0.02);
+            overflow: hidden;
+        }
+
+        .rc-block-h {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.12);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+            letter-spacing: 1.5px;
+            color: #9de3d0;
+            text-transform: uppercase;
+        }
+
+        .rc-block-b {
+            padding: 8px;
+        }
+
+        .rc-help {
+            color: #9baaa6;
+            font-size: 0.7rem;
+            line-height: 1.5;
+        }
+
+        .rc-worldtext-header {
+            border: 1px solid rgba(114, 222, 194, 0.12);
+            border-radius: 4px;
+            padding: 6px;
+            background: rgba(114, 222, 194, 0.015);
+            margin-bottom: 7px;
+        }
+
+        .rc-worldtext-title {
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .rc-worldtext-meta {
+            font-size: 0.62rem;
+            color: #8ab2a8;
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .rc-worldtext-warning {
+            color: var(--color-gold);
+        }
+
+        .rc-worldtext-body {
+            white-space: pre-wrap;
+            color: #d7fff6;
+            line-height: 1.5;
+            font-size: 0.75rem;
+            user-select: text;
+        }
+
+        .rc-worldtext-body p {
+            margin: 0 0 8px 0;
+        }
+        .rc-worldtext-body p:last-child { margin-bottom: 0; }
+
+        .rc-grid {
+            display: grid;
+            gap: 5px;
+        }
+
+        .rc-row {
+            display: grid;
+            grid-template-columns: 84px 1fr;
+            gap: 8px;
+            align-items: start;
+            font-size: 0.68rem;
+            line-height: 1.45;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.08);
+            padding-bottom: 4px;
+        }
+        .rc-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .rc-k {
+            color: #8cc8bb;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 0.62rem;
+        }
+
+        .rc-v { color: #fff; }
+        .rc-v.pos { color: #a8ff9a; }
+        .rc-v.neg { color: #ff9d9d; }
+        .rc-v.goal { color: var(--color-gold); }
+        .rc-v.obstacle { color: var(--color-alert); }
+        .rc-v.shift { color: var(--color-shift); }
+
+        .rc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+            user-select: text;
+        }
+        .rc-list::-webkit-scrollbar { width: 4px; }
+        .rc-list::-webkit-scrollbar-thumb { background: rgba(114, 222, 194, 0.18); }
+
+        .rc-item {
+            border: 1px solid rgba(114, 222, 194, 0.12);
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 0.68rem;
+            line-height: 1.4;
+            color: #d7fff6;
+        }
+
+        .rc-item-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .rc-pill {
+            border: 1px solid rgba(114, 222, 194, 0.16);
+            border-radius: 999px;
+            padding: 1px 6px;
+            font-size: 0.6rem;
+            color: #9de3d0;
+            background: rgba(114, 222, 194, 0.02);
+            white-space: nowrap;
+        }
+
+        .rc-audit-item {
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .rc-audit-item:hover {
+            border-color: rgba(114, 222, 194, 0.28);
+            background: rgba(114, 222, 194, 0.04);
+        }
+        .rc-audit-item.active {
+            border-color: rgba(114, 222, 194, 0.4);
+            background: rgba(114, 222, 194, 0.06);
+        }
+
+        .rc-muted { color: #8a9492; }
+        .rc-code {
+            color: #fff;
+            font-family: var(--font-stack);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            padding: 1px 4px;
+        }
+
+        .rc-text {
+            white-space: pre-wrap;
+            user-select: text;
+            color: #d7fff6;
+            line-height: 1.45;
+            font-size: 0.7rem;
+            max-height: 72px;
+            overflow: auto;
+            border-top: 1px dashed rgba(114, 222, 194, 0.08);
+            margin-top: 5px;
+            padding-top: 5px;
+        }
+
+        .rc-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .rc-field {
+            display: grid;
+            gap: 4px;
+            font-size: 0.62rem;
+            color: #9de3d0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .rc-field.wide { grid-column: 1 / -1; }
+
+        .rc-field select,
+        .rc-field input,
+        .rc-ta {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(114, 222, 194, 0.14);
+            color: #fff;
+            border-radius: 4px;
+            padding: 6px;
+            font-family: inherit;
+            font-size: 0.7rem;
+            user-select: text;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .rc-ta {
+            min-height: 90px;
+            resize: vertical;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        #rc-bundle { min-height: 140px; }
+
+        .rc-actions-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 6px 0;
+        }
+
+        .rc-status {
+            font-size: 0.68rem;
+            color: #a6bab5;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 980px) {
+            .ripples-console {
+                left: 10px;
+                right: 10px;
+                top: 70px;
+                bottom: 98px;
+                width: auto;
+            }
+        }
+
+        /* --- OMNISCIENCE SHELL (inspired by evo/indexgpt + v12 deck) --- */
+        .omni-deck {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            z-index: 34;
+            width: min(440px, calc(100vw - 150px));
+            border: 1px solid rgba(114, 222, 194, 0.22);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 24px rgba(114, 222, 194, 0.08);
+            color: #d7fff6;
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        .omni-deck-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.12);
+            background: linear-gradient(180deg, rgba(114, 222, 194, 0.05), rgba(114, 222, 194, 0.015));
+        }
+
+        .omni-deck-title {
+            font-size: 0.72rem;
+            letter-spacing: 2px;
+            font-weight: bold;
+            color: #b7fff0;
+        }
+
+        .omni-deck-sub {
+            font-size: 0.58rem;
+            color: #7ea79d;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .omni-pill {
+            border: 1px solid rgba(114, 222, 194, 0.15);
+            border-radius: 999px;
+            padding: 2px 7px;
+            font-size: 0.58rem;
+            letter-spacing: 1px;
+            color: #9de3d0;
+            white-space: nowrap;
+            background: rgba(114, 222, 194, 0.02);
+        }
+
+        .omni-pill.warn {
+            color: var(--color-gold);
+            border-color: rgba(255, 204, 0, 0.22);
+            background: rgba(255, 204, 0, 0.03);
+        }
+
+        .omni-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+            padding: 8px 10px 6px;
+        }
+
+        .omni-card {
+            border: 1px solid rgba(114, 222, 194, 0.10);
+            border-radius: 6px;
+            padding: 6px;
+            background: rgba(114, 222, 194, 0.015);
+            min-height: 42px;
+        }
+
+        .omni-k {
+            color: #84b8ad;
+            font-size: 0.56rem;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .omni-v {
+            color: #fff;
+            font-size: 0.72rem;
+            line-height: 1.2;
+            font-weight: bold;
+            word-break: break-word;
+        }
+
+        .omni-v.dim {
+            color: #9eb6b0;
+            font-weight: normal;
+        }
+
+        .omni-v.goal { color: var(--color-gold); }
+        .omni-v.obstacle { color: var(--color-alert); }
+        .omni-v.shift { color: var(--color-shift); }
+
+        .omni-guide {
+            border-top: 1px solid rgba(114, 222, 194, 0.10);
+            padding: 7px 10px 9px;
+            font-size: 0.65rem;
+            line-height: 1.45;
+            color: #9fc6bd;
+            user-select: text;
+        }
+
+        .omni-guide strong {
+            color: #d7fff6;
+        }
+
+        .omni-ticker {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 172px;
+            z-index: 33;
+            width: min(860px, calc(100vw - 28px));
+            border-top: 1px solid rgba(114, 222, 194, 0.14);
+            border-bottom: 1px solid rgba(114, 222, 194, 0.14);
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(6px);
+            padding: 6px 12px;
+            font-size: 0.65rem;
+            color: #bff8ea;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            line-height: 1.4;
+            pointer-events: none;
+            text-align: center;
+            text-shadow: 0 1px 0 #000;
+        }
+
+        .omni-entity-strip {
+            position: absolute;
+            left: 16px;
+            right: 392px;
+            bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+            z-index: 34;
+            border: 1px solid rgba(114, 222, 194, 0.18);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.84);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 18px rgba(114, 222, 194, 0.06);
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .omni-strip-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.10);
+            background: linear-gradient(180deg, rgba(114, 222, 194, 0.03), transparent);
+        }
+
+        .omni-strip-title {
+            font-size: 0.62rem;
+            color: #9de3d0;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .omni-strip-head-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .omni-mini-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(114, 222, 194, 0.14);
+            color: #b5e9dd;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 0.62rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.15s ease;
+        }
+
+        .omni-mini-btn:hover {
+            border-color: rgba(114, 222, 194, 0.32);
+            color: #fff;
+        }
+
+        .omni-mini-btn.vector-goal { color: var(--color-gold); }
+        .omni-mini-btn.vector-obstacle { color: var(--color-alert); }
+        .omni-mini-btn.vector-shift { color: var(--color-shift); }
+        .omni-mini-btn.active {
+            border-color: rgba(114, 222, 194, 0.45);
+            background: rgba(114, 222, 194, 0.06);
+        }
+        .omni-mini-btn.paused {
+            border-color: rgba(255, 204, 0, 0.28);
+            color: var(--color-gold);
+            background: rgba(255, 204, 0, 0.04);
+        }
+
+        .omni-entity-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 10px;
+            scrollbar-width: none;
+        }
+        .omni-entity-row::-webkit-scrollbar { display: none; }
+
+        .omni-entity-btn {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(114, 222, 194, 0.12);
+            background: rgba(114, 222, 194, 0.02);
+            color: #b2e7dc;
+            font-family: inherit;
+            cursor: pointer;
+            min-width: 122px;
+            text-align: left;
+            transition: 0.15s ease;
+        }
+        .omni-entity-btn:hover {
+            border-color: rgba(114, 222, 194, 0.26);
+            color: #fff;
+        }
+        .omni-entity-btn.active {
+            border-color: rgba(114, 222, 194, 0.42);
+            background: linear-gradient(90deg, rgba(114, 222, 194, 0.08), rgba(114, 222, 194, 0.02));
+            color: #fff;
+        }
+
+        .omni-entity-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #000;
+            background: rgba(114, 222, 194, 0.9);
+            flex: 0 0 auto;
+        }
+
+        .omni-entity-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .omni-entity-name {
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .omni-entity-state {
+            font-size: 0.55rem;
+            color: #84b8ad;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .omni-log-panel {
+            position: absolute;
+            left: 18px;
+            bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+            width: min(460px, calc(100vw - 36px));
+            max-height: min(42vh, 360px);
+            z-index: 36;
+            border: 1px solid rgba(114, 222, 194, 0.18);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.88);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 18px rgba(114, 222, 194, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: auto;
+        }
+
+        .omni-log-panel.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+        }
+
+        .omni-log-head {
+            padding: 8px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(114, 222, 194, 0.10);
+            font-size: 0.65rem;
+            letter-spacing: 1.5px;
+            color: #9de3d0;
+            text-transform: uppercase;
+        }
+
+        .omni-log-list {
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            user-select: text;
+        }
+        .omni-log-list::-webkit-scrollbar { width: 4px; }
+        .omni-log-list::-webkit-scrollbar-thumb { background: rgba(114, 222, 194, 0.18); }
+
+        .omni-log-item {
+            border: 1px solid rgba(114, 222, 194, 0.10);
+            border-radius: 6px;
+            background: rgba(114, 222, 194, 0.02);
+            padding: 6px 8px;
+            line-height: 1.35;
+        }
+
+        .omni-log-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.56rem;
+            color: #80a9a0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .omni-log-text {
+            color: #d3fff4;
+            font-size: 0.68rem;
+        }
+
+        .omni-mobile-dock {
+            display: none;
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+            z-index: 38;
+            border: 1px solid rgba(114, 222, 194, 0.18);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.88);
+            backdrop-filter: blur(8px);
+            padding: 6px;
+            gap: 6px;
+            pointer-events: auto;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+
+        .omni-dock-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(114, 222, 194, 0.12);
+            color: #b7efe2;
+            border-radius: 8px;
+            min-height: 34px;
+            font-family: inherit;
+            font-size: 0.6rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.15s ease;
+        }
+        .omni-dock-btn:hover,
+        .omni-dock-btn.active {
+            border-color: rgba(114, 222, 194, 0.35);
+            color: #fff;
+            background: rgba(114, 222, 194, 0.05);
+        }
+
+        @media (max-width: 1200px) {
+            .omni-deck {
+                width: min(420px, calc(100vw - 110px));
+            }
+            .omni-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .omni-card.span2 {
+                grid-column: span 2;
+            }
+            .omni-ticker {
+                bottom: 165px;
+                width: calc(100vw - 24px);
+            }
+        }
+
+        @media (max-width: 980px) {
+            .controls-bar {
+                display: none;
+            }
+            .hud-overlay {
+                bottom: 56px;
+                right: 8px;
+            }
+            .hud-minimap-container {
+                width: 72px;
+                height: 54px;
+            }
+            .header-controls {
+                top: 10px;
+                right: 10px;
+                gap: 8px;
+            }
+            .menu-toggle,
+            .help-toggle,
+            .ripples-toggle,
+            .pause-toggle,
+            .logs-toggle,
+            .llm-toggle {
+                padding: 4px 8px;
+                font-size: 0.95rem;
+            }
+            .omni-deck {
+                top: 10px;
+                left: 10px;
+                right: 84px;
+                width: auto;
+            }
+            .omni-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .omni-guide {
+                font-size: 0.62rem;
+            }
+            .omni-ticker {
+                bottom: 154px;
+                font-size: 0.58rem;
+                letter-spacing: 1px;
+                width: calc(100vw - 20px);
+                padding: 6px 8px;
+            }
+            .omni-entity-strip {
+                left: 10px;
+                right: 10px;
+                bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+            }
+            .omni-strip-head {
+                padding: 6px 8px;
+            }
+            .omni-strip-head-actions {
+                display: none;
+            }
+            .omni-log-panel {
+                left: 10px;
+                right: 10px;
+                width: auto;
+                bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+                max-height: min(48vh, 380px);
+            }
+            .omni-mobile-dock {
+                display: grid;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sidebar {
+                top: 64px;
+                bottom: 160px;
+                width: min(240px, calc(100vw - 20px));
+                background: rgba(0, 0, 0, 0.86);
+                border: 1px solid rgba(114, 222, 194, 0.16);
+                border-radius: 8px;
+                padding: 8px;
+                backdrop-filter: blur(6px);
+                pointer-events: auto;
+            }
+            .omni-deck {
+                right: 10px;
+            }
+            .omni-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .omni-card {
+                min-height: 38px;
+            }
+            .omni-card.mobile-span {
+                grid-column: 1 / -1;
+            }
+            .omni-ticker {
+                bottom: 144px;
+                min-height: 34px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .omni-entity-btn {
+                min-width: 110px;
+                padding: 6px 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- BOOT SCREEN -->
+    <div id="boot-screen">
+        <div
+            style="font-size: 1.5rem; letter-spacing: 4px; margin-bottom: 20px; animation: flicker 0.2s infinite alternate;">
+            ORCA // MOSS_V16</div>
+        <button onclick="initializeSystem()"
+            style="background: transparent; color: #fff; border: 1px solid #72dec2; padding: 15px 30px; font-family: inherit; font-size: 1rem; cursor: pointer;">INITIALIZE
+            SYSTEM</button>
+    </div>
+
+    <div class="monitor-frame">
+        <div class="crt-overlay"></div>
+        <div class="crt-screen">
+            <canvas id="viz-canvas"></canvas>
+            <div id="tooltip" class="tooltip"></div>
+
+            <!-- HELP MODAL -->
+            <div id="help-modal">
+                <div
+                    style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                    <span style="color:#72dec2; font-weight:bold;">MANUAL</span>
+                    <span onclick="toggleHelp()" style="cursor:pointer;">✕</span>
+                </div>
+                <div style="font-size:0.8rem; line-height:1.6; color:#ccc;">
+                    <div style="margin-bottom:10px;"><strong style="color:#ffcc00">1 FINGER:</strong> Pan View</div>
+                    <div style="margin-bottom:10px;"><strong style="color:#ffcc00">2 FINGERS:</strong> Zoom In/Out</div>
+                    <div style="margin-bottom:10px;"><strong style="color:#72dec2">TAP:</strong> Select Entity</div>
+                    <div style="margin-bottom:10px;"><strong style="color:#72dec2">LONG PRESS:</strong> Neural Interface
+                    </div>
+                    <div><strong style="color:#72a5ff">DOUBLE TAP:</strong> Recenter</div>
+                </div>
+            </div>
+
+            <!-- NEURAL INTERFACE -->
+            <div id="neural-context-menu">
+                <div class="neural-header">
+                    <span>PATCH OPERATIONS</span>
+                    <span style="cursor:pointer" onclick="closeNeuralMenu()">✕</span>
+                </div>
+                <div id="cells-count-container"
+                    style="padding: 5px 10px; font-size: 0.65rem; color: #888; border-bottom: 1px solid #222;">
+                    SELECTED: <span id="ctx-cells-count" style="color: #72dec2;">0</span> CELLS
+                </div>
+                <div class="neural-options">
+                    <button class="patch-btn patch-transform" onclick="applyPatch('TRANSFORM')">
+                        <span><span class="patch-icon">T</span> TRANSFORM</span>
+                    </button>
+                    <button class="patch-btn patch-branch" onclick="applyPatch('BRANCH')">
+                        <span><span class="patch-icon">B</span> BRANCH</span>
+                    </button>
+                    <button class="patch-btn patch-seed" onclick="applyPatch('SEED')">
+                        <span><span class="patch-icon">S</span> SEED</span>
+                    </button>
+                    <div style="padding: 5px 0; display: flex; gap: 5px;">
+                        <input type="text" id="custom-prompt" placeholder="CMD..."
+                            style="background:rgba(255,255,255,0.1); border:none; color:#fff; padding:6px; font-family:inherit; font-size:0.7rem; flex-grow:1;">
+                        <button onclick="applyCustom()"
+                            style="background:#72dec2; border:none; color:#000; padding:6px 10px; font-family:inherit; font-size:0.7rem; cursor:pointer; font-weight:bold;">></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEADER CONTROLS (Floating) -->
+            <div class="header-controls">
+                <button class="help-toggle" onclick="toggleHelp()">?</button>
+                <button class="pause-toggle" id="pause-toggle-btn" onclick="toggleRendererPause()" title="Pause or resume renderer">⏸</button>
+                <button class="logs-toggle" id="omni-logs-toggle-btn" onclick="toggleOmniLogs()" title="Open activity log">L</button>
+                <button class="ripples-toggle" onclick="toggleRipplesConsole()">R</button>
+                <button class="llm-toggle" onclick="openRipplesLLMWorkbench()" title="Open LLM workbench">AI</button>
+                <button class="menu-toggle" onclick="toggleSidebar()">≡</button>
+            </div>
+
+            <!-- OMNISCIENCE DECK -->
+            <div class="omni-deck" id="omni-deck">
+                <div class="omni-deck-head">
+                    <div>
+                        <div class="omni-deck-title">RIPPLES v12 // OMNISCIENCE MOSS</div>
+                        <div class="omni-deck-sub">orca renderer + causal bridge + prompt export</div>
+                    </div>
+                    <div class="omni-pill" id="omni-live-pill">READY</div>
+                </div>
+                <div class="omni-grid">
+                    <div class="omni-card">
+                        <div class="omni-k">Target</div>
+                        <div class="omni-v" id="omni-target-card">--</div>
+                    </div>
+                    <div class="omni-card">
+                        <div class="omni-k">Mode</div>
+                        <div class="omni-v" id="omni-mode-card">NAVIGATE</div>
+                    </div>
+                    <div class="omni-card">
+                        <div class="omni-k">Inspect</div>
+                        <div class="omni-v" id="omni-inspect-card">OFF</div>
+                    </div>
+                    <div class="omni-card">
+                        <div class="omni-k">View</div>
+                        <div class="omni-v dim" id="omni-view-card">0,0 · 1.00x</div>
+                    </div>
+                    <div class="omni-card">
+                        <div class="omni-k">Last Event</div>
+                        <div class="omni-v dim" id="omni-last-event-card">No ripple event</div>
+                    </div>
+                    <div class="omni-card">
+                        <div class="omni-k">Panels</div>
+                        <div class="omni-v dim" id="omni-panels-card">R:off · S:off</div>
+                    </div>
+                </div>
+                <div class="omni-guide" id="omni-guide-inline">
+                    <strong>Read order:</strong> Impact Record → Worldtext → Prompts / Latent → Audit Log. The event record is evidence; the prose is interpretation. Use <strong>AI</strong> to export a packaged LLM prompt from the current ripple.
+                </div>
+            </div>
+
+            <!-- OMNISCIENCE LOG PANEL -->
+            <div class="omni-log-panel hidden" id="omni-log-panel">
+                <div class="omni-log-head">
+                    <span>Activity / Parse Log</span>
+                    <button class="omni-mini-btn" type="button" onclick="toggleOmniLogs(false)">Close</button>
+                </div>
+                <div class="omni-log-list" id="omni-log-list">
+                    <div class="omni-log-item">
+                        <div class="omni-log-meta"><span>SYS</span><span>BOOT</span></div>
+                        <div class="omni-log-text">Omniscience shell is loaded. Initialize system to begin.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIDEBAR (Floating Text) -->
+            <div class="sidebar" id="sidebar">
+                <div class="status-block">
+                    <span class="label">STATUS</span>
+                    <span class="value" style="color: var(--color-primary)">ONLINE</span>
+                </div>
+                <div class="status-block">
+                    <span class="label">TARGET</span>
+                    <span class="value" id="ui-entity" style="color: #fff">--</span>
+                </div>
+                <div class="entity-list" id="entity-list-container"></div>
+            </div>
+
+            <!-- RIPPLES BRIDGE CONSOLE -->
+            <div class="ripples-console hidden" id="ripples-console">
+                <div class="rc-head">
+                    <div>
+                        <div class="rc-title">RIPPLES // ORCA BRIDGE</div>
+                        <div class="rc-sub">causal worldtext · impact · audit · prompts · llm bundle</div>
+                    </div>
+                    <div class="rc-actions">
+                        <button class="rc-btn" id="rc-build-btn" type="button">BUILD</button>
+                        <button class="rc-btn" id="rc-copy-json-btn" type="button">JSON</button>
+                        <button class="rc-btn" id="rc-copy-bundle-btn" type="button">BUNDLE</button>
+                    </div>
+                </div>
+                <div class="rc-body">
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>Guide / Read Order</span><span class="rc-pill">intro</span></div>
+                        <div class="rc-block-b rc-help" id="rc-guide">
+                            Select an entity. Trigger BANG/HALT/MOD. Read IMPACT before WORLDTEXT. Use AUDIT to replay interpretation context. Export JSON/BUNDLE for external LLMs.
+                        </div>
+                    </div>
+
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>Worldtext</span><span class="rc-pill" id="rc-worldtext-pill">no event</span></div>
+                        <div class="rc-block-b" id="rc-worldtext-panel">
+                            <div class="rc-help">No vector event yet. Select an entity and trigger BANG / HALT / MOD.</div>
+                        </div>
+                    </div>
+
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>Impact Record</span><span class="rc-pill">causal</span></div>
+                        <div class="rc-block-b" id="rc-impact-panel">
+                            <div class="rc-help">No active event.</div>
+                        </div>
+                    </div>
+
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>Prompts / Latent</span><span class="rc-pill">layers</span></div>
+                        <div class="rc-block-b" id="rc-prompts-panel">
+                            <div class="rc-help">Select an entity to inspect entity seed prompts. Trigger an event to see edge/counterfactual/audit prompts.</div>
+                        </div>
+                    </div>
+
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>Audit Log</span><span class="rc-pill" id="rc-audit-count">0</span></div>
+                        <div class="rc-block-b">
+                            <div class="rc-list" id="rc-audit-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="rc-block">
+                        <div class="rc-block-h"><span>LLM Workbench</span><span class="rc-pill">export</span></div>
+                        <div class="rc-block-b">
+                            <div class="rc-form">
+                                <label class="rc-field">Mode
+                                    <select id="rc-llm-mode">
+                                        <option value="angel_trace">Angel Trace</option>
+                                        <option value="audit_causal">Audit Causal Summary</option>
+                                        <option value="worldtext">Perspective Worldtext</option>
+                                        <option value="raw_json">Raw JSON Reflection</option>
+                                    </select>
+                                </label>
+                                <label class="rc-field">Style
+                                    <select id="rc-llm-style">
+                                        <option value="hybrid">Hybrid</option>
+                                        <option value="legible">Legible</option>
+                                        <option value="poetic">Poetic</option>
+                                    </select>
+                                </label>
+                                <label class="rc-field">Perspective
+                                    <select id="rc-llm-perspective">
+                                        <option value="source">source</option>
+                                    </select>
+                                </label>
+                                <label class="rc-field">Bundle
+                                    <select id="rc-llm-bundle-mode">
+                                        <option value="combined">System + User</option>
+                                        <option value="prompt_only">User Prompt</option>
+                                        <option value="json_only">JSON</option>
+                                    </select>
+                                </label>
+                                <label class="rc-field wide">Stone / Constraint
+                                    <input id="rc-llm-stone" type="text" placeholder="optional premise / focus" />
+                                </label>
+                            </div>
+                            <div class="rc-actions-row">
+                                <button class="rc-btn" id="rc-test-api-btn" type="button">TEST API</button>
+                                <button class="rc-btn" id="rc-copy-prompt-btn" type="button">Copy Prompt</button>
+                                <button class="rc-btn" id="rc-copy-user-btn" type="button">Copy User</button>
+                            </div>
+                            <div class="rc-status" id="rc-llm-status">No event packaged yet.</div>
+                            <div class="rc-actions-row"></div>
+                            <textarea id="rc-system-prompt" class="rc-ta" readonly></textarea>
+                            <textarea id="rc-event-json" class="rc-ta" readonly></textarea>
+                            <textarea id="rc-bundle" class="rc-ta" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HUD Overlay -->
+            <div class="hud-overlay">
+                <button class="toggle-mode-btn" onclick="renderer.resetView()">RECENTER</button>
+                <button id="mode-btn" class="toggle-mode-btn" onclick="renderer.toggleMode()">NAVIGATE</button>
+                <button id="inspect-btn" class="toggle-mode-btn" onclick="renderer.toggleInspect()">INSPECT:
+                    OFF</button>
+                <div class="hud-panel" id="ui-coords">0,0</div>
+                <div class="hud-minimap-container">
+                    <canvas id="minimap-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- CONTROLS (Floating Runes) -->
+            <div class="controls-bar">
+                <div class="vector-group" onclick="engine.triggerVector('GOAL')">
+                    <div class="vector-btn btn-goal"><i>*</i></div>
+                    <span class="vector-label">BANG</span>
+                </div>
+                <div class="vector-group" onclick="engine.triggerVector('OBSTACLE')">
+                    <div class="vector-btn btn-obstacle"><i>#</i></div>
+                    <span class="vector-label">HALT</span>
+                </div>
+                <div class="vector-group" onclick="engine.triggerVector('SHIFT')">
+                    <div class="vector-btn btn-shift"><i>~</i></div>
+                    <span class="vector-label">MOD</span>
+                </div>
+                <div class="vector-group" onclick="renderer.toggleInspect()">
+                    <div id="inspect-vector-btn" class="vector-btn btn-inspect"><i>👁</i></div>
+                    <span class="vector-label">READ</span>
+                </div>
+            </div>
+
+            <!-- OMNISCIENCE ENTITY STRIP / QUICK ACTIONS -->
+            <div class="omni-entity-strip" id="omni-entity-strip">
+                <div class="omni-strip-head">
+                    <div class="omni-strip-title">World Jockey Deck</div>
+                    <div class="omni-strip-head-actions">
+                        <button class="omni-mini-btn vector-goal" type="button" onclick="engine.triggerVector('GOAL')">BANG</button>
+                        <button class="omni-mini-btn vector-obstacle" type="button" onclick="engine.triggerVector('OBSTACLE')">HALT</button>
+                        <button class="omni-mini-btn vector-shift" type="button" onclick="engine.triggerVector('SHIFT')">MOD</button>
+                        <button class="omni-mini-btn" type="button" onclick="renderer.toggleInspect()">READ</button>
+                        <button class="omni-mini-btn" type="button" onclick="toggleRipplesConsole(true)">IMPACT</button>
+                        <button class="omni-mini-btn" type="button" onclick="openRipplesLLMWorkbench()">LLM</button>
+                    </div>
+                </div>
+                <div class="omni-entity-row" id="omni-entity-row"></div>
+            </div>
+
+            <!-- OMNISCIENCE STATUS TICKER -->
+            <div class="omni-ticker" id="omni-status-ticker">
+                READY // INITIALIZE SYSTEM TO START ORCA + RIPPLES BRIDGE
+            </div>
+
+            <!-- MOBILE DOCK -->
+            <div class="omni-mobile-dock" id="omni-mobile-dock">
+                <button class="omni-dock-btn" type="button" onclick="toggleSidebar()">ENT</button>
+                <button class="omni-dock-btn" type="button" onclick="toggleRipplesConsole()">RPL</button>
+                <button class="omni-dock-btn" type="button" onclick="openRipplesLLMWorkbench()">LLM</button>
+                <button class="omni-dock-btn" type="button" onclick="toggleOmniLogs()">LOG</button>
+                <button class="omni-dock-btn" type="button" onclick="toggleHelp()">HELP</button>
+                <button class="omni-dock-btn" id="mobile-pause-btn" type="button" onclick="toggleRendererPause()">PAUSE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
+            initialized: false,
+            thudSynth: null,
+            noiseSynth: null,
+
+            async init() {
+                if (this.initialized) return;
+                try {
+                    await Tone.start();
+                    this.thudSynth = new Tone.MembraneSynth({
+                        pitchDecay: 0.1, octaves: 1.5, oscillator: { type: "sine" },
+                        envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 }
+                    }).toDestination();
+                    this.thudSynth.volume.value = -10;
+
+                    this.noiseSynth = new Tone.NoiseSynth({
+                        noise: { type: "pink" },
+                        envelope: { attack: 0.001, decay: 0.05, sustain: 0 }
+                    }).toDestination();
+                    this.noiseSynth.volume.value = -25;
+
+                    this.initialized = true;
+                    console.log("AUDIO READY");
+                } catch (e) { console.error("AUDIO INIT FAILED", e); }
+            },
+
+            lastThudTime: 0,
+            thud(vel = 0.5, note = "C1") {
+                if (!this.initialized) return;
+
+                const now = Tone.now();
+                // Rate limit to prevent stacking errors and audio glitches (limit to ~15ms)
+                if (now - this.lastThudTime < 0.05) return;
+
+                this.lastThudTime = now;
+                this.thudSynth.triggerAttackRelease(note, "32n", now, vel);
+                if (vel > 0.4) this.noiseSynth.triggerAttackRelease("32n", now, vel * 0.3);
+            }
+        };
+
+        // --- UTILS ---
+        function initializeSystem() {
+            const boot = document.getElementById('boot-screen');
+            boot.style.transition = 'opacity 0.8s ease';
+            boot.style.opacity = '0';
+            AudioEngine.init();
+            if (window.MossOmniShell) {
+                window.MossOmniShell.init();
+                window.MossOmniShell.log('BOOT INITIALIZE', 'SYS');
+                window.MossOmniShell.sync();
+            }
+            setTimeout(() => {
+                boot.style.display = 'none';
+                engine.init();
+            }, 800);
+        }
+
+        function toggleSidebar(force) {
+            const sb = document.getElementById('sidebar');
+            if (!sb) return;
+            const shouldShow = typeof force === 'boolean' ? force : !sb.classList.contains('active');
+            sb.classList.toggle('active', shouldShow);
+            if (window.MossOmniShell) {
+                window.MossOmniShell.log(`ENTITY PANEL ${sb.classList.contains('active') ? 'OPEN' : 'CLOSE'}`, 'UI');
+                window.MossOmniShell.sync();
+            }
+        }
+
+        function toggleRipplesConsole(force) {
+            const panel = document.getElementById('ripples-console');
+            if (!panel) return;
+            const shouldShow = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !shouldShow);
+            if (window.MossOmniShell) {
+                window.MossOmniShell.log(`RIPPLES PANEL ${shouldShow ? 'OPEN' : 'CLOSE'}`, 'UI');
+                window.MossOmniShell.sync();
+            }
+        }
+
+        function toggleHelp() {
+            const modal = document.getElementById('help-modal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+            if (window.MossOmniShell) {
+                window.MossOmniShell.log(`HELP ${modal.style.display === 'block' ? 'OPEN' : 'CLOSE'}`, 'UI');
+                window.MossOmniShell.sync();
+            }
+        }
+
+        function toggleOmniLogs(force) {
+            const panel = document.getElementById('omni-log-panel');
+            if (!panel) return;
+            const shouldShow = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !shouldShow);
+            if (window.MossOmniShell) window.MossOmniShell.sync();
+        }
+
+        function openRipplesLLMWorkbench() {
+            toggleRipplesConsole(true);
+            const llmBlock = document.querySelector('#ripples-console .rc-block:last-child');
+            if (llmBlock) llmBlock.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            if (window.MossOmniShell) {
+                window.MossOmniShell.log('OPEN LLM WORKBENCH', 'UI');
+                window.MossOmniShell.sync();
+            }
+        }
+
+        function toggleRendererPause() {
+            if (!window.renderer || typeof renderer.togglePause !== 'function') return;
+            renderer.togglePause();
+            if (window.MossOmniShell) {
+                window.MossOmniShell.log(renderer.paused ? 'RENDERER PAUSED' : 'RENDERER RESUMED', 'SYS');
+                window.MossOmniShell.sync();
+            }
+        }
+
+        function closeNeuralMenu() {
+            document.getElementById('neural-context-menu').style.display = 'none';
+        }
+
+        function applyPatch(type) {
+            const prompt = document.getElementById('custom-prompt').value;
+            engine.processPatch(type, prompt);
+            closeNeuralMenu();
+        }
+
+        function applyCustom() {
+            applyPatch('TRANSFORM');
+        }
+
+        // --- DATA ---
+        const LATENT_LIBRARY = {
+            "deep_forest": {
+                "id": "deep_forest", "name": "DEEP FOREST",
+                "entities": [
+                    { "id": "mycelium", "name": "Mycelium", "icon": "m", "palette": "mkw&8" },
+                    { "id": "deer", "name": "Deer", "icon": "d", "palette": "dYv|" },
+                    { "id": "owl", "name": "Owl", "icon": "o", "palette": "oO0@" },
+                    { "id": "seedling", "name": "Seedling", "icon": "s", "palette": "sS;,." },
+                    { "id": "fallen-oak", "name": "Fallen Oak", "icon": "f", "palette": "fF_=#" },
+                    { "id": "moonlight", "name": "Moonlight", "icon": "L", "palette": "L/ \\." }
+                ]
+            }
+        };
+
+        // --- AI CONFIGURATION ---
+        const AI_CONFIG = {
+            useLocalLLM: true,
+            llmMode: "auto", // local | remote | auto
+            apiMdPath: "api.md",
+            remoteModel: "gpt-4.1-mini",
+            localLLMModel: "llama3",
+            geminiModel: "gemini-1.5-flash",
+            // Semantic Gardener Ontology: OPERATORS, GOAL, SHIFT, OBSTACLE
+            systemInstruction: `
+                You are the Semantic Gardener of a digital ecosystem.
+                Interpret the grid using ONLY this ontology:
+                - OPERATORS: Active agents or functions (e.g. *, digits).
+                - GOAL: Objectives or targets (e.g. G, output ports).
+                - SHIFT: Transformations or state changes (e.g. ~, adjacent interaction).
+                - OBSTACLE: Barriers or challenges (e.g. #, collisions).
+
+                Output JSON ONLY:
+                {
+                    "chars": "2-5 chars identifying the patch (e.g. '>>', '*#')",
+                    "color": "Hex code matching the ontology (Goal=Gold, Obs=Red, etc)",
+                    "meaning": "Short poetic meaning (max 6 words)",
+                    "context": "One of: OPERATOR, GOAL, SHIFT, OBSTACLE",
+                    "narrative": "A single brief sentence expanding the meaning."
+                }
+            `,
+            tetradLenses: [
+                { key: 'enhance', label: 'ENHANCE', prompt: 'What does this AMPLIFY or INTENSIFY?' },
+                { key: 'reverse', label: 'REVERSE', prompt: 'What does this FLIP or TURN INTO when pushed to limits?' },
+                { key: 'retrieve', label: 'RETRIEVE', prompt: 'What lost element or ancient function does this RECOVER?' },
+                { key: 'obsolesce', label: 'OBSOLESCE', prompt: 'What old function does this replace or make UNNECESSARY?' }
+            ]
+        };
+
+        // --- OMNISCIENCE SHELL (top deck / ticker / logs / entity strip) ---
+        const MossOmniShell = {
+            initialized: false,
+            syncTimer: null,
+            maxLogs: 60,
+            logs: [],
+            dom: {},
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.cacheDom();
+                this.renderEntityStrip();
+                this.log('OMNISCIENCE SHELL ONLINE', 'SYS');
+                this.sync();
+                this.syncTimer = setInterval(() => this.sync(true), 250);
+            },
+
+            cacheDom() {
+                this.dom = {
+                    livePill: document.getElementById('omni-live-pill'),
+                    target: document.getElementById('omni-target-card'),
+                    mode: document.getElementById('omni-mode-card'),
+                    inspect: document.getElementById('omni-inspect-card'),
+                    view: document.getElementById('omni-view-card'),
+                    lastEvent: document.getElementById('omni-last-event-card'),
+                    panels: document.getElementById('omni-panels-card'),
+                    ticker: document.getElementById('omni-status-ticker'),
+                    entityRow: document.getElementById('omni-entity-row'),
+                    logPanel: document.getElementById('omni-log-panel'),
+                    logList: document.getElementById('omni-log-list'),
+                    pauseBtn: document.getElementById('pause-toggle-btn'),
+                    mobilePauseBtn: document.getElementById('mobile-pause-btn'),
+                    logsBtn: document.getElementById('omni-logs-toggle-btn'),
+                    ripplesBtn: document.querySelector('.ripples-toggle'),
+                    llmBtn: document.querySelector('.llm-toggle'),
+                    mobileDock: document.getElementById('omni-mobile-dock')
+                };
+            },
+
+            log(text, type = 'SYS') {
+                const time = new Date();
+                this.logs.unshift({
+                    id: `${time.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+                    type,
+                    text,
+                    timeLabel: time.toLocaleTimeString()
+                });
+                if (this.logs.length > this.maxLogs) this.logs.length = this.maxLogs;
+                this.renderLogs();
+            },
+
+            renderLogs() {
+                const el = this.dom.logList || document.getElementById('omni-log-list');
+                if (!el) return;
+                if (!this.logs.length) {
+                    el.innerHTML = `<div class="omni-log-item"><div class="omni-log-meta"><span>SYS</span><span>--</span></div><div class="omni-log-text">No activity yet.</div></div>`;
+                    return;
+                }
+                el.innerHTML = this.logs.slice(0, 18).map(item => `
+                    <div class="omni-log-item">
+                        <div class="omni-log-meta"><span>${this.escape(item.type)}</span><span>${this.escape(item.timeLabel)}</span></div>
+                        <div class="omni-log-text">${this.escape(item.text)}</div>
+                    </div>
+                `).join('');
+            },
+
+            renderEntityStrip() {
+                const row = this.dom.entityRow || document.getElementById('omni-entity-row');
+                if (!row) return;
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                if (!scenario || !window.engine) {
+                    row.innerHTML = `<div class="omni-log-item" style="min-width:100%;"><div class="omni-log-text">Waiting for engine initialization.</div></div>`;
+                    return;
+                }
+                const selected = engine.state.entityId;
+                row.innerHTML = scenario.entities.map(ent => {
+                    const runtimeState = window.mossRipplesBridge && mossRipplesBridge.runtime && mossRipplesBridge.runtime[ent.id]
+                        ? mossRipplesBridge.runtime[ent.id].state
+                        : null;
+                    const descriptor = runtimeState && window.mossRipplesBridge && typeof mossRipplesBridge.deriveDescriptor === 'function'
+                        ? mossRipplesBridge.deriveDescriptor(runtimeState)
+                        : 'UNPROFILED';
+                    return `
+                        <button class="omni-entity-btn ${selected === ent.id ? 'active' : ''}" type="button" data-entity-id="${this.escapeAttr(ent.id)}">
+                            <span class="omni-entity-icon">${this.escape(ent.icon || ent.id[0] || '?')}</span>
+                            <span class="omni-entity-meta">
+                                <span class="omni-entity-name">${this.escape(ent.name || ent.id)}</span>
+                                <span class="omni-entity-state">${this.escape(descriptor)}</span>
+                            </span>
+                        </button>
+                    `;
+                }).join('');
+                Array.from(row.querySelectorAll('.omni-entity-btn')).forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-entity-id');
+                        if (!id || !window.engine) return;
+                        engine.selectEntity(id);
+                        if (window.innerWidth <= 640) {
+                            const sb = document.getElementById('sidebar');
+                            if (sb) sb.classList.remove('active');
+                        }
+                    });
+                });
+            },
+
+            buildTickerText() {
+                const parts = [];
+                const hasEngine = !!window.engine;
+                const hasRenderer = !!window.renderer;
+                if (!hasEngine || !hasRenderer) return 'BOOT // WAITING FOR ENGINE';
+                const selected = engine.state.entityId || '--';
+                parts.push(renderer.paused ? 'PAUSED' : 'LIVE');
+                parts.push(`MODE ${renderer.mode}`);
+                parts.push(`TARGET ${selected.toUpperCase()}`);
+                if (renderer.hoverCell && renderer.hoverCell.char) {
+                    parts.push(`CURSOR ${renderer.hoverCell.gridX},${renderer.hoverCell.gridY} [${renderer.hoverCell.char}]`);
+                }
+                if (window.mossRipplesBridge && mossRipplesBridge.getFocusedEvent) {
+                    const ev = mossRipplesBridge.getFocusedEvent();
+                    if (ev) {
+                        const strongest = ev.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                        parts.push(`T${ev.tick} ${ev.source.entityId}->${ev.source.vector}`);
+                        parts.push(`${ev.transfers.length} AFFECTED / ${ev.nonEffects.length} BLOCKED`);
+                        if (strongest) parts.push(`TOP ${strongest.targetId} ${strongest.edge.channel} ${mossRipplesBridge.fmt(strongest.intensity)}`);
+                    } else {
+                        parts.push('TRIGGER BANG / HALT / MOD TO GENERATE A CAUSAL EVENT');
+                    }
+                }
+                return parts.join(' // ');
+            },
+
+            sync(quiet = false) {
+                if (!this.initialized) return;
+                const d = this.dom;
+                const sb = document.getElementById('sidebar');
+                const rc = document.getElementById('ripples-console');
+                const selected = window.engine ? engine.state.entityId : null;
+                const mode = window.renderer ? renderer.mode : 'BOOT';
+                const inspectOn = mode === 'INSPECT';
+                const paused = !!(window.renderer && renderer.paused);
+                const ev = window.mossRipplesBridge && mossRipplesBridge.getFocusedEvent ? mossRipplesBridge.getFocusedEvent() : null;
+
+                if (d.livePill) {
+                    d.livePill.textContent = paused ? 'PAUSED' : 'LIVE';
+                    d.livePill.classList.toggle('warn', paused);
+                }
+                if (d.target) d.target.textContent = selected ? selected.toUpperCase() : '--';
+                if (d.mode) d.mode.textContent = mode;
+                if (d.inspect) d.inspect.textContent = inspectOn ? 'ON' : 'OFF';
+                if (d.view && window.renderer) d.view.textContent = `${Math.floor(renderer.panX)},${Math.floor(renderer.panY)} · ${renderer.zoom.toFixed(2)}x`;
+                if (d.panels) d.panels.textContent = `R:${rc && !rc.classList.contains('hidden') ? 'on' : 'off'} · S:${sb && sb.classList.contains('active') ? 'on' : (window.innerWidth > 768 ? 'on' : 'off')}`;
+
+                if (d.lastEvent) {
+                    if (!ev) {
+                        d.lastEvent.className = 'omni-v dim';
+                        d.lastEvent.textContent = 'No ripple event';
+                    } else {
+                        const vecClass = ev.source.vector === 'GOAL' ? 'goal' : ev.source.vector === 'OBSTACLE' ? 'obstacle' : 'shift';
+                        d.lastEvent.className = `omni-v ${vecClass}`;
+                        d.lastEvent.textContent = `T${ev.tick} ${ev.source.entityId} → ${ev.source.vector} · ${ev.transfers.length}/${ev.nonEffects.length}`;
+                    }
+                }
+                if (d.ticker) d.ticker.textContent = this.buildTickerText();
+
+                if (d.pauseBtn) d.pauseBtn.textContent = paused ? '▶' : '⏸';
+                if (d.mobilePauseBtn) d.mobilePauseBtn.textContent = paused ? 'PLAY' : 'PAUSE';
+                if (d.pauseBtn) d.pauseBtn.classList.toggle('warn', paused);
+                if (d.logsBtn) d.logsBtn.classList.toggle('active', !!(d.logPanel && !d.logPanel.classList.contains('hidden')));
+                if (d.ripplesBtn) d.ripplesBtn.classList.toggle('active', !!(rc && !rc.classList.contains('hidden')));
+                if (d.llmBtn) d.llmBtn.classList.toggle('active', !!(rc && !rc.classList.contains('hidden')));
+                if (d.mobileDock) {
+                    const dockBtns = Array.from(d.mobileDock.querySelectorAll('.omni-dock-btn'));
+                    dockBtns.forEach(btn => {
+                        const txt = (btn.textContent || '').trim().toUpperCase();
+                        if (txt === 'RPL') btn.classList.toggle('active', !!(rc && !rc.classList.contains('hidden')));
+                        if (txt === 'ENT') btn.classList.toggle('active', !!(sb && (sb.classList.contains('active') || window.innerWidth > 768)));
+                        if (txt === 'LOG') btn.classList.toggle('active', !!(d.logPanel && !d.logPanel.classList.contains('hidden')));
+                    });
+                }
+
+                if (!quiet) this.renderEntityStrip();
+                if (!this.logs.length) this.renderLogs();
+            },
+
+            escape(s) {
+                return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+            },
+            escapeAttr(s) { return this.escape(s).replace(/"/g, '&quot;'); }
+        };
+        window.MossOmniShell = MossOmniShell;
+
+        // --- UNIFIED LLM CALLER ---
+        async function callLLMViaSharedAdapter(prompt, mode) {
+            if (!window.RipplesLLMAdapter) return null;
+            const adapterMode = mode || AI_CONFIG.llmMode || (AI_CONFIG.useLocalLLM ? "local" : "remote");
+            const baseOpts = {
+                prompt,
+                system: AI_CONFIG.systemInstruction,
+                apiMdPath: AI_CONFIG.apiMdPath || "api.md"
+            };
+
+            let result = null;
+            if (adapterMode === "local") {
+                result = await window.RipplesLLMAdapter.generate({
+                    ...baseOpts,
+                    preferLocal: true,
+                    allowApiMd: false,
+                    model: AI_CONFIG.localLLMModel
+                });
+            } else if (adapterMode === "remote") {
+                result = await window.RipplesLLMAdapter.generate({
+                    ...baseOpts,
+                    preferLocal: false,
+                    allowLocalFallback: false,
+                    model: AI_CONFIG.remoteModel
+                });
+            } else {
+                try {
+                    result = await window.RipplesLLMAdapter.generate({
+                        ...baseOpts,
+                        preferLocal: false,
+                        allowLocalFallback: false,
+                        model: AI_CONFIG.remoteModel
+                    });
+                } catch (_) {
+                    result = await window.RipplesLLMAdapter.generate({
+                        ...baseOpts,
+                        preferLocal: true,
+                        allowApiMd: false,
+                        model: AI_CONFIG.localLLMModel
+                    });
+                }
+            }
+
+            if (!result || !result.text) return null;
+            return window.RipplesLLMAdapter.parseJSON(result.text);
+        }
+
+        async function callLLM(prompt) {
+            try {
+                const adapterResult = await callLLMViaSharedAdapter(prompt);
+                if (adapterResult) return adapterResult;
+                if (AI_CONFIG.useLocalLLM) return await callLocalLLM(prompt);
+                return await callGemini(prompt);
+            } catch (e) {
+                console.warn("AI_FAIL:", e);
+                return null;
+            }
+        }
+
+        async function callLocalLLM(prompt) {
+            const response = await fetch('http://localhost:11434/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: AI_CONFIG.localLLMModel,
+                    messages: [
+                        { role: "system", content: AI_CONFIG.systemInstruction },
+                        { role: "user", content: prompt }
+                    ],
+                    stream: false
+                })
+            });
+            if (!response.ok) throw new Error("Ollama Error");
+            const data = await response.json();
+            return JSON.parse(data.message.content.replace(/```json|```/g, '').trim());
+        }
+
+        async function callGemini(prompt) {
+            // NOTE: This requires an external mechanism to set apiKey if not present, 
+            // or we can prompt for it. For now, we assume if useLocalLLM is false, we try.
+            // If no key, we fail to the fallback.
+            const apiKey = localStorage.getItem('GEMINI_API_KEY') || "";
+            if (!apiKey) throw new Error("No Gemini API Key");
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.geminiModel}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: AI_CONFIG.systemInstruction }] }
+                })
+            });
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            return JSON.parse(text.replace(/```json|```/g, '').trim());
+        }
+
+        // --- ENGINE ---
+        class RipplesEngine {
+            constructor() {
+                this.state = {
+                    scenarioId: 'deep_forest',
+                    entityId: null,
+                    ripples: [],
+                    activeAgents: []
+                };
+            }
+
+            init() {
+                this.renderUI();
+                this.spawnRipple("SYSTEM.READY", "#72dec2", 0, 0, 150, 30, "01.");
+            }
+
+            getEntityPalette(id) {
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                const ent = scenario.entities.find(e => e.id === id);
+                return ent ? ent.palette : ".....";
+            }
+
+            selectEntity(id) {
+                this.state.entityId = id;
+                this.renderUI();
+                const ent = LATENT_LIBRARY['deep_forest'].entities.find(e => e.id === id);
+                if (ent) {
+                    AudioEngine.thud(0.7, "C2");
+                    this.spawnRipple(`[${ent.name.toUpperCase()}]`, "#fff", renderer.panX * -0.05, renderer.panY * -0.05, 100, 20, ent.palette);
+                }
+            }
+
+            triggerVector(type) {
+                let color = "#fff";
+                let chars = "";
+                const entityPalette = this.state.entityId ? this.getEntityPalette(this.state.entityId) : "..";
+
+                if (type === 'GOAL') { color = "#ffcc00"; chars = entityPalette + ">>"; AudioEngine.thud(0.9, "G1"); }
+                if (type === 'OBSTACLE') { color = "#ff7272"; chars = entityPalette + "##"; AudioEngine.thud(0.6, "D1"); }
+                if (type === 'SHIFT') { color = "#72a5ff"; chars = entityPalette + "~"; AudioEngine.thud(0.5, "E2"); }
+
+                this.spawnRipple(type, color, 0, 0, 800, 45, chars);
+            }
+
+            async inspect(x, y) {
+                const cell = renderer.gridState[y]?.[x];
+                if (!cell || !cell.char) {
+                    renderer.drawFloatingText("VOID", x * 16 + renderer.panX, y * 8 + renderer.panY, "#555");
+                    return;
+                }
+
+                // Visual feedback
+                AudioEngine.thud(0.8, "E3");
+                renderer.drawFloatingText("INSPECTING...", x * 16 + renderer.panX, y * 8 + renderer.panY, "#72dec2");
+
+                // Select a random Tetrad lens
+                const lens = AI_CONFIG.tetradLenses[Math.floor(Math.random() * AI_CONFIG.tetradLenses.length)];
+
+                const prompt = `
+                    Analyze this moss patch:
+                    Char: "${cell.char}"
+                    Context: "${cell.semantic?.context || 'Unknown'}"
+                    Meaning: "${cell.semantic?.meaning || 'Unknown'}"
+                    
+                    Apply the **${lens.label}** lens: ${lens.prompt}
+                    Return JSON: { "analysis": "Your insight here (max 15 words)" }
+                `;
+
+                const result = await callLLM(prompt);
+                if (result && result.analysis) {
+                    AudioEngine.thud(0.9, "G3");
+                    console.log(`[INSPECT] ${lens.label}:`, result.analysis);
+                    renderer.drawFloatingText(`${lens.label}: ${result.analysis}`, x * 16 + renderer.panX, y * 8 + renderer.panY, "#ffcc00", 20);
+                    // Also spawn a ripple with the insight
+                    this.spawnRipple(lens.label, "#ffcc00", (x - renderer.gridSize / 2) * 16, (y - renderer.gridSize / 2) * 8, 200, 30, result.analysis.substring(0, 10));
+                }
+            }
+
+            async processPatch(type, prompt) {
+                const targets = Array.from(renderer.selectedCells);
+                if (targets.length === 0) return;
+
+                let chars = ".";
+                let color = "#fff";
+                let meaning = "";
+                let context = "";
+
+                if (type === 'BRANCH') {
+                    chars = "Yy/\\"; color = "#ffcc00";
+                    meaning = "Branching Path"; context = "OPERATOR"; // Classified as Operator
+                } else if (type === 'SEED') {
+                    chars = "oO0"; color = "#72a5ff";
+                    meaning = "New Seed"; context = "GOAL"; // Classified as Goal
+                    const start = targets[Math.floor(Math.random() * targets.length)];
+                    const [sx, sy] = start.split(',').map(Number);
+                    this.state.activeAgents.push({
+                        x: sx, y: sy, type: 'GARDENER', color: '#72a5ff', life: 1000
+                    });
+                } else {
+                    AudioEngine.thud(0.8, "A1");
+
+                    // LLM Call
+                    renderer.drawFloatingText("AI: GARDENING...", 100, 100, "#72dec2", 10);
+                    const p = (prompt || "").toLowerCase();
+                    const aiResult = await callLLM(p);
+
+                    if (aiResult) {
+                        chars = aiResult.chars || "??";
+                        color = aiResult.color || "#fff";
+                        meaning = aiResult.meaning || "Unknown Anomaly";
+                        context = aiResult.context || "SHIFT"; // Default to SHIFT if undefined
+                        console.log("AI Result:", aiResult);
+                    } else {
+                        // Fallback Heuristics
+                        if (p.includes("water")) { chars = "~≈"; color = "#72a5ff"; meaning = "Flow"; context = "SHIFT"; }
+                        else if (p.includes("fire")) { chars = "^*"; color = "#ff7272"; meaning = "Burn"; context = "OBSTACLE"; }
+                        else if (p.includes("forest")) { chars = "TY"; color = "#228b22"; meaning = "Growth"; context = "OPERATOR"; }
+                        else { chars = "###"; color = "#72dec2"; meaning = "Glitch"; context = "OBSTACLE"; }
+                    }
+                }
+
+                targets.forEach(key => {
+                    const [x, y] = key.split(',').map(Number);
+                    this.spawnRipple("PATCH", color, (x - renderer.gridSize / 2), (y - renderer.gridSize / 2), 5, 20, chars);
+
+                    // Store Semantic Metadata in Grid
+                    if (renderer.gridState[y] && renderer.gridState[y][x]) {
+                        renderer.gridState[y][x] = {
+                            char: chars.charAt(Math.floor(Math.random() * chars.length)),
+                            color: color,
+                            semantic: { meaning, context }
+                        };
+                    }
+                });
+
+                this.spawnRipple(`${type}.EXE`, color, 0, 0, 120, 40, chars);
+                AudioEngine.thud(0.8, "A1");
+                renderer.selectedCells.clear();
+            }
+
+            spawnRipple(text, color, x, y, life, strength, palette = ".....") {
+                this.state.ripples.push({
+                    id: Math.random(), text, color, x, y, born: Date.now(),
+                    lifeMax: life, life: 0, radius: 0, strength, palette
+                });
+            }
+
+            renderUI() {
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                const listContainer = document.getElementById('entity-list-container');
+                const uiEntity = document.getElementById('ui-entity');
+
+                const entity = scenario.entities.find(e => e.id === this.state.entityId);
+                uiEntity.innerText = entity ? entity.name.toUpperCase() : "--";
+                uiEntity.style.color = entity ? "#72dec2" : "#fff";
+
+                listContainer.innerHTML = '';
+                scenario.entities.forEach(ent => {
+                    const btn = document.createElement('button');
+                    btn.className = `entity-btn ${ent.id === this.state.entityId ? 'active' : ''}`;
+                    btn.innerHTML = `<span class="entity-icon">${ent.icon}</span> ${ent.name}`;
+                    btn.onclick = () => {
+                        this.selectEntity(ent.id);
+                        // On mobile, close sidebar automatically
+                        if (window.innerWidth <= 768) toggleSidebar();
+                    };
+                    listContainer.appendChild(btn);
+                });
+            }
+        }
+
+        // --- RENDERER ---
+        class HybridGridRenderer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.minimapCanvas = document.getElementById('minimap-canvas');
+                this.ctxMini = this.minimapCanvas.getContext('2d');
+
+                this.gridSize = 64;
+                this.baseIsoWidth = 16; this.baseIsoHeight = 8;
+                this.gridState = new Array(this.gridSize).fill(0).map(() => new Array(this.gridSize).fill(null).map(() => ({ char: null, color: null })));
+
+                this.selectedCells = new Set();
+                this.zoom = 1.0; this.targetZoom = 1.0;
+                this.panX = 0; this.panY = 0;
+
+                this.mode = 'NAVIGATE';
+
+                this.touchStartDist = 0;
+                this.isDragging = false;
+                this.lastX = 0; this.lastY = 0;
+                this.longPressTimer = null;
+
+                this.hoverCell = null;
+                this.time = 0;
+                this.lastTap = 0;
+                this.paused = false;
+
+                window.addEventListener('resize', () => this.resize());
+                this.resize();
+                this.bindEvents();
+                requestAnimationFrame(() => this.loop());
+            }
+
+            resize() {
+                this.canvas.width = this.canvas.parentElement.offsetWidth;
+                this.canvas.height = this.canvas.parentElement.offsetHeight;
+                this.cx = this.canvas.width / 2; this.cy = this.canvas.height / 2;
+                this.minimapCanvas.width = this.minimapCanvas.parentElement.offsetWidth;
+                this.minimapCanvas.height = this.minimapCanvas.parentElement.offsetHeight;
+
+                if (window.innerWidth <= 768) {
+                    this.gridSize = 32;
+                    this.baseIsoWidth = 24;
+                    this.baseIsoHeight = 12;
+                    this.targetZoom = 1.2;
+                    if (this.gridState.length !== this.gridSize) {
+                        this.gridState = new Array(this.gridSize).fill(0).map(() => new Array(this.gridSize).fill(null).map(() => ({ char: null, color: null })));
+                    }
+                }
+            }
+
+            toggleMode() {
+                if (this.mode === 'INSPECT') this.mode = 'NAVIGATE';
+                else this.mode = this.mode === 'NAVIGATE' ? 'PAINT' : 'NAVIGATE';
+                this.updateModeUI();
+            }
+
+            toggleInspect() {
+                this.mode = this.mode === 'INSPECT' ? 'NAVIGATE' : 'INSPECT';
+                this.updateModeUI();
+            }
+
+            togglePause() {
+                this.paused = !this.paused;
+                if (window.MossOmniShell) window.MossOmniShell.sync();
+                return this.paused;
+            }
+
+            updateModeUI() {
+                const btn = document.getElementById('mode-btn');
+                const inspectBtn = document.getElementById('inspect-btn');
+
+                if (btn) {
+                    btn.innerText = (this.mode === 'INSPECT') ? 'NAVIGATE' : this.mode;
+                    if (this.mode === 'PAINT') btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+
+                if (inspectBtn) {
+                    inspectBtn.innerText = this.mode === 'INSPECT' ? "INSPECT: ON" : "INSPECT: OFF";
+                    if (this.mode === 'INSPECT') inspectBtn.classList.add('active');
+                    else inspectBtn.classList.remove('active');
+                }
+
+                const inspectVec = document.getElementById('inspect-vector-btn');
+                if (inspectVec) {
+                    if (this.mode === 'INSPECT') inspectVec.classList.add('active');
+                    else inspectVec.classList.remove('active');
+                }
+            }
+
+            resetView() {
+                this.panX = 0;
+                this.panY = 0;
+                this.targetZoom = window.innerWidth <= 768 ? 1.2 : 1.0;
+                engine.spawnRipple("RESET", "#fff", 0, 0, 50, 10);
+            }
+
+            openContextMenu(x, y) {
+                if (this.selectedCells.size === 0 && this.hoverCell) {
+                    this.selectedCells.add(`${this.hoverCell.gridX},${this.hoverCell.gridY}`);
+                }
+
+                const menu = document.getElementById('neural-context-menu');
+                const count = document.getElementById('ctx-cells-count');
+
+                if (menu) menu.style.display = 'block';
+                if (count) count.innerText = this.selectedCells.size;
+
+                let mx = x; let my = y;
+                if (mx + 260 > window.innerWidth) mx = window.innerWidth - 270;
+                if (my + 200 > window.innerHeight) my = window.innerHeight - 210;
+
+                if (menu) {
+                    menu.style.left = mx + 'px';
+                    menu.style.top = my + 'px';
+                }
+            }
+
+            handleInputStart(x, y, isShift) {
+                this.isDragging = true;
+                this.lastX = x; this.lastY = y;
+
+                if (this.mode === 'PAINT' || isShift) {
+                    if (this.hoverCell) {
+                        this.selectedCells.add(`${this.hoverCell.gridX},${this.hoverCell.gridY}`);
+                    }
+                }
+            }
+
+            handleInputMove(x, y, isShift) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mousePos = { x: x - rect.left, y: y - rect.top };
+
+                if (this.isDragging) {
+                    if (this.mode === 'PAINT' || isShift) {
+                        if (this.hoverCell) this.selectedCells.add(`${this.hoverCell.gridX},${this.hoverCell.gridY}`);
+                    } else {
+                        this.panX += x - this.lastX;
+                        this.panY += y - this.lastY;
+                    }
+                }
+                this.lastX = x; this.lastY = y;
+            }
+
+            bindEvents() {
+                this.canvas.addEventListener('mousedown', e => {
+                    if (e.button === 2) return;
+
+                    // INSPECT MODE TRIGGER
+                    if (this.mode === 'INSPECT' && this.hoverCell) {
+                        engine.inspect(this.hoverCell.gridX, this.hoverCell.gridY);
+                        return;
+                    }
+
+                    const now = Date.now();
+                    if (now - this.lastTap < 300) { this.resetView(); return; }
+                    this.lastTap = now;
+                    this.handleInputStart(e.clientX, e.clientY, e.shiftKey);
+                });
+
+                window.addEventListener('mousemove', e => {
+                    this.handleInputMove(e.clientX, e.clientY, e.shiftKey);
+                });
+
+                window.addEventListener('mouseup', () => this.isDragging = false);
+
+                this.canvas.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    this.openContextMenu(e.clientX, e.clientY);
+                });
+
+                this.canvas.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    this.targetZoom = Math.min(Math.max(0.3, this.targetZoom - e.deltaY * 0.001), 4.0);
+                });
+
+                // TOUCH
+                this.canvas.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    const now = Date.now();
+                    if (e.touches.length === 1 && now - this.lastTap < 300) { this.resetView(); return; }
+                    this.lastTap = now;
+
+                    if (e.touches.length === 1) {
+                        const t = e.touches[0];
+                        this.handleInputStart(t.clientX, t.clientY, false);
+
+                        this.longPressTimer = setTimeout(() => {
+                            this.isDragging = false;
+                            this.openContextMenu(t.clientX, t.clientY);
+                        }, 600);
+                    }
+                    else if (e.touches.length === 2) {
+                        this.touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    if (Math.hypot(e.touches[0].clientX - this.lastX, e.touches[0].clientY - this.lastY) > 10) clearTimeout(this.longPressTimer);
+
+                    if (e.touches.length === 1) {
+                        this.handleInputMove(e.touches[0].clientX, e.touches[0].clientY, false);
+                    }
+                    else if (e.touches.length === 2) {
+                        clearTimeout(this.longPressTimer);
+                        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                        const delta = dist - this.touchStartDist;
+                        this.targetZoom = Math.min(Math.max(0.3, this.targetZoom + delta * 0.005), 4.0);
+                        this.touchStartDist = dist;
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchend', () => {
+                    this.isDragging = false; clearTimeout(this.longPressTimer); this.mousePos = null;
+                });
+            }
+
+            drawMinimap() {
+                const ctx = this.ctxMini;
+                const w = this.minimapCanvas.width; const h = this.minimapCanvas.height;
+                ctx.clearRect(0, 0, w, h);
+                const centerX = w / 2; const centerY = h / 2;
+
+                ctx.fillStyle = '#ffcc00';
+                this.selectedCells.forEach(key => {
+                    const [gx, gy] = key.split(',').map(Number);
+                    const mx = centerX + (gx - this.gridSize / 2) * 2; const my = centerY + (gy - this.gridSize / 2) * 2;
+                    ctx.fillRect(mx, my, 2, 2);
+                });
+
+                engine.state.activeAgents.forEach(a => {
+                    const mx = centerX + (a.x - this.gridSize / 2) * 2; const my = centerY + (a.y - this.gridSize / 2) * 2;
+                    ctx.fillStyle = a.color; ctx.fillRect(mx, my, 3, 3);
+                });
+
+                const viewW = (w * 0.8) / this.zoom; const viewH = (h * 0.8) / this.zoom;
+                const viewX = centerX - (this.panX * 0.1) - viewW / 2; const viewY = centerY - (this.panY * 0.1) - viewH / 2;
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(viewX, viewY, viewW, viewH);
+            }
+
+            drawFloatingText(text, x, y, color = "#fff", fontSize = 12) {
+                this.ctx.fillStyle = color;
+                this.ctx.font = `bold ${fontSize}px 'Courier New'`;
+                this.ctx.fillText(text, x, y);
+            }
+
+            loop() {
+                try {
+                    if (!this.paused) this.time += 0.005;
+                    this.zoom += (this.targetZoom - this.zoom) * 0.1;
+
+                    // Render Background
+                    this.ctx.fillStyle = '#050505';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
+
+                    // --- HEADER & HUD AS CANVAS RENDER ---
+                    this.ctx.save();
+                    const headerY = 40 + Math.sin(this.time * 2) * 2; // Breathing
+                    this.ctx.shadowColor = "rgba(114, 222, 194, 0.5)";
+                    this.ctx.shadowBlur = 10;
+                    this.drawFloatingText("ORCA / MOSS_V16", 120, headerY, "#72dec2", 18);
+                    this.ctx.shadowBlur = 0;
+                    this.drawFloatingText("TACTILE.ENV", 120, headerY + 15, "#666", 10);
+
+                    // HUD Status (Bottom Right)
+                    const hudX = this.canvas.width - 20;
+                    const hudY = this.canvas.height - 120;
+                    const hudBreath = Math.cos(this.time * 1.5) * 2;
+
+                    this.ctx.textAlign = "right";
+                    this.drawFloatingText(`POS: ${Math.floor(this.panX)}, ${Math.floor(this.panY)}`, hudX, hudY + hudBreath, "#888", 10);
+                    this.drawFloatingText(`ZOOM: ${this.zoom.toFixed(2)}x`, hudX, hudY - 15 + hudBreath, "#72dec2", 10);
+                    this.ctx.restore();
+
+                    this.ctx.textAlign = "center"; // Reset for grid
+
+                    // Physics Update
+                    const ripples = engine.state.ripples;
+                    if (!this.paused) {
+                        for (let i = ripples.length - 1; i >= 0; i--) {
+                            ripples[i].life++; ripples[i].radius += 0.15;
+                            if (ripples[i].life > ripples[i].lifeMax) ripples.splice(i, 1);
+                        }
+
+                        // Agents Update
+                        engine.state.activeAgents.forEach((agent, i) => {
+                            if (agent.type === 'GARDENER' && Math.random() > 0.9) {
+                                const dx = Math.floor(Math.random() * 3) - 1;
+                                const dy = Math.floor(Math.random() * 3) - 1;
+                                const nx = Math.max(0, Math.min(this.gridSize - 1, agent.x + dx));
+                                const ny = Math.max(0, Math.min(this.gridSize - 1, agent.y + dy));
+                                if (!this.gridState[ny][nx].color) {
+                                    this.gridState[ny][nx] = { char: 'o', color: agent.color };
+                                    agent.x = nx; agent.y = ny;
+                                }
+                            }
+                        });
+                    }
+
+                    const size = this.gridSize;
+                    const offset = size / 2;
+                    const currentIsoW = this.baseIsoWidth * this.zoom;
+                    const currentIsoH = this.baseIsoHeight * this.zoom;
+                    const densityChars = "  ..,,--::;;==iiIIJJLLOO00##@@";
+
+                    let closestCell = null;
+                    let minDist = 1000;
+
+                    for (let y = 0; y < size; y++) {
+                        for (let x = 0; x < size; x++) {
+                            const rx = x - offset; const ry = y - offset;
+
+                            let z = Math.sin((Math.sqrt(rx * rx + ry * ry) * 0.2) - this.time) * 5;
+                            z += Math.sin(rx * 0.5) * Math.cos(ry * 0.5) * 3;
+
+                            let activeColor = null;
+                            let activeChar = null;
+                            let isBang = false;
+
+                            for (let r of ripples) {
+                                const d = Math.abs(Math.sqrt((rx - r.x) ** 2 + (ry - r.y) ** 2) - r.radius);
+                                if (d < 5) {
+                                    const amp = Math.cos(d * 0.5) * r.strength;
+                                    if (amp > 0) z += amp;
+                                    if (d < 2 && amp > 5) {
+                                        activeColor = r.color;
+                                        if (r.text && r.text.length > 0) {
+                                            const charIdx = (Math.abs(x + y) + Math.floor(this.time * 2)) % r.text.length;
+                                            activeChar = r.text[charIdx];
+                                            if (activeChar === '*') isBang = true;
+                                        }
+                                    }
+                                    if (d < 0.5 && r.palette) {
+                                        // Autonomous intersection thud for entities
+                                        if (this.gridState[y][x].char && Math.random() > 0.99) {
+                                            AudioEngine.thud(0.05, "B0");
+                                        }
+                                        const pIdx = (Math.abs(x * y) + Math.floor(r.radius)) % r.palette.length;
+                                        this.gridState[y][x] = { char: r.palette[pIdx], color: r.color };
+                                    }
+                                }
+                            }
+
+                            const state = this.gridState[y][x];
+                            if (state.char) {
+                                if (!activeChar) activeChar = state.char;
+                                if (!activeColor && state.color) activeColor = state.color;
+                            }
+
+                            if (this.selectedCells.has(`${x},${y}`)) activeColor = '#ffcc00';
+
+                            const sx = this.cx + this.panX + (rx - ry) * currentIsoW;
+                            const sy = this.cy + this.panY + (rx + ry) * currentIsoH - (z * 3 * this.zoom);
+
+                            if (sx < -20 || sx > this.canvas.width + 20 || sy < -20 || sy > this.canvas.height + 20) continue;
+
+                            if (this.mousePos) {
+                                const dist = Math.hypot(sx - this.mousePos.x, sy - this.mousePos.y);
+                                if (dist < 20 * this.zoom && dist < minDist) {
+                                    minDist = dist;
+                                    closestCell = { gridX: x, gridY: y, screenX: sx, screenY: sy, char: activeChar };
+                                }
+                            }
+
+                            if (!activeChar) {
+                                let index = Math.floor(z + 8);
+                                index = Math.max(0, Math.min(index, densityChars.length - 1));
+                                activeChar = densityChars[index];
+                            }
+
+                            if (activeColor) {
+                                this.ctx.fillStyle = activeColor;
+                                this.ctx.globalAlpha = 1.0;
+                                const fontSize = Math.floor(Math.max(10, 14 * this.zoom));
+                                this.ctx.font = `bold ${fontSize}px monospace`;
+                                this.ctx.shadowBlur = isBang ? 10 * this.zoom : 0;
+                                if (isBang) this.ctx.shadowColor = activeColor;
+                            } else {
+                                let color = '#222'; if (z > 5) color = '#444'; if (z > 15) color = '#777';
+                                this.ctx.fillStyle = color;
+                                this.ctx.shadowBlur = 0;
+                                const fontSize = Math.floor(Math.max(4, 11 * this.zoom));
+                                this.ctx.font = `${fontSize}px monospace`;
+                                this.ctx.globalAlpha = 1.0;
+                            }
+
+                            this.ctx.fillText(activeChar, sx, sy);
+                        }
+                    }
+
+                    this.hoverCell = closestCell;
+                    if (this.hoverCell) {
+                        // Draw Reticle
+                        this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 1;
+                        this.ctx.strokeRect(this.hoverCell.screenX - 8 * this.zoom, this.hoverCell.screenY - 8 * this.zoom, 16 * this.zoom, 16 * this.zoom);
+
+                        // Tooltip & INSPECTOR Logic
+                        const tooltip = document.getElementById('tooltip');
+                        if (this.hoverCell) {
+                            tooltip.style.display = 'block';
+                            let tx = this.mousePos ? this.mousePos.x + 15 : this.hoverCell.screenX + 15;
+                            let ty = this.mousePos ? this.mousePos.y : this.hoverCell.screenY;
+                            tooltip.style.left = tx + 'px';
+                            tooltip.style.top = ty + 'px';
+
+                            // Base Tooltip
+                            let content = `${this.hoverCell.gridX},${this.hoverCell.gridY} [${this.hoverCell.char}]`;
+
+                            // INSPECTOR MODE ENHANCEMENT
+                            const cellState = this.gridState[this.hoverCell.gridY][this.hoverCell.gridX];
+                            if (this.mode === 'INSPECT' && cellState && cellState.semantic) {
+                                content += `<br><span style="color:#72dec2">MEANING: ${cellState.semantic.meaning}</span>`;
+                                content += `<br><span style="color:#888; font-size:0.7em">CTX: ${cellState.semantic.context}</span>`;
+
+                                // Optional audio feedback on hover change
+                                if (this.lastHover !== `${this.hoverCell.gridX},${this.hoverCell.gridY}`) {
+                                    // AudioEngine.thud(0.1, "C6"); // Subtle click
+                                    this.lastHover = `${this.hoverCell.gridX},${this.hoverCell.gridY}`;
+                                }
+                            }
+
+                            tooltip.innerHTML = content;
+                        } else {
+                            tooltip.style.display = 'none';
+                            this.lastHover = null;
+                        }
+
+                    } else {
+                        document.getElementById('tooltip').style.display = 'none';
+                    }
+
+                    const coordsEl = document.getElementById('ui-coords');
+                    if (coordsEl) {
+                        if (this.hoverCell) coordsEl.textContent = `${this.hoverCell.gridX},${this.hoverCell.gridY}`;
+                        else coordsEl.textContent = `${Math.floor(this.panX)},${Math.floor(this.panY)}`;
+                    }
+
+                    this.drawMinimap();
+                    this.ctx.globalAlpha = 1.0; this.ctx.shadowBlur = 0;
+
+                } catch (e) { console.error(e); }
+                requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        // --- RIPPLES BRIDGE (connects ORCA moss to evo/gpt-style causal UI) ---
+        class MossRipplesBridge {
+            constructor(engineRef, rendererRef) {
+                this.engine = engineRef;
+                this.renderer = rendererRef;
+                this.eventSeq = 0;
+                this.audit = [];
+                this.viewedEventId = null;
+                this.runtime = {};
+                this.initialized = false;
+                this.dims = ['activity', 'stability', 'exposure', 'resource', 'signal'];
+                this.vecMap = {
+                    GOAL: { label: 'BANG', color: '#ffcc00' },
+                    OBSTACLE: { label: 'HALT', color: '#ff7272' },
+                    SHIFT: { label: 'MOD', color: '#72a5ff' }
+                };
+                this.meta = {
+                    entities: {
+                        'mycelium': {
+                            type: 'animate',
+                            adjacentTo: ['seedling', 'fallen-oak', 'moonlight'],
+                            seeds: {
+                                GOAL: 'I conduct toward the richest thread. Moisture and nutrient rumor become direction.',
+                                OBSTACLE: 'The line knots. Signal stalls in rot and compression. Transfer becomes drag.',
+                                SHIFT: 'The network retunes. I carry a different timing through the same soil.'
+                            }
+                        },
+                        'deer': {
+                            type: 'animate',
+                            adjacentTo: ['owl', 'seedling', 'moonlight'],
+                            seeds: {
+                                GOAL: 'I orient to the opening, to scent and brightness and the path of least alarm.',
+                                OBSTACLE: 'The field closes around me. Sound and density force a turn.',
+                                SHIFT: 'My reading of distance changes before the forest changes.'
+                            }
+                        },
+                        'owl': {
+                            type: 'animate',
+                            adjacentTo: ['deer', 'moonlight'],
+                            seeds: {
+                                GOAL: 'I lock onto movement signatures and pressure in the dark air.',
+                                OBSTACLE: 'Noise and canopy fracture the line. The strike path breaks.',
+                                SHIFT: 'Perch becomes drift; attention leaves one axis and takes another.'
+                            }
+                        },
+                        'seedling': {
+                            type: 'animate',
+                            adjacentTo: ['mycelium', 'fallen-oak', 'moonlight', 'deer'],
+                            seeds: {
+                                GOAL: 'I seek aperture. Light and water gradient become command.',
+                                OBSTACLE: 'Shade and compression limit stretch. Growth becomes waiting.',
+                                SHIFT: 'Allocation changes. What was height becomes root or vice versa.'
+                            }
+                        },
+                        'fallen-oak': {
+                            type: 'inanimate',
+                            adjacentTo: ['mycelium', 'seedling'],
+                            seeds: {
+                                GOAL: 'I hold and release slowly; moisture and residue gather into usable store.',
+                                OBSTACLE: 'Dryness and breakage interrupt transfer across my surface.',
+                                SHIFT: 'I stop being support and become channel, or the reverse.'
+                            }
+                        },
+                        'moonlight': {
+                            type: 'abstract',
+                            adjacentTo: ['owl', 'deer', 'mycelium', 'seedling'],
+                            seeds: {
+                                GOAL: 'I thread the canopy gap and make surfaces legible.',
+                                OBSTACLE: 'Cloud and branch density break my corridor into fragments.',
+                                SHIFT: 'I move from illumination to pressure, from sight to temperature and timing.'
+                            }
+                        }
+                    }
+                };
+
+                this.dom = {
+                    panel: document.getElementById('ripples-console'),
+                    worldtextPill: document.getElementById('rc-worldtext-pill'),
+                    worldtext: document.getElementById('rc-worldtext-panel'),
+                    impact: document.getElementById('rc-impact-panel'),
+                    prompts: document.getElementById('rc-prompts-panel'),
+                    auditList: document.getElementById('rc-audit-list'),
+                    auditCount: document.getElementById('rc-audit-count'),
+                    buildBtn: document.getElementById('rc-build-btn'),
+                    copyJsonBtn: document.getElementById('rc-copy-json-btn'),
+                    copyBundleBtn: document.getElementById('rc-copy-bundle-btn'),
+                    testApiBtn: document.getElementById('rc-test-api-btn'),
+                    copyPromptBtn: document.getElementById('rc-copy-prompt-btn'),
+                    copyUserBtn: document.getElementById('rc-copy-user-btn'),
+                    mode: document.getElementById('rc-llm-mode'),
+                    style: document.getElementById('rc-llm-style'),
+                    perspective: document.getElementById('rc-llm-perspective'),
+                    bundleMode: document.getElementById('rc-llm-bundle-mode'),
+                    stone: document.getElementById('rc-llm-stone'),
+                    status: document.getElementById('rc-llm-status'),
+                    systemPrompt: document.getElementById('rc-system-prompt'),
+                    eventJson: document.getElementById('rc-event-json'),
+                    bundle: document.getElementById('rc-bundle'),
+                };
+            }
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.initRuntime();
+                this.bindUI();
+                if (window.innerWidth > 980) toggleRipplesConsole(true);
+                this.renderAll();
+            }
+
+            bindUI() {
+                const d = this.dom;
+                if (!d.buildBtn) return;
+                d.buildBtn.addEventListener('click', () => this.updateLLMWorkbench());
+                d.copyJsonBtn.addEventListener('click', () => this.copyText(d.eventJson.value, 'Event JSON'));
+                d.copyBundleBtn.addEventListener('click', () => {
+                    const bundle = this.buildLLMBundle(this.getFocusedEvent());
+                    this.copyText(bundle.copyPayload, 'LLM bundle');
+                });
+                if (d.testApiBtn) d.testApiBtn.addEventListener('click', () => this.testApiConnection());
+                d.copyPromptBtn.addEventListener('click', () => this.copyText(d.systemPrompt.value, 'System prompt'));
+                d.copyUserBtn.addEventListener('click', () => {
+                    const bundle = this.buildLLMBundle(this.getFocusedEvent());
+                    this.copyText(bundle.userPrompt, 'User payload');
+                });
+                [d.mode, d.style, d.perspective, d.bundleMode].forEach(el => {
+                    if (!el) return;
+                    el.addEventListener('change', () => this.updateLLMWorkbench(true));
+                });
+                if (d.stone) d.stone.addEventListener('input', () => this.updateLLMWorkbench(true));
+
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'r' || e.key === 'R') {
+                        const activeTag = document.activeElement && document.activeElement.tagName;
+                        if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') toggleRipplesConsole();
+                    }
+                });
+            }
+
+            initRuntime() {
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                if (!scenario) return;
+                this.runtime = {};
+                for (const ent of scenario.entities) {
+                    this.runtime[ent.id] = {
+                        state: this.makeInitialState(ent.id),
+                        io: { in: 0, out: 0 }
+                    };
+                }
+                this.audit = [];
+                this.viewedEventId = null;
+                this.eventSeq = 0;
+            }
+
+            makeInitialState(entityId) {
+                const type = (this.meta.entities[entityId] && this.meta.entities[entityId].type) || 'abstract';
+                const base = {
+                    animate: { activity: 0.62, stability: 0.46, exposure: 0.42, resource: 0.48, signal: 0.52 },
+                    inanimate: { activity: 0.18, stability: 0.70, exposure: 0.36, resource: 0.34, signal: 0.30 },
+                    abstract: { activity: 0.52, stability: 0.40, exposure: 0.68, resource: 0.26, signal: 0.74 }
+                }[type] || { activity: 0.5, stability: 0.5, exposure: 0.5, resource: 0.5, signal: 0.5 };
+                const out = {};
+                this.dims.forEach(dim => {
+                    out[dim] = this.round3(this.clamp(base[dim] + this.seededRange(`${entityId}:${dim}`, -0.12, 0.12), 0.02, 0.98));
+                });
+                return out;
+            }
+
+            onEntitySelected(entityId) {
+                this.ensureRuntime();
+                this.renderPrompts();
+                this.renderWorldtext();
+                this.updateLLMWorkbench(true);
+            }
+
+            onVectorTriggered(vector, origin = 'manual') {
+                this.ensureRuntime();
+                const event = this.computeEvent(vector, origin);
+                if (!event) {
+                    this.renderAll();
+                    return;
+                }
+                this.audit.unshift(event);
+                if (this.audit.length > 80) this.audit.length = 80;
+                this.viewedEventId = event.eventId;
+                this.renderAll();
+                if (window.innerWidth <= 980) toggleRipplesConsole(true);
+            }
+
+            onPatchExecuted(type, promptText) {
+                // Lightweight bridge hook: update prompt panel/LLM status with latest patch intent
+                this.lastPatchInfo = { type, promptText: promptText || '', time: new Date() };
+                this.renderPrompts();
+                this.updateLLMWorkbench(true);
+            }
+
+            ensureRuntime() {
+                if (!this.runtime || !Object.keys(this.runtime).length) this.initRuntime();
+            }
+
+            computeEvent(vector, origin) {
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                const sourceId = this.engine.state.entityId || (scenario.entities[0] && scenario.entities[0].id);
+                if (!sourceId || !this.runtime[sourceId]) return null;
+                const sourceMeta = this.meta.entities[sourceId] || { type: 'abstract', adjacentTo: [], seeds: {} };
+                const sourceBefore = this.cloneState(this.runtime[sourceId].state);
+                const requested = this.computeSourceDelta(sourceId, vector);
+                const sourceAfter = this.applyDelta(sourceBefore, requested);
+                const applied = this.diffState(sourceBefore, sourceAfter);
+                this.runtime[sourceId].state = sourceAfter;
+                this.runtime[sourceId].io.out += 1;
+
+                const transfers = [];
+                const nonEffects = [];
+                const neighbors = (sourceMeta.adjacentTo || []).slice(0, 6);
+                const sourceImpulse = this.clamp(this.deltaMagnitude(applied) + 0.18, 0.08, 1.0);
+
+                neighbors.forEach((targetId, idx) => {
+                    if (!this.runtime[targetId]) return;
+                    const edge = this.buildEdge(sourceId, targetId, idx);
+                    const tr = this.computeTransfer(sourceId, targetId, vector, sourceImpulse, edge);
+                    if (!tr.applied) {
+                        nonEffects.push(tr.nonEffect);
+                        return;
+                    }
+                    this.runtime[targetId].state = tr.after;
+                    this.runtime[targetId].io.in += 1;
+                    transfers.push(tr.transfer);
+                });
+
+                const now = new Date();
+                const event = {
+                    eventId: `moss-evt-${String(++this.eventSeq).padStart(4, '0')}`,
+                    tick: this.eventSeq,
+                    scenarioId: 'deep_forest',
+                    source: { entityId: sourceId, vector, label: this.entityName(sourceId) },
+                    origin,
+                    timestamp: now.toISOString(),
+                    timestampLocal: now.toLocaleTimeString(),
+                    sourceDelta: {
+                        before: sourceBefore,
+                        after: sourceAfter,
+                        requested,
+                        delta: applied
+                    },
+                    transfers,
+                    nonEffects,
+                    promptMaterials: this.buildPromptMaterials(sourceId, vector, transfers, nonEffects),
+                    suggestions: this.suggestNextMoves(sourceId, vector, transfers, nonEffects),
+                    worldtext: '',
+                };
+                event.worldtext = this.generateWorldtext(event);
+                return event;
+            }
+
+            computeSourceDelta(entityId, vector) {
+                const type = (this.meta.entities[entityId] && this.meta.entities[entityId].type) || 'abstract';
+                const base = {
+                    GOAL: { activity: 0.16, stability: -0.05, exposure: 0.09, resource: 0.16, signal: 0.07 },
+                    OBSTACLE: { activity: -0.05, stability: -0.16, exposure: 0.07, resource: -0.12, signal: 0.10 },
+                    SHIFT: { activity: 0.02, stability: -0.06, exposure: 0.12, resource: 0.00, signal: 0.16 }
+                }[vector] || { activity: 0, stability: 0, exposure: 0, resource: 0, signal: 0.08 };
+                const typeBias = {
+                    animate: {
+                        GOAL: { activity: 0.05, resource: 0.04 },
+                        OBSTACLE: { stability: -0.04, exposure: 0.04 },
+                        SHIFT: { signal: 0.04, exposure: 0.02 }
+                    },
+                    inanimate: {
+                        GOAL: { stability: 0.02, resource: 0.04 },
+                        OBSTACLE: { stability: -0.05, signal: 0.02 },
+                        SHIFT: { signal: 0.06, exposure: 0.03 }
+                    },
+                    abstract: {
+                        GOAL: { signal: 0.06, exposure: 0.04 },
+                        OBSTACLE: { signal: 0.04, stability: -0.04 },
+                        SHIFT: { signal: 0.10, exposure: 0.05 }
+                    }
+                }[type] || {};
+                const bias = typeBias[vector] || {};
+                const out = {};
+                this.dims.forEach(dim => {
+                    const noise = this.seededRange(`${entityId}:${vector}:${this.eventSeq}:${dim}:src`, -0.03, 0.03);
+                    out[dim] = this.round3(this.clamp((base[dim] || 0) + (bias[dim] || 0) + noise, -0.24, 0.24));
+                });
+                return out;
+            }
+
+            buildEdge(fromId, toId, index) {
+                const key = `${fromId}->${toId}`;
+                const channels = this.inferChannels(fromId, toId);
+                const coupling = this.round3(this.clamp(this.seededRange(`${key}:c`, 0.20, 0.78) + (index === 0 ? 0.08 : 0), 0.08, 0.95));
+                const resistance = this.round3(this.clamp(this.seededRange(`${key}:r`, 0.10, 0.78), 0.04, 0.92));
+                const delayMs = Math.round(this.seededRange(`${key}:d`, 120, 420));
+                return { from: fromId, to: toId, coupling, resistance, delayMs, channels };
+            }
+
+            inferChannels(fromId, toId) {
+                const txt = `${fromId} ${toId}`.toLowerCase();
+                const pool = new Set(['proximity', 'contact']);
+                if (/(moonlight|owl)/.test(txt)) pool.add('signal');
+                if (/(moonlight|seedling|deer)/.test(txt)) pool.add('light');
+                if (/(mycelium|seedling|fallen-oak)/.test(txt)) pool.add('moisture');
+                if (/(mycelium|fallen-oak)/.test(txt)) pool.add('residue');
+                if (/(deer|owl)/.test(txt)) pool.add('pressure');
+                return Array.from(pool).slice(0, 3);
+            }
+
+            computeTransfer(fromId, targetId, vector, sourceImpulse, edge) {
+                const before = this.cloneState(this.runtime[targetId].state);
+                const channel = edge.channels[Math.floor(this.seededRange(`${fromId}->${targetId}:${vector}:ch`, 0, edge.channels.length))] || 'contact';
+                const channelBias = {
+                    contact: { stability: -0.04, exposure: 0.04, activity: 0.03 },
+                    signal: { signal: 0.12, exposure: 0.04 },
+                    light: { exposure: 0.12, signal: 0.08, stability: -0.02 },
+                    moisture: { resource: 0.11, exposure: 0.07, stability: -0.02 },
+                    residue: { resource: 0.08, signal: 0.05, exposure: 0.04 },
+                    pressure: { stability: -0.08, activity: 0.03, signal: 0.03 },
+                    proximity: { signal: 0.04, exposure: 0.03 }
+                }[channel] || { signal: 0.04 };
+                const vectorBase = {
+                    GOAL: { activity: 0.10, resource: 0.11, signal: 0.04, exposure: 0.05, stability: -0.03 },
+                    OBSTACLE: { stability: -0.11, resource: -0.07, signal: 0.07, exposure: 0.05, activity: -0.03 },
+                    SHIFT: { signal: 0.12, exposure: 0.08, activity: 0.02, stability: -0.03, resource: 0.00 }
+                }[vector];
+                const intensity = this.clamp(sourceImpulse * edge.coupling * (1 - edge.resistance), 0, 1);
+
+                if (intensity < 0.05) {
+                    return {
+                        applied: false,
+                        nonEffect: {
+                            fromId, targetId,
+                            pathDelayMs: edge.delayMs,
+                            reasonCode: 'below_threshold',
+                            reason: 'transfer decayed below visible threshold',
+                            edge: { channel, coupling: edge.coupling, resistance: edge.resistance, delayMs: edge.delayMs }
+                        }
+                    };
+                }
+
+                const delta = {};
+                let absSum = 0;
+                this.dims.forEach(dim => {
+                    const noise = this.seededRange(`${fromId}->${targetId}:${vector}:${this.eventSeq}:${dim}:tr`, -0.015, 0.015);
+                    const d = ((vectorBase[dim] || 0) * 0.45 + (channelBias[dim] || 0) * 0.55) * intensity + noise;
+                    delta[dim] = this.round3(this.clamp(d, -0.18, 0.18));
+                    absSum += Math.abs(delta[dim]);
+                });
+
+                if (absSum < 0.03) {
+                    return {
+                        applied: false,
+                        nonEffect: {
+                            fromId, targetId,
+                            pathDelayMs: edge.delayMs,
+                            reasonCode: 'insufficient_delta',
+                            reason: 'channel activated but produced negligible state change',
+                            edge: { channel, coupling: edge.coupling, resistance: edge.resistance, delayMs: edge.delayMs }
+                        }
+                    };
+                }
+
+                const after = this.applyDelta(before, delta);
+                const appliedDelta = this.diffState(before, after);
+                const strongest = this.strongestDim(appliedDelta);
+                let outcome = 'dampened';
+                if (intensity > 0.34 && edge.resistance < 0.35) outcome = 'amplified';
+                else if (channel === 'signal' || channel === 'light') outcome = 'rerouted';
+                else if (intensity < 0.12 || edge.resistance > 0.68) outcome = 'mostly_blocked';
+
+                return {
+                    applied: true,
+                    after,
+                    transfer: {
+                        fromId, targetId,
+                        pathDelayMs: edge.delayMs,
+                        edge: { channel, coupling: edge.coupling, resistance: edge.resistance, delayMs: edge.delayMs },
+                        intensity: this.round3(intensity),
+                        before,
+                        after,
+                        delta: appliedDelta,
+                        outcome,
+                        evidence: { strongestDim: strongest }
+                    }
+                };
+            }
+
+            buildPromptMaterials(sourceId, vector, transfers, nonEffects) {
+                const meta = this.meta.entities[sourceId] || {};
+                const seeds = meta.seeds || {};
+                return {
+                    entitySeed: {
+                        GOAL: { id: `moss.${sourceId}.goal.v1`, text: seeds.GOAL || `${sourceId} + GOAL` },
+                        OBSTACLE: { id: `moss.${sourceId}.obstacle.v1`, text: seeds.OBSTACLE || `${sourceId} + OBSTACLE` },
+                        SHIFT: { id: `moss.${sourceId}.shift.v1`, text: seeds.SHIFT || `${sourceId} + SHIFT` }
+                    },
+                    edgePrompts: transfers.map(tr => ({
+                        id: `moss.${tr.fromId}.${vector.toLowerCase()}.to.${tr.targetId}.v1`,
+                        text: `Given ${tr.fromId} receives ${vector}, model transfer into ${tr.targetId} via ${tr.edge.channel}. First visible change after ~${tr.pathDelayMs}ms. Coupling ${tr.edge.coupling}, resistance ${tr.edge.resistance}. Show before/after and a concrete sign.`
+                    })),
+                    counterfactualPrompts: nonEffects.slice(0, 3).map(nf => ({
+                        id: `moss.counterfactual.${nf.fromId}.to.${nf.targetId}.${vector.toLowerCase()}.v1`,
+                        text: `Explain why ${nf.fromId} + ${vector} failed to move ${nf.targetId}. Use channel ${nf.edge.channel}, resistance ${nf.edge.resistance}, delay ${nf.pathDelayMs}ms. What would need to change for a visible effect?`
+                    })),
+                    auditPrompt: {
+                        id: 'moss.audit.causal-summary.v1',
+                        text: 'Write from the source perspective but cite evidence: source delta, transfers, channels, delays, blocked paths, and one unresolved ambiguity. Do not claim effects absent from the record.'
+                    }
+                };
+            }
+
+            suggestNextMoves(sourceId, vector, transfers, nonEffects) {
+                const out = [];
+                const top = transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                if (top) out.push(`Select ${top.targetId} next and try SHIFT to test whether the ${top.edge.channel} transfer amplifies or re-routes.`);
+                const blocked = nonEffects[0];
+                if (blocked) out.push(`Probe ${blocked.targetId} with GOAL or SHIFT; current ${blocked.edge.channel} path from ${blocked.fromId} is blocked (${blocked.reasonCode}).`);
+                const alt = ['GOAL', 'OBSTACLE', 'SHIFT'].find(v => v !== vector) || 'SHIFT';
+                out.push(`Re-trigger ${sourceId} with ${alt} to compare source delta against the current event.`);
+                return out.slice(0, 3);
+            }
+
+            generateWorldtext(event) {
+                const entMeta = this.meta.entities[event.source.entityId] || {};
+                const seed = (entMeta.seeds && entMeta.seeds[event.source.vector]) || `${event.source.entityId} receives ${event.source.vector}.`;
+                const before = event.sourceDelta.before;
+                const after = event.sourceDelta.after;
+                const applied = this.formatDeltaSentence(event.sourceDelta.delta, 3);
+                const requested = this.formatDeltaSentence(event.sourceDelta.requested || event.sourceDelta.delta, 3);
+                const clipped = this.deltaMagnitude(event.sourceDelta.delta) < 0.005 && this.deltaMagnitude(event.sourceDelta.requested || {}) > 0.02;
+                const topTransfers = event.transfers.slice().sort((a, b) => b.intensity - a.intensity).slice(0, 2);
+                const blocked = event.nonEffects[0];
+
+                const p1 = [];
+                const p2 = [];
+                const p3 = [];
+
+                p1.push(`I am ${this.entityName(event.source.entityId)}. ${seed}`);
+                p1.push(`This time the change is not only a mood. My applied delta is ${applied}. Before and after can be counted: activity ${this.fmt(before.activity)}→${this.fmt(after.activity)}, stability ${this.fmt(before.stability)}→${this.fmt(after.stability)}, signal ${this.fmt(before.signal)}→${this.fmt(after.signal)}.`);
+                if (clipped) p1.push(`The vector requested more (${requested}), but the state was already at a boundary, so the change clipped.`);
+
+                if (topTransfers.length) {
+                    topTransfers.forEach(tr => {
+                        p2.push(`Through ${tr.edge.channel}, the ripple reaches ${this.entityName(tr.targetId)} after about ${tr.pathDelayMs}ms. Intensity ${this.fmt(tr.intensity)} under coupling ${this.fmt(tr.edge.coupling)} and resistance ${this.fmt(tr.edge.resistance)}. The first visible target shift is ${tr.evidence.strongestDim} (${this.fmtSigned(tr.delta[tr.evidence.strongestDim] || 0)}), which reads as ${tr.outcome}.`);
+                    });
+                } else {
+                    p2.push(`I register a perturbation, but the transfer decays before any neighbor crosses the visible threshold. The event remains local in this pass.`);
+                }
+                if (blocked) {
+                    p2.push(`One nearby path refuses me: ${blocked.fromId} → ${blocked.targetId} via ${blocked.edge.channel} does not resolve into a visible delta. Perhaps the resistance is too high (${this.fmt(blocked.edge.resistance)}), or the channel is wrong for this vector.`);
+                }
+
+                if (event.suggestions[0]) p3.push(`The next productive move is clear enough to test: ${event.suggestions[0]}`);
+                p3.push(`Evidence holds the ambiguity in place. I may be misreading the moss field, but the record at T${event.tick} still shows where the pressure moved, where it dampened, and where it stopped. (Scene: ${event.scenarioId}. Vector: ${event.source.vector}. Origin: ${event.origin}.)`);
+
+                return [p1.join(' '), p2.join(' '), p3.join(' ')].join('\n\n');
+            }
+
+            renderAll() {
+                this.renderWorldtext();
+                this.renderImpact();
+                this.renderPrompts();
+                this.renderAudit();
+                this.updateLLMWorkbench(true);
+            }
+
+            getFocusedEvent() {
+                if (this.viewedEventId) {
+                    const found = this.audit.find(e => e.eventId === this.viewedEventId);
+                    if (found) return found;
+                }
+                return this.audit[0] || null;
+            }
+
+            renderWorldtext() {
+                const el = this.dom.worldtext;
+                const pill = this.dom.worldtextPill;
+                const event = this.getFocusedEvent();
+                const sourceId = this.engine.state.entityId;
+
+                if (!event) {
+                    pill.textContent = sourceId ? sourceId : 'no event';
+                    el.innerHTML = `<div class="rc-help">${sourceId ? `Selected <span class="rc-code">${sourceId}</span>. Trigger BANG / HALT / MOD to create an auditable ripple event.` : 'Select an entity to lock perspective. Then trigger BANG / HALT / MOD.'}</div>`;
+                    return;
+                }
+
+                pill.textContent = `${event.source.vector} · T${event.tick}`;
+                const clipped = this.deltaMagnitude(event.sourceDelta.delta) < 0.005 && this.deltaMagnitude(event.sourceDelta.requested || {}) > 0.02;
+                const top = event.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                const paras = String(event.worldtext || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+                el.innerHTML = `
+                    <div class="rc-worldtext-header">
+                        <div class="rc-worldtext-title">${this.entityName(event.source.entityId)} · ${this.deriveDescriptor(event.sourceDelta.after)}</div>
+                        <div class="rc-worldtext-meta">
+                            ${event.scenarioId} · ${event.origin} · ${event.timestampLocal}<br>
+                            T${event.tick} · ${event.transfers.length} affected · ${event.nonEffects.length} blocked/no-effect<br>
+                            Applied source Δ: ${this.escape(this.formatDeltaSentence(event.sourceDelta.delta, 3))}
+                            ${event.sourceDelta.requested ? `<br>Requested: ${this.escape(this.formatDeltaSentence(event.sourceDelta.requested, 3))}` : ''}
+                            ${top ? `<br>Top edge: ${this.escape(top.fromId)}→${this.escape(top.targetId)} via ${this.escape(top.edge.channel)} (${this.fmt(top.intensity)})` : ''}
+                            ${clipped ? `<br><span class="rc-worldtext-warning">Source state was at a boundary; requested delta clipped by limits.</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="rc-worldtext-body">${paras.map(p => `<p>${this.escape(p)}</p>`).join('')}</div>
+                `;
+            }
+
+            renderImpact() {
+                const el = this.dom.impact;
+                const event = this.getFocusedEvent();
+                if (!event) {
+                    el.innerHTML = `<div class="rc-help">No active event.</div>`;
+                    return;
+                }
+                const top = event.transfers.slice().sort((a, b) => b.intensity - a.intensity);
+                const blocked = event.nonEffects;
+                const clipped = this.deltaMagnitude(event.sourceDelta.delta) < 0.005 && this.deltaMagnitude(event.sourceDelta.requested || {}) > 0.02;
+                el.innerHTML = `
+                    <div class="rc-grid">
+                        <div class="rc-row"><div class="rc-k">Event</div><div class="rc-v">${this.escape(event.eventId)}</div></div>
+                        <div class="rc-row"><div class="rc-k">Source</div><div class="rc-v">${this.escape(event.source.entityId)} · ${this.escape(this.entityName(event.source.entityId))}</div></div>
+                        <div class="rc-row"><div class="rc-k">Vector</div><div class="rc-v ${event.source.vector.toLowerCase()}">${this.escape(event.source.vector)}</div></div>
+                        <div class="rc-row"><div class="rc-k">Origin</div><div class="rc-v">${this.escape(event.origin)} · ${this.escape(event.timestampLocal)}</div></div>
+                        <div class="rc-row"><div class="rc-k">Applied Δ</div><div class="rc-v">${this.escape(this.formatDeltaSentence(event.sourceDelta.delta, 4))}</div></div>
+                        ${event.sourceDelta.requested ? `<div class="rc-row"><div class="rc-k">Requested</div><div class="rc-v">${this.escape(this.formatDeltaSentence(event.sourceDelta.requested, 4))}${clipped ? ' <span class="rc-worldtext-warning">(clipped)</span>' : ''}</div></div>` : ''}
+                        <div class="rc-row"><div class="rc-k">Transfers</div><div class="rc-v">${event.transfers.length}</div></div>
+                        <div class="rc-row"><div class="rc-k">Blocked</div><div class="rc-v">${event.nonEffects.length}</div></div>
+                    </div>
+                    <div class="rc-list" style="margin-top:8px; max-height:220px;">
+                        ${top.length ? top.map(tr => `
+                            <div class="rc-item">
+                                <div class="rc-item-header">
+                                    <div>${this.escape(tr.fromId)} → ${this.escape(tr.targetId)}</div>
+                                    <span class="rc-pill">${this.escape(tr.outcome)}</span>
+                                </div>
+                                <div class="rc-muted">channel ${this.escape(tr.edge.channel)} · coupling ${this.fmt(tr.edge.coupling)} · resistance ${this.fmt(tr.edge.resistance)} · delay ${tr.pathDelayMs}ms · intensity ${this.fmt(tr.intensity)}</div>
+                                <div class="rc-text">${this.escape(this.formatDeltaSentence(tr.delta, 4))}</div>
+                            </div>
+                        `).join('') : `<div class="rc-item"><div class="rc-muted">No propagated deltas exceeded threshold.</div></div>`}
+                        ${blocked.length ? blocked.slice(0, 3).map(nf => `
+                            <div class="rc-item">
+                                <div class="rc-item-header">
+                                    <div>${this.escape(nf.fromId)} → ${this.escape(nf.targetId)}</div>
+                                    <span class="rc-pill">${this.escape(nf.reasonCode)}</span>
+                                </div>
+                                <div class="rc-muted">${this.escape(nf.reason)} · channel ${this.escape(nf.edge.channel)} · resistance ${this.fmt(nf.edge.resistance)} · delay ${nf.pathDelayMs}ms</div>
+                            </div>
+                        `).join('') : ''}
+                    </div>
+                    ${event.suggestions && event.suggestions.length ? `<div class="rc-item" style="margin-top:8px;">
+                        <div class="rc-item-header"><div>Suggested Next Moves</div></div>
+                        ${event.suggestions.map(s => `<div class="rc-muted" style="margin-bottom:4px;">• ${this.escape(s)}</div>`).join('')}
+                    </div>` : ''}
+                `;
+            }
+
+            renderPrompts() {
+                const el = this.dom.prompts;
+                const sourceId = this.engine.state.entityId;
+                const event = this.getFocusedEvent();
+                if (!sourceId && !event) {
+                    el.innerHTML = `<div class="rc-help">Select an entity to inspect seeds. Trigger an event to generate edge and counterfactual prompts.</div>`;
+                    return;
+                }
+                const focusId = (event && event.source.entityId) || sourceId;
+                const meta = this.meta.entities[focusId] || { seeds: {} };
+                const seeds = meta.seeds || {};
+                const seedCards = ['GOAL', 'OBSTACLE', 'SHIFT'].map(v => `
+                    <div class="rc-item">
+                        <div class="rc-item-header">
+                            <div>${v} · ${this.escape(focusId)}</div>
+                            <span class="rc-pill">moss.${focusId}.${v.toLowerCase()}.v1</span>
+                        </div>
+                        <div class="rc-text">${this.escape(seeds[v] || `${focusId} + ${v}`)}</div>
+                    </div>
+                `).join('');
+
+                let eventPromptCards = '';
+                if (event && event.promptMaterials) {
+                    const ep = event.promptMaterials.edgePrompts || [];
+                    const cf = event.promptMaterials.counterfactualPrompts || [];
+                    eventPromptCards += ep.slice(0, 3).map(p => `
+                        <div class="rc-item">
+                            <div class="rc-item-header"><div>EDGE</div><span class="rc-pill">${this.escape(p.id)}</span></div>
+                            <div class="rc-text">${this.escape(p.text)}</div>
+                        </div>
+                    `).join('');
+                    eventPromptCards += cf.slice(0, 3).map(p => `
+                        <div class="rc-item">
+                            <div class="rc-item-header"><div>NO-EFFECT</div><span class="rc-pill">${this.escape(p.id)}</span></div>
+                            <div class="rc-text">${this.escape(p.text)}</div>
+                        </div>
+                    `).join('');
+                    if (event.promptMaterials.auditPrompt) {
+                        eventPromptCards += `
+                            <div class="rc-item">
+                                <div class="rc-item-header"><div>AUDIT</div><span class="rc-pill">${this.escape(event.promptMaterials.auditPrompt.id)}</span></div>
+                                <div class="rc-text">${this.escape(event.promptMaterials.auditPrompt.text)}</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                const patchInfo = this.lastPatchInfo ? `
+                    <div class="rc-item">
+                        <div class="rc-item-header"><div>PATCH CONTEXT</div><span class="rc-pill">${this.escape(this.lastPatchInfo.type)}</span></div>
+                        <div class="rc-muted">${this.lastPatchInfo.time.toLocaleTimeString()}</div>
+                        <div class="rc-text">${this.escape(this.lastPatchInfo.promptText || '(no custom CMD)')}</div>
+                    </div>
+                ` : '';
+
+                el.innerHTML = `
+                    <div class="rc-list" style="max-height:260px;">
+                        ${seedCards}
+                        ${eventPromptCards || `<div class="rc-item"><div class="rc-muted">Trigger a vector event to generate edge/counterfactual/audit prompts.</div></div>`}
+                        ${patchInfo}
+                    </div>
+                `;
+            }
+
+            renderAudit() {
+                const el = this.dom.auditList;
+                const count = this.dom.auditCount;
+                count.textContent = String(this.audit.length);
+                if (!this.audit.length) {
+                    el.innerHTML = `<div class="rc-help">No events yet. Trigger BANG / HALT / MOD to create auditable ripple records.</div>`;
+                    return;
+                }
+                el.innerHTML = this.groupAudit(this.audit, 30).map(group => {
+                    const e = group.latest;
+                    const top = e.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                    return `
+                        <div class="rc-item rc-audit-item ${this.viewedEventId === e.eventId ? 'active' : ''}" data-event-id="${this.escape(e.eventId)}">
+                            <div class="rc-item-header">
+                                <div>T${e.tick} ${this.escape(e.source.entityId)} → <span style="color:${this.vecMap[e.source.vector]?.color || '#fff'}">${this.escape(e.source.vector)}</span></div>
+                                <span class="rc-pill">${this.escape(e.timestampLocal)}</span>
+                            </div>
+                            <div class="rc-muted">${e.transfers.length} affected · ${e.nonEffects.length} blocked/no-effect · ${this.escape(e.origin)}${group.count > 1 ? ` · repeat ×${group.count}` : ''}</div>
+                            <div class="rc-muted">${top ? `strongest: ${this.escape(top.fromId)}→${this.escape(top.targetId)} ${this.escape(top.edge.channel)} (${this.fmt(top.intensity)})` : 'no propagated transfer recorded'}</div>
+                        </div>
+                    `;
+                }).join('');
+                Array.from(el.querySelectorAll('.rc-audit-item')).forEach(node => {
+                    node.addEventListener('click', () => {
+                        const id = node.getAttribute('data-event-id');
+                        this.focusEvent(id);
+                    });
+                });
+            }
+
+            groupAudit(entries, maxGroups = 30) {
+                const groups = [];
+                for (const e of entries) {
+                    const top = e.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                    const sig = [
+                        e.source.entityId, e.source.vector, e.origin,
+                        e.transfers.length, e.nonEffects.length,
+                        top ? `${top.targetId}:${top.edge.channel}:${Math.round(top.intensity * 100)}` : 'none'
+                    ].join('|');
+                    const prev = groups[groups.length - 1];
+                    if (prev && prev.sig === sig) {
+                        prev.count += 1;
+                        prev.oldest = e;
+                    } else {
+                        groups.push({ sig, latest: e, oldest: e, count: 1 });
+                    }
+                    if (groups.length >= maxGroups) break;
+                }
+                return groups;
+            }
+
+            focusEvent(eventId) {
+                const ev = this.audit.find(e => e.eventId === eventId);
+                if (!ev) return;
+                this.viewedEventId = ev.eventId;
+                if (ev.source && ev.source.entityId && this.engine.state.entityId !== ev.source.entityId) {
+                    this.engine.state.entityId = ev.source.entityId;
+                    this.engine.renderUI();
+                }
+                this.renderAll();
+            }
+
+            updateLLMWorkbench(quiet = false) {
+                const event = this.getFocusedEvent();
+                this.populatePerspectiveOptions(event);
+                const bundle = this.buildLLMBundle(event);
+                this.dom.systemPrompt.value = bundle.systemPrompt;
+                this.dom.eventJson.value = bundle.eventJson;
+                this.dom.bundle.value = bundle.copyPayload;
+                if (!quiet) {
+                    this.dom.status.textContent = event
+                        ? `Loaded ${event.eventId} · ${event.source.entityId} · ${event.source.vector} · ${event.transfers.length} transfer(s) · ${event.nonEffects.length} blocked`
+                        : 'No event packaged yet.';
+                } else if (!event) {
+                    this.dom.status.textContent = 'No event packaged yet.';
+                }
+            }
+
+            populatePerspectiveOptions(event) {
+                const sel = this.dom.perspective;
+                const prev = sel.value;
+                const options = [];
+                if (!event) options.push({ value: 'source', label: 'source' });
+                else {
+                    options.push({ value: 'source', label: `source · ${event.source.entityId}` });
+                    event.transfers.slice(0, 8).forEach(tr => options.push({ value: `target:${tr.targetId}`, label: `target · ${tr.targetId}` }));
+                    if (event.nonEffects.length) options.push({ value: 'resistance_field', label: `resistance field · ${event.nonEffects.length} blocked` });
+                }
+                sel.innerHTML = options.map(o => `<option value="${this.escapeAttr(o.value)}">${this.escape(o.label)}</option>`).join('');
+                if (options.some(o => o.value === prev)) sel.value = prev;
+            }
+
+            buildLLMBundle(event) {
+                const mode = this.dom.mode.value;
+                const style = this.dom.style.value;
+                const perspective = this.dom.perspective.value;
+                const bundleMode = this.dom.bundleMode.value;
+                const stone = (this.dom.stone.value || '').trim();
+                const systemPrompt = this.buildSystemPrompt(event, mode, style);
+                const userPrompt = this.buildUserPrompt(event, mode, style, perspective, stone);
+                const eventJson = event ? JSON.stringify(event, null, 2) : '';
+                const copyPayload = bundleMode === 'prompt_only' ? userPrompt :
+                    bundleMode === 'json_only' ? (eventJson || '{}') :
+                        `SYSTEM PROMPT\n${systemPrompt}\n\nUSER PROMPT\n${userPrompt}`;
+                return { systemPrompt, userPrompt, eventJson, copyPayload };
+            }
+
+            buildSystemPrompt(event, mode, style) {
+                const styleInstr = style === 'poetic'
+                    ? 'Use strong sensory language but do not invent causal changes absent from the record.'
+                    : style === 'legible'
+                        ? 'Prioritize operator clarity, explicit evidence, and easy parsing.'
+                        : 'Use Angel+Mask dual-lens: causal evidence first, then perspective texture.';
+                const modeInstr = mode === 'angel_trace'
+                    ? 'Trace a Therefore Chain (L1 material -> L2 edge transfer -> L3 field consequence -> L4 mask perspective) with no leapfrogging.'
+                    : mode === 'audit_causal'
+                        ? 'Write an audit-grade causal summary naming source delta, transfers, blocked paths, channels, delays, and one next move.'
+                        : mode === 'raw_json'
+                            ? 'Interpret the JSON directly. Distinguish measured vs inferred effects and call out ambiguity.'
+                            : 'Generate perspective-locked worldtext from the event record. Be specific, causal, relational, and provisional.';
+                return `You are the Angel of Ripples for ORCA/MOSS, acting as a causal worldtext instrument. Treat the event record as the source of truth. Distinguish applied source deltas from requested/clipped deltas when relevant. ${styleInstr} ${modeInstr} ${event ? `Current event: ${event.eventId} (${event.scenarioId}).` : 'No event selected.'}`;
+            }
+
+            buildUserPrompt(event, mode, style, perspective, stone) {
+                if (!event) return 'No ripple event yet. Select an entity and trigger BANG / HALT / MOD to produce a causal event package.';
+                const top = event.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                const blocked = event.nonEffects[0];
+                let perspectiveSnapshot = `source ${event.source.entityId}; vector ${event.source.vector}; source delta ${this.formatDeltaSentence(event.sourceDelta.delta, 4)}.`;
+                if (perspective.startsWith('target:')) {
+                    const targetId = perspective.split(':')[1];
+                    const tr = event.transfers.find(t => t.targetId === targetId);
+                    if (tr) perspectiveSnapshot = `target ${tr.targetId}; channel ${tr.edge.channel}; delay ${tr.pathDelayMs}ms; intensity ${this.fmt(tr.intensity)}; outcome ${tr.outcome}; delta ${this.formatDeltaSentence(tr.delta, 4)}.`;
+                } else if (perspective === 'resistance_field' && blocked) {
+                    perspectiveSnapshot = `blocked path ${blocked.fromId} -> ${blocked.targetId}; channel ${blocked.edge.channel}; resistance ${this.fmt(blocked.edge.resistance)}; reason ${blocked.reasonCode}.`;
+                }
+                return [
+                    'ORCA / MOSS RIPPLES PACKAGE',
+                    `Mode: ${mode}`,
+                    `Style: ${style}`,
+                    `Perspective: ${perspective}`,
+                    stone ? `Stone: ${stone}` : null,
+                    '',
+                    'PERSPECTIVE SNAPSHOT',
+                    perspectiveSnapshot,
+                    '',
+                    'READ ORDER',
+                    '1. Source delta (applied vs requested if clipped)',
+                    '2. Transfers (channel / intensity / delay / resistance)',
+                    '3. Blocked / no-effect paths',
+                    '4. Worldtext as interpretation',
+                    '',
+                    'TOP SIGNALS',
+                    `Source: ${event.source.entityId} → ${event.source.vector} (T${event.tick})`,
+                    `Applied source Δ: ${this.formatDeltaSentence(event.sourceDelta.delta, 4)}`,
+                    event.sourceDelta.requested ? `Requested Δ: ${this.formatDeltaSentence(event.sourceDelta.requested, 4)}` : null,
+                    `Top transfer: ${top ? `${top.fromId}->${top.targetId} via ${top.edge.channel} (${this.fmt(top.intensity)})` : 'none'}`,
+                    `Blocked path: ${blocked ? `${blocked.fromId}->${blocked.targetId} via ${blocked.edge.channel} (${blocked.reasonCode})` : 'none'}`,
+                    `Suggestions: ${(event.suggestions || []).join(' | ') || 'none'}`,
+                    '',
+                    'PROMPT PROVENANCE',
+                    JSON.stringify({
+                        entitySeedIds: event.promptMaterials ? Object.values(event.promptMaterials.entitySeed).map(x => x.id) : [],
+                        edgePromptIds: event.promptMaterials ? event.promptMaterials.edgePrompts.map(x => x.id) : [],
+                        counterfactualPromptIds: event.promptMaterials ? event.promptMaterials.counterfactualPrompts.map(x => x.id) : [],
+                        auditPromptId: event.promptMaterials ? event.promptMaterials.auditPrompt.id : null
+                    }, null, 2),
+                    '',
+                    'EVENT JSON',
+                    JSON.stringify(event, null, 2),
+                    '',
+                    'OUTPUT REQUIREMENTS',
+                    '- Cite concrete evidence from the event record.',
+                    '- Name at least one channel and one delay/resistance condition.',
+                    '- Distinguish blocked/no-effect paths from applied transfers.',
+                    '- End with one next move for the operator.'
+                ].filter(Boolean).join('\n');
+            }
+
+            async copyText(text, label) {
+                try {
+                    if (!text) throw new Error('empty');
+                    await navigator.clipboard.writeText(text);
+                    this.dom.status.textContent = `${label} copied.`;
+                } catch (e) {
+                    this.dom.status.textContent = `Clipboard blocked. Select and copy ${label.toLowerCase()} manually.`;
+                }
+            }
+
+            async testApiConnection() {
+                const d = this.dom;
+                if (!window.RipplesLLMAdapter || typeof window.RipplesLLMAdapter.testConnection !== 'function') {
+                    d.status.textContent = 'Shared LLM adapter not loaded.';
+                    return;
+                }
+                const btn = d.testApiBtn;
+                const prev = btn ? btn.textContent : '';
+                try {
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'TESTING…';
+                    }
+                    d.status.textContent = 'Testing API key from api.md / stored config (remote only)…';
+                    const res = await window.RipplesLLMAdapter.testConnection({
+                        apiMdPath: (AI_CONFIG && AI_CONFIG.apiMdPath) || 'api.md',
+                        preferLocal: false,
+                        allowApiMd: true,
+                        allowLocalFallback: false,
+                        model: (AI_CONFIG && AI_CONFIG.remoteModel) || 'gpt-4.1-mini',
+                        prompt: 'Reply with exactly OK'
+                    });
+                    const provider = String(res.provider || 'unknown').toUpperCase();
+                    const model = res.model || '(default model)';
+                    const preview = (res.preview || '').replace(/\s+/g, ' ').trim();
+                    d.status.textContent = `API OK · ${provider} · ${model} · ${res.latencyMs}ms${preview ? ` · "${preview}"` : ''}`;
+                    if (window.MossOmniShell) window.MossOmniShell.log(`API TEST OK ${provider} ${model} ${res.latencyMs}ms`, 'LLM');
+                } catch (e) {
+                    const msg = (e && e.message) ? e.message : String(e);
+                    d.status.textContent = `API test failed: ${msg}`;
+                    if (window.MossOmniShell) window.MossOmniShell.log(`API TEST FAIL ${msg}`, 'LLM');
+                    console.warn('API test failed', e);
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = prev || 'TEST API';
+                    }
+                }
+            }
+
+            // ---- helpers ----
+            entityName(id) {
+                const scenario = LATENT_LIBRARY['deep_forest'];
+                const ent = scenario.entities.find(e => e.id === id);
+                return ent ? ent.name : id;
+            }
+
+            deriveDescriptor(state) {
+                if (!state) return '--';
+                const top = this.dims.slice().sort((a, b) => state[b] - state[a])[0];
+                const low = this.dims.slice().sort((a, b) => state[a] - state[b])[0];
+                const vocab = {
+                    activity: state.activity >= 0.55 ? 'ACTIVE' : 'STILL',
+                    stability: state.stability >= 0.6 ? 'STABLE' : 'FRAGILE',
+                    exposure: state.exposure >= 0.6 ? 'EXPOSED' : 'SHELTERED',
+                    resource: state.resource >= 0.55 ? 'RESOURCE-RICH' : 'RESOURCE-THIN',
+                    signal: state.signal >= 0.55 ? 'RESONANT' : 'QUIET'
+                };
+                const alt = {
+                    activity: state.activity < 0.35 ? 'DORMANT' : 'ENGAGED',
+                    stability: state.stability < 0.35 ? 'UNSETTLED' : 'HOLDING',
+                    exposure: state.exposure < 0.35 ? 'SCREENED' : 'OPEN',
+                    resource: state.resource < 0.35 ? 'HUNGRY' : 'PROVISIONED',
+                    signal: state.signal < 0.35 ? 'MUTED' : 'CARRYING SIGNAL'
+                };
+                return `${vocab[top] || top} / ${alt[low] || low}`;
+            }
+
+            cloneState(s) {
+                const o = {};
+                this.dims.forEach(d => o[d] = this.round3(s[d] || 0));
+                return o;
+            }
+            diffState(a, b) {
+                const o = {};
+                this.dims.forEach(d => o[d] = this.round3((b[d] || 0) - (a[d] || 0)));
+                return o;
+            }
+            applyDelta(state, delta) {
+                const o = {};
+                this.dims.forEach(d => o[d] = this.round3(this.clamp((state[d] || 0) + (delta[d] || 0), 0, 1)));
+                return o;
+            }
+            deltaMagnitude(delta) {
+                let sum = 0;
+                this.dims.forEach(d => sum += Math.abs(delta[d] || 0));
+                return sum / this.dims.length;
+            }
+            strongestDim(delta) {
+                return this.dims.slice().sort((a, b) => Math.abs(delta[b] || 0) - Math.abs(delta[a] || 0))[0] || 'signal';
+            }
+            formatDeltaSentence(delta, topOnly = 3) {
+                const parts = this.dims.map(dim => ({ dim, v: delta[dim] || 0 }))
+                    .filter(x => Math.abs(x.v) >= 0.005)
+                    .sort((a, b) => Math.abs(b.v) - Math.abs(a.v))
+                    .slice(0, topOnly)
+                    .map(x => `${x.dim} ${this.fmtSigned(x.v)}`);
+                return parts.length ? parts.join(', ') : 'no measurable delta';
+            }
+            seededRange(key, min, max) { return min + this.seeded01(key) * (max - min); }
+            seeded01(key) { return (this.hash(String(key)) % 1000000) / 1000000; }
+            hash(str) {
+                let h = 2166136261;
+                for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+                return h >>> 0;
+            }
+            clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+            round3(n) { return Math.round(n * 1000) / 1000; }
+            fmt(n) { return Number(n).toFixed(2); }
+            fmtSigned(n) {
+                const v = Number(n);
+                return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
+            }
+            escape(s) {
+                return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+            }
+            escapeAttr(s) { return this.escape(s).replace(/"/g, '&quot;'); }
+        }
+
+        const engine = new RipplesEngine();
+        const renderer = new HybridGridRenderer('viz-canvas');
+        window.engine = engine;
+        window.renderer = renderer;
+
+        const mossRipplesBridge = new MossRipplesBridge(engine, renderer);
+        window.mossRipplesBridge = mossRipplesBridge;
+        MossOmniShell.init();
+        MossOmniShell.sync();
+
+        // Wrap core engine methods so ORCA visual logic remains intact while bridge adds causal legibility.
+        const _engineInit = engine.init.bind(engine);
+        engine.init = function () {
+            _engineInit();
+            mossRipplesBridge.init();
+            MossOmniShell.renderEntityStrip();
+            MossOmniShell.log('ORCA ENGINE READY', 'SYS');
+            MossOmniShell.sync();
+        };
+
+        const _engineSelectEntity = engine.selectEntity.bind(engine);
+        engine.selectEntity = function (id) {
+            _engineSelectEntity(id);
+            mossRipplesBridge.onEntitySelected(id);
+            MossOmniShell.renderEntityStrip();
+            const entName = mossRipplesBridge.entityName ? mossRipplesBridge.entityName(id) : id;
+            MossOmniShell.log(`TARGET LOCKED ${entName.toUpperCase()}`, 'LINK');
+            MossOmniShell.sync();
+        };
+
+        const _engineTriggerVector = engine.triggerVector.bind(engine);
+        engine.triggerVector = function (type) {
+            _engineTriggerVector(type);
+            mossRipplesBridge.onVectorTriggered(type, 'manual');
+            const ev = mossRipplesBridge.getFocusedEvent ? mossRipplesBridge.getFocusedEvent() : null;
+            if (ev && ev.source && ev.source.vector === type) {
+                const top = ev.transfers.slice().sort((a, b) => b.intensity - a.intensity)[0];
+                MossOmniShell.log(
+                    `RIPPLE T${ev.tick} ${ev.source.entityId}→${type} · ${ev.transfers.length} affected / ${ev.nonEffects.length} blocked${top ? ` · top ${top.targetId}:${top.edge.channel} ${mossRipplesBridge.fmt(top.intensity)}` : ''}`,
+                    'RPL'
+                );
+            } else {
+                MossOmniShell.log(`RIPPLE ${type}`, 'RPL');
+            }
+            MossOmniShell.renderEntityStrip();
+            MossOmniShell.sync();
+        };
+
+        const _engineProcessPatch = engine.processPatch.bind(engine);
+        engine.processPatch = async function (type, prompt) {
+            const out = await _engineProcessPatch(type, prompt);
+            mossRipplesBridge.onPatchExecuted(type, prompt);
+            MossOmniShell.log(`PATCH ${type}${prompt ? ` · ${String(prompt).slice(0, 42)}` : ''}`, 'PATCH');
+            MossOmniShell.sync();
+            return out;
+        };
+
+        const _engineInspect = engine.inspect.bind(engine);
+        engine.inspect = async function (x, y) {
+            MossOmniShell.log(`INSPECT ${x},${y}`, 'READ');
+            MossOmniShell.sync();
+            return _engineInspect(x, y);
+        };
+
+        const _rendererToggleMode = renderer.toggleMode.bind(renderer);
+        renderer.toggleMode = function () {
+            _rendererToggleMode();
+            MossOmniShell.log(`MODE ${renderer.mode}`, 'UI');
+            MossOmniShell.sync();
+        };
+
+        const _rendererToggleInspect = renderer.toggleInspect.bind(renderer);
+        renderer.toggleInspect = function () {
+            _rendererToggleInspect();
+            MossOmniShell.log(`INSPECT ${renderer.mode === 'INSPECT' ? 'ON' : 'OFF'}`, 'UI');
+            MossOmniShell.sync();
+        };
+
+        const _rendererResetView = renderer.resetView.bind(renderer);
+        renderer.resetView = function () {
+            _rendererResetView();
+            MossOmniShell.log('VIEW RECENTER', 'UI');
+            MossOmniShell.sync();
+        };
+
+        const _bridgeFocusEvent = mossRipplesBridge.focusEvent.bind(mossRipplesBridge);
+        mossRipplesBridge.focusEvent = function (eventId) {
+            _bridgeFocusEvent(eventId);
+            const ev = mossRipplesBridge.getFocusedEvent();
+            if (ev) MossOmniShell.log(`AUDIT RECALL T${ev.tick} ${ev.source.entityId}→${ev.source.vector}`, 'AUDIT');
+            MossOmniShell.renderEntityStrip();
+            MossOmniShell.sync();
+        };
+    </script>
+</body>
+
+</html>

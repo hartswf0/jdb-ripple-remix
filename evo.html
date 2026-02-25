@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RIPPLES EVO — Perspective Workbench</title>
+  <style>
+    :root{
+      --bg: #07110b;
+      --panel: rgba(8, 18, 11, 0.92);
+      --panel-2: rgba(12, 23, 14, 0.9);
+      --line: rgba(120, 255, 160, 0.16);
+      --line-strong: rgba(120, 255, 160, 0.28);
+      --text: #d8ffe3;
+      --text-dim: rgba(216, 255, 227, 0.72);
+      --mint: #7dffb1;
+      --cyan: #6cf4ff;
+      --gold: #f2d35e;
+      --red: #ff6f6f;
+      --shadow: 0 10px 40px rgba(0,0,0,0.45);
+      --radius: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "IBM Plex Sans", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 900px at 10% 10%, rgba(108, 244, 255, 0.08), transparent 50%),
+        radial-gradient(900px 700px at 85% 20%, rgba(125, 255, 177, 0.07), transparent 55%),
+        linear-gradient(180deg, #050907, #070f0a 45%, #040805);
+      font-family: var(--sans);
+      line-height: 1.45;
+      overflow: hidden;
+    }
+
+    .shell{
+      display: grid;
+      grid-template-columns: minmax(380px, 540px) minmax(420px, 1fr);
+      gap: 12px;
+      height: 100%;
+      padding: 12px;
+    }
+
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+
+    .panel-header{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));
+    }
+
+    .title{
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--mint);
+    }
+
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .reader{
+      padding: 12px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero{
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(108,244,255,0.04), rgba(125,255,177,0.02));
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1{
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: #effff5;
+    }
+
+    .hero p{
+      margin: 0;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .split-tags{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+      color: var(--text-dim);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+
+    .mode-grid{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .card{
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel-2);
+      padding: 10px;
+    }
+
+    .card h3{
+      margin: 0 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #ecfff3;
+    }
+
+    .card p{
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .lens{ border-left: 3px solid var(--cyan); }
+    .mask{ border-left: 3px solid var(--gold); }
+
+    details.section{
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.01);
+      overflow: hidden;
+      content-visibility: auto;
+      contain-intrinsic-size: 400px;
+    }
+
+    details.section[open]{
+      border-color: var(--line-strong);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01);
+    }
+
+    summary{
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      user-select: none;
+    }
+    summary::-webkit-details-marker{ display:none; }
+
+    .summary-left{
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .sec-num{
+      color: var(--mint);
+      font-family: var(--mono);
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    .sec-title{
+      font-size: 13px;
+      font-weight: 600;
+      color: #effff5;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chev{
+      color: var(--text-dim);
+      transition: transform .14s ease;
+      font-size: 12px;
+    }
+    details[open] .chev{ transform: rotate(90deg); }
+
+    .section-body{
+      border-top: 1px solid var(--line);
+      padding: 10px 12px 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .section-body p{
+      margin: 0;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .section-body ul,
+    .section-body ol{
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text-dim);
+      font-size: 13px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .section-body code,
+    .toolbar code,
+    .note code,
+    .snippet code{
+      font-family: var(--mono);
+      font-size: 0.95em;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      padding: 0 4px;
+      color: #ecfff3;
+    }
+
+    .snippet{
+      background: rgba(0,0,0,0.18);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e4fff0;
+      white-space: pre-wrap;
+    }
+
+    .checklist{
+      display: grid;
+      gap: 6px;
+    }
+
+    .check{
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      gap: 8px;
+      align-items: start;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .check .dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 4px;
+      background: var(--mint);
+      box-shadow: 0 0 10px rgba(125,255,177,0.35);
+    }
+
+    .toolbar{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .toolbar .actions{
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn{
+      appearance: none;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font: 600 12px var(--sans);
+      cursor: pointer;
+      transition: border-color .12s ease, transform .12s ease, background .12s ease;
+    }
+    .btn:hover{ border-color: var(--line-strong); background: rgba(255,255,255,0.05); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ border-color: rgba(108,244,255,0.35); color: var(--cyan); }
+    .btn.good{ border-color: rgba(125,255,177,0.35); color: var(--mint); }
+
+    .workspace{
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .workspace-toolbar{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.05));
+    }
+
+    .workspace-toolbar .row{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .workspace-toolbar .row .left,
+    .workspace-toolbar .row .right{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .note{
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 8px 10px;
+      border: 1px dashed rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.015);
+    }
+
+    .embed-wrap{
+      min-height: 0;
+      padding: 10px;
+      display: grid;
+      grid-template-rows: 1fr;
+      gap: 10px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.08));
+    }
+
+    iframe#rippleFrame{
+      width: 100%;
+      height: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #050a05;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01);
+    }
+
+    .status-grid{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .status-item{
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(255,255,255,0.015);
+    }
+
+    .status-item .k{
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .status-item .v{
+      font-size: 12px;
+      color: #effff5;
+    }
+
+    .hotkeys{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hotkey{
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 8px;
+      padding: 3px 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .prompt-block{
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.015);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .prompt-block h4{
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--mint);
+    }
+    .prompt-block p{
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .textarea-shell{
+      display: grid;
+      gap: 8px;
+    }
+    textarea{
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.22);
+      color: #ecfff3;
+      padding: 10px;
+      font: 12px/1.45 var(--mono);
+    }
+
+    @media (max-width: 1180px){
+      body{ overflow: auto; }
+      .shell{
+        height: auto;
+        min-height: 100%;
+        grid-template-columns: 1fr;
+      }
+      .workspace{
+        min-height: 72vh;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{ animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="panel" aria-label="RIPPLES reading and prompt architecture">
+      <div class="panel-header">
+        <div class="title">RIPPLES EVO Reader</div>
+        <div class="pill">Legibility + Perspective + Performance</div>
+      </div>
+
+      <div class="reader">
+        <section class="hero">
+          <div>
+            <h1>Make the Ripple Visible</h1>
+            <p>RIPPLES is a causal worldtext instrument. The interface should show transfer, resistance, and evidence before it asks prose to carry the meaning.</p>
+          </div>
+
+          <div class="mode-grid">
+            <div class="card lens">
+              <h3>Angel Lens</h3>
+              <p>Trace source deltas, edge channels, delays, resistance, and multi-hop propagation. No leapfrogging. No invented causality.</p>
+            </div>
+            <div class="card mask">
+              <h3>Mask Lens</h3>
+              <p>Return through the selected entity’s perspective. Keep the prose sensory and provisional, but tether it to the recorded event.</p>
+            </div>
+          </div>
+
+          <div class="split-tags">
+            <span class="tag">event-first</span>
+            <span class="tag">auditable transfers</span>
+            <span class="tag">prompt provenance</span>
+            <span class="tag">friction / fracture point</span>
+            <span class="tag">operator next moves</span>
+          </div>
+
+          <div class="toolbar">
+            <div class="note">Live instrument runs in an isolated frame for stability. Reader pane stays responsive while the app animates.</div>
+            <div class="actions">
+              <button class="btn primary" id="btnReloadFrame" type="button">Reload Instrument</button>
+              <button class="btn good" id="btnFocusApp" type="button">Focus App</button>
+            </div>
+          </div>
+        </section>
+
+        <details class="section" open>
+          <summary>
+            <div class="summary-left"><span class="sec-num">01</span><span class="sec-title">Purpose + Core Problem</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <p><strong>Purpose:</strong> make influence perceptible inside an imaginary ecology. The aesthetic matters, but must serve legibility.</p>
+            <div class="checklist">
+              <div class="check"><span class="dot"></span><span>Show what changed in the source entity.</span></div>
+              <div class="check"><span class="dot"></span><span>Show which other entities were affected, by what channel, and with what delay.</span></div>
+              <div class="check"><span class="dot"></span><span>Show what resisted or failed to change.</span></div>
+              <div class="check"><span class="dot"></span><span>Generate prose from the event record, not from mood alone.</span></div>
+            </div>
+            <p><strong>Failure mode to avoid:</strong> atmosphere, texture, and motion that imply a ripple without exposing the transfer.</p>
+          </div>
+        </details>
+
+        <details class="section" open>
+          <summary>
+            <div class="summary-left"><span class="sec-num">02</span><span class="sec-title">Event Pipeline (Beta)</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <ol>
+              <li>Select source entity and vector (<code>GOAL</code> / <code>OBSTACLE</code> / <code>SHIFT</code>).</li>
+              <li>Compute source delta (before/after + explicit dimensions).</li>
+              <li>Traverse relations (neighbors, attenuation, resistance, optional 2nd hop).</li>
+              <li>Record transfers + non-effects in the audit log.</li>
+              <li>Render visual impact (source, edges, targets).</li>
+              <li>Generate worldtext from the recorded event.</li>
+              <li>Suggest the next operator move.</li>
+            </ol>
+            <div class="snippet">Rule: If the prose cannot point to specific deltas, channels, delays, or blocked paths, the event is underspecified.</div>
+          </div>
+        </details>
+
+        <details class="section">
+          <summary>
+            <div class="summary-left"><span class="sec-num">03</span><span class="sec-title">Ontology (Entity / Vector / Edge / Evidence)</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <p><strong>Entity:</strong> holds mutable state; can receive perturbation; can affect or resist others; can be described from a perspective.</p>
+            <p><strong>Vector:</strong> a perturbation class, not a prose style tag. It must produce explicit state deltas.</p>
+            <p><strong>Edge:</strong> transfer relation with <code>coupling</code>, <code>channels[]</code>, <code>delayMs</code>, <code>resistance</code>.</p>
+            <p><strong>Evidence Statement:</strong> what changed, where, how much, because of what, with what delay, and what blocked it.</p>
+            <div class="snippet">Entity state dimensions can be poetic, but they must remain stable and auditable (e.g. activity, stability, exposure, resource, signal).</div>
+          </div>
+        </details>
+
+        <details class="section">
+          <summary>
+            <div class="summary-left"><span class="sec-num">04</span><span class="sec-title">Prompt Architecture (A-E)</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <ul>
+              <li><strong>Layer A — Entity Seed:</strong> <code>entity × vector</code> (scenario-specific baseline writing).</li>
+              <li><strong>Layer B — Edge Prompt:</strong> <code>source + vector -&gt; target</code> (channel, first visible change, delay, resistance).</li>
+              <li><strong>Layer C — Propagation Prompt:</strong> chain/multi-hop traces (<code>A -&gt; B -&gt; C</code>).</li>
+              <li><strong>Layer D — Counterfactual / No-Effect:</strong> why a path failed and what would be required for visibility.</li>
+              <li><strong>Layer E — Audit Prompt:</strong> evidence-speaking prose generated from the structured event log.</li>
+            </ul>
+            <p>Do not ship with generic placeholders as the primary prompt substrate. Author high-value edges first.</p>
+          </div>
+        </details>
+
+        <details class="section" open>
+          <summary>
+            <div class="summary-left"><span class="sec-num">05</span><span class="sec-title">ANGEL TRACE (PROMP-C) — Perspective Orchestration</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <div class="prompt-block">
+              <h4>Dual Lens Method</h4>
+              <p><strong>Angel Lens:</strong> traces the ripple across the system. <strong>Mask Lens:</strong> returns the world through the selected entity’s perspective. Keep both lenses active.</p>
+            </div>
+            <div class="prompt-block">
+              <h4>Recursive Therefore Chain</h4>
+              <p><code>L0 Stone</code> → <code>L1 Immediate Material</code> → <code>L2 Edge Transfers</code> → <code>L3 Field Consequence</code> → <code>L4 Mask Consequence</code>. No leapfrogging.</p>
+            </div>
+            <div class="prompt-block">
+              <h4>Fracture Extraction</h4>
+              <p>Locate where field-level pressure (resources / leverage / constraint) crushes or reroutes the chosen entity’s lived perspective. That fracture point is the narrative ignition point.</p>
+            </div>
+            <div class="textarea-shell">
+              <label for="promptRunner" style="font-size:12px; color:var(--text-dim);">ANGEL TRACE runtime prompt scaffold (editable)</label>
+              <textarea id="promptRunner" spellcheck="false">You are the Angel of Ripples (Ripple Architect).
+
+Trace the event record first. Do not invent causality.
+Then return through the selected entity's perspective.
+
+Output sections:
+- EVENT_ANCHOR
+- THEREFORE_CHAIN (L0..L4)
+- FRACTURE_POINT
+- PERSPECTIVE_WORLDTEXT
+- OPERATOR_NEXT_MOVES
+- MISSING_EVIDENCE
+
+Rules:
+- No leapfrogging.
+- Evidence wall check.
+- Include at least one blocked path if present.
+- No closure; end with unresolved pressure.
+</textarea>
+              <div class="actions">
+                <button class="btn" id="btnCopyPrompt" type="button">Copy Scaffold</button>
+                <a class="btn" href="PROMP-C.MD" target="_blank" rel="noopener">Open PROMP-C.MD</a>
+                <a class="btn" href="PROMPT-BETA.MD" target="_blank" rel="noopener">Open PROMPT-BETA.MD</a>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="section">
+          <summary>
+            <div class="summary-left"><span class="sec-num">06</span><span class="sec-title">Reading / Performance Notes</span></div>
+            <span class="chev">▶</span>
+          </summary>
+          <div class="section-body">
+            <ul>
+              <li>The live instrument runs in an <code>iframe</code> to isolate animation / timers from the reader pane.</li>
+              <li>Long reader sections use <code>content-visibility: auto</code> for faster rendering.</li>
+              <li>Animations are disabled under <code>prefers-reduced-motion</code>.</li>
+              <li>Documentation and prompt tooling are static-first; no heavy markdown parser is required to open this file.</li>
+              <li>Use <code>indexgpt.html</code> for direct instrument mode and <code>evo.html</code> for instrument + prompt orchestration reading mode.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel workspace" aria-label="Live RIPPLES instrument workspace">
+      <div class="workspace-toolbar">
+        <div class="row">
+          <div class="left">
+            <div class="title">Live Instrument</div>
+            <div class="pill">Causal RIPPLES Beta</div>
+          </div>
+          <div class="right">
+            <a class="btn" href="indexgpt.html" target="_blank" rel="noopener">Open Standalone</a>
+            <button class="btn" id="btnRefreshStatus" type="button">Refresh Status</button>
+          </div>
+        </div>
+
+        <div class="status-grid" aria-live="polite">
+          <div class="status-item">
+            <div class="k">Mode</div>
+            <div class="v" id="statusMode">Angel + Mask / Reader + Instrument</div>
+          </div>
+          <div class="status-item">
+            <div class="k">Engine</div>
+            <div class="v" id="statusEngine">Causal event-first (iframe: <code>indexgpt.html</code>)</div>
+          </div>
+          <div class="status-item">
+            <div class="k">Goal</div>
+            <div class="v" id="statusGoal">Show source deltas, transfers, non-effects, and evidence-backed prose.</div>
+          </div>
+        </div>
+
+        <div class="note">
+          Operator hotkeys inside the instrument: <span class="hotkeys"><span class="hotkey">1–6</span><span class="hotkey">G</span><span class="hotkey">O</span><span class="hotkey">S</span><span class="hotkey">Space</span><span class="hotkey">←</span><span class="hotkey">→</span></span>
+        </div>
+      </div>
+
+      <div class="embed-wrap">
+        <iframe id="rippleFrame" title="RIPPLES Causal Instrument" src="indexgpt.html" loading="lazy"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const frame = document.getElementById('rippleFrame');
+      const btnReload = document.getElementById('btnReloadFrame');
+      const btnFocus = document.getElementById('btnFocusApp');
+      const btnCopy = document.getElementById('btnCopyPrompt');
+      const btnRefresh = document.getElementById('btnRefreshStatus');
+      const promptRunner = document.getElementById('promptRunner');
+      const statusMode = document.getElementById('statusMode');
+      const statusEngine = document.getElementById('statusEngine');
+      const statusGoal = document.getElementById('statusGoal');
+
+      function reloadFrame(){
+        const src = frame.getAttribute('src') || 'indexgpt.html';
+        frame.setAttribute('src', src);
+      }
+
+      function focusFrame(){
+        frame.focus();
+        try {
+          if (frame.contentWindow) frame.contentWindow.focus();
+        } catch (_) {}
+      }
+
+      async function copyPrompt(){
+        const text = promptRunner.value;
+        if (!navigator.clipboard || !navigator.clipboard.writeText){
+          promptRunner.focus();
+          promptRunner.select();
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          btnCopy.textContent = 'Copied';
+          setTimeout(() => { btnCopy.textContent = 'Copy Scaffold'; }, 900);
+        } catch (_err){
+          promptRunner.focus();
+          promptRunner.select();
+        }
+      }
+
+      function refreshStatus(){
+        let state = 'Frame loaded';
+        try {
+          const doc = frame.contentDocument;
+          const tick = doc && doc.getElementById('tickLabel');
+          const selected = doc && doc.getElementById('selectedPill');
+          const scenario = doc && doc.getElementById('scenarioPill');
+          if (tick && selected && scenario){
+            state = `Scenario ${scenario.textContent || '—'} · Tick ${tick.textContent || '0'} · ${selected.textContent || 'NO ENTITY'}`;
+          }
+        } catch (_e){
+          state = 'Frame running (cross-window access unavailable)';
+        }
+        statusMode.textContent = 'Angel + Mask / Reader + Instrument';
+        statusEngine.innerHTML = 'Causal event-first (iframe: <code>indexgpt.html</code>)';
+        statusGoal.textContent = state;
+      }
+
+      btnReload.addEventListener('click', reloadFrame);
+      btnFocus.addEventListener('click', focusFrame);
+      btnCopy.addEventListener('click', copyPrompt);
+      btnRefresh.addEventListener('click', refreshStatus);
+      frame.addEventListener('load', refreshStatus);
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'r'){
+          e.preventDefault();
+          reloadFrame();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

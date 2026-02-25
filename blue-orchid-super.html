@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RIPPLES | Super Modeler + LLM Bridge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="ripple-llm-adapter.js"></script>
+  <script src="ripple-ai.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&family=JetBrains+Mono:wght@300;400;700;900&family=Inter:wght@300;400;600;800&display=swap');
+
+    :root {
+      --bg: #fdfbf7;
+      --clay: #f0ebd8;
+      --clay-mid: #e3dec9;
+      --ink: #111112;
+      --ink-light: #5a5a60;
+      --accent: #d14934;
+      --accent-pos: #257049;
+      --border-color: rgba(0,0,0,0.08);
+      --ripple-color: rgba(37, 112, 73, 0.15);
+      --shadow: rgba(0,0,0,0.08);
+      --llm-bg: rgba(255,255,255,0.82);
+      --chip: rgba(0,0,0,0.04);
+    }
+
+    body.dark-mode {
+      --bg: #0b0b0d;
+      --clay: #151518;
+      --clay-mid: #202025;
+      --ink: #e8e8ed;
+      --ink-light: #9a9aa2;
+      --accent: #ef5350;
+      --accent-pos: #22c55e;
+      --border-color: rgba(255,255,255,0.08);
+      --ripple-color: rgba(34, 197, 94, 0.1);
+      --shadow: rgba(0,0,0,0.35);
+      --llm-bg: rgba(20,20,24,0.88);
+      --chip: rgba(255,255,255,0.06);
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+      transition: background-color 0.35s ease, color 0.35s ease;
+    }
+
+    .serif { font-family: 'Crimson Pro', serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--ink); opacity: .2; border-radius: 10px; }
+
+    .viewport-bg {
+      background-image: radial-gradient(circle at 1px 1px, var(--border-color) 1.2px, transparent 0);
+      background-size: 34px 34px;
+      opacity: 0.6;
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .app-shell { display: flex; width: 100vw; height: calc(100vh - 64px); overflow: hidden; }
+    .panel-resizer { width: 6px; cursor: col-resize; background: var(--border-color); transition: background .2s; }
+    .panel-resizer:hover { background: var(--ink); opacity: .2; }
+
+    .entity-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      cursor: grab;
+      transition: opacity .25s ease;
+      opacity: 1;
+    }
+    .entity-node:active { cursor: grabbing; z-index: 120; }
+
+    .node-core {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--clay);
+      border: 2px solid var(--border-color);
+      position: relative;
+      box-shadow: 0 8px 24px var(--shadow);
+      transition: transform .16s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .node-core.selected {
+      border-color: var(--ink);
+      background: var(--clay-mid);
+      box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--ink);
+      transform: scale(1.12);
+    }
+    .node-core.targeting {
+      border-color: var(--accent-pos);
+      box-shadow: 0 0 20px rgba(34,197,94,.35);
+      animation: pulseTarget 1.2s infinite;
+    }
+    @keyframes pulseTarget { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+    .node-label {
+      position: absolute;
+      bottom: -32px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--border-color);
+      padding: 2px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .q-tag {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      font-size: 8px;
+      font-weight: 900;
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 999px;
+      padding: 3px 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .connection-path { fill: none; stroke: var(--ink); stroke-linecap: round; opacity: 0.14; }
+    .active-path { opacity: .45; stroke-dasharray: 6 12; animation: dashFlow 14s linear infinite; }
+    @keyframes dashFlow { to { stroke-dashoffset: -120; } }
+
+    .causal-beam { fill: none; stroke: var(--accent-pos); stroke-linecap: round; animation: beamFire 1.4s forwards; }
+    @keyframes beamFire {
+      0% { stroke-dasharray: 0,1000; opacity: 1; stroke-width: 10; }
+      100% { stroke-dasharray: 1000,0; opacity: 0; stroke-width: 2; }
+    }
+
+    .rl-sonar {
+      position: absolute;
+      top: 50%; left: 50%;
+      border-radius: 50%;
+      border: 12px solid var(--ripple-color);
+      pointer-events: none;
+      z-index: 5;
+      animation: sonar 1.8s cubic-bezier(.16,1,.3,1) forwards;
+    }
+    @keyframes sonar {
+      0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(5); opacity: 0; border-width: 1px; }
+    }
+
+    #floatingInspector {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 150;
+      width: 360px;
+      background: var(--llm-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.16);
+      backdrop-filter: blur(18px);
+      transform: translateY(-16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .3s cubic-bezier(.16,1,.3,1);
+    }
+    #floatingInspector.active {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .trait-box {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      background: var(--bg);
+      transition: .16s ease;
+      position: relative;
+    }
+    .trait-box:hover { border-color: var(--ink); background: var(--clay); }
+    .trait-box:hover::after {
+      content: 'TARGET';
+      position: absolute;
+      top: 10px; right: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      font-weight: 900;
+      opacity: .45;
+    }
+
+    .right-panel { width: 560px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--bg); }
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border-color); background: var(--clay); }
+    .tab-btn {
+      flex: 1;
+      padding: 14px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--ink);
+      opacity: .45;
+      border-bottom: 3px solid transparent;
+      transition: .15s ease;
+    }
+    .tab-btn.active { opacity: 1; background: var(--bg); border-bottom-color: var(--ink); }
+    .view-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .view-content.active { display: flex; }
+
+    .prose-block {
+      line-height: 2.05;
+      font-size: 1.22rem;
+      font-weight: 400;
+      user-select: text;
+    }
+    .prose-incantation {
+      font-style: italic;
+      opacity: .95;
+      border-left: 5px solid var(--accent-pos);
+      padding-left: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .hl-term {
+      font-weight: 800;
+      color: var(--accent-pos);
+      text-transform: uppercase;
+      font-size: .85em;
+      letter-spacing: .05em;
+      background: color-mix(in srgb, var(--accent-pos) 10%, transparent);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .entity-link {
+      font-weight: 800;
+      color: var(--ink);
+      cursor: pointer;
+      border-bottom: 2px dotted var(--border-color);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    .entity-link:hover {
+      background: var(--ink);
+      color: var(--bg);
+      border-bottom-color: transparent;
+    }
+
+    .ledger-item {
+      border-left: 4px solid var(--border-color);
+      padding-left: 14px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+    .rollback-btn {
+      position: absolute;
+      right: 0;
+      top: -2px;
+      opacity: 0;
+      transition: opacity .15s ease;
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 4px;
+      font-size: 9px;
+      padding: 4px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+    }
+    .ledger-item:hover .rollback-btn { opacity: 1; }
+
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .35s ease;
+    }
+    #loadingOverlay.active { opacity: 1; pointer-events: auto; }
+    .vector-tunnel { position: absolute; width: 150vw; height: 150vh; opacity: .25; }
+    .ring { transform-origin: center; animation: tunnelZoom 2s linear infinite; }
+    .r1 { animation-delay: 0s; } .r2 { animation-delay: .5s; } .r3 { animation-delay: 1s; } .r4 { animation-delay: 1.5s; }
+    @keyframes tunnelZoom {
+      0% { transform: scale(0) rotate(0deg); opacity: 0; stroke-width: .2; }
+      50% { opacity: 1; stroke-width: 1; }
+      100% { transform: scale(4) rotate(45deg); opacity: 0; stroke-width: 3; }
+    }
+
+    .llm-panel {
+      padding: 14px;
+      overflow-y: auto;
+      user-select: text;
+      background: var(--clay);
+    }
+    .llm-card {
+      background: var(--llm-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 20px var(--shadow);
+    }
+    .llm-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .llm-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+    .field-label { font: 800 9px 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 4px; }
+    .field-input, .field-select, .field-textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-color);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: 600 12px 'JetBrains Mono', monospace;
+      outline: none;
+    }
+    .field-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+    .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 12%, transparent); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .mini-btn {
+      border: 1px solid var(--border-color);
+      background: var(--bg);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font: 800 10px 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      cursor: pointer;
+      transition: .12s ease;
+    }
+    .mini-btn:hover { border-color: var(--ink); transform: translateY(-1px); }
+    .mini-btn.primary { background: var(--ink); color: var(--bg); }
+    .mini-btn.good { border-color: color-mix(in srgb, var(--accent-pos) 50%, var(--border-color)); color: var(--accent-pos); }
+    .mini-btn.warn { border-color: color-mix(in srgb, var(--accent) 50%, var(--border-color)); color: var(--accent); }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px; padding: 5px 10px;
+      font: 800 10px 'JetBrains Mono', monospace;
+      text-transform: uppercase; letter-spacing: .08em;
+      border: 1px solid var(--border-color); background: var(--bg);
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-light); }
+    .status-dot.ok { background: var(--accent-pos); }
+    .status-dot.bad { background: var(--accent); }
+    .compare-list { display: grid; gap: 10px; }
+    .compare-card {
+      background: var(--bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .compare-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .compare-meta { font: 700 10px 'JetBrains Mono', monospace; color: var(--ink-light); }
+    .compare-output {
+      max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+      font: 500 12px/1.45 'JetBrains Mono', monospace;
+      background: var(--chip);
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      user-select: text;
+    }
+    .bridge-box {
+      font: 500 11px/1.45 'JetBrains Mono', monospace;
+      background: var(--chip);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 130px;
+      overflow: auto;
+    }
+    .bridge-ok { border-left: 4px solid var(--accent-pos); }
+    .bridge-bad { border-left: 4px solid var(--accent); }
+
+    .target-banner-hidden { display: none; }
+
+    .legend-chip {
+      background: var(--chip);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font: 700 10px 'JetBrains Mono', monospace;
+    }
+
+    @media (max-width: 1200px) {
+      .right-panel { width: 48vw; }
+    }
+    @media (max-width: 1024px) {
+      .app-shell { flex-direction: column; height: calc(100vh - 64px); }
+      .panel-resizer { display: none !important; }
+      #viewport { height: 48vh !important; min-width: 100vw; width: 100vw !important; border-bottom: 1px solid var(--border-color); }
+      .right-panel { width: 100vw !important; flex: 1; min-height: 0; }
+      #floatingInspector { width: calc(100vw - 24px); left: 12px; top: 10px; }
+      .llm-grid, .llm-grid-3 { grid-template-columns: 1fr; }
+      .hide-on-mobile { display: none !important; }
+      .prose-block { font-size: 1.05rem; line-height: 1.85; }
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+  <div id="loadingOverlay">
+    <svg class="vector-tunnel" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="10" stroke="var(--ink)" fill="none" class="ring r1"></circle>
+      <circle cx="50" cy="50" r="20" stroke="var(--accent-pos)" fill="none" class="ring r2"></circle>
+      <circle cx="50" cy="50" r="30" stroke="var(--ink)" fill="none" class="ring r3"></circle>
+      <circle cx="50" cy="50" r="40" stroke="var(--accent)" fill="none" class="ring r4"></circle>
+    </svg>
+    <div class="serif text-4xl md:text-5xl italic opacity-80 mb-4 z-10 relative text-center">Breaching Vector Depth...</div>
+    <div class="mono text-[11px] uppercase tracking-[0.35em] opacity-50 z-10 relative">Synthesizing Fractal Scene</div>
+  </div>
+
+  <header class="h-16 flex items-center justify-between px-4 lg:px-8 z-[100] border-b border-[var(--border-color)] bg-[var(--bg)] shadow-sm shrink-0">
+    <div class="flex items-center gap-4 lg:gap-8 overflow-hidden min-w-0">
+      <h1 class="serif font-black text-xl lg:text-3xl tracking-[0.18em] uppercase shrink-0">RIPPLES <span class="text-[10px] mono border-2 border-[var(--ink)] px-2 py-0.5 rounded-md ml-2 opacity-80 hidden lg:inline-block">SUPER</span></h1>
+      <div class="h-8 w-[2px] bg-[var(--border-color)] hidden lg:block"></div>
+      <div id="breadcrumbContainer" class="text-[9px] lg:text-[11px] mono font-black flex gap-2 items-center uppercase tracking-widest text-[var(--ink-light)] overflow-x-auto whitespace-nowrap custom-scrollbar min-w-0"></div>
+    </div>
+
+    <div class="flex items-center gap-2 lg:gap-5 shrink-0">
+      <div class="flex-col text-[10px] mono text-right opacity-80 pr-4 border-r border-[var(--border-color)] hide-on-mobile flex">
+        <span id="globalQ" class="font-black">SYS_Q: 1.000</span>
+        <span id="globalR" class="font-black">LAST_R: +0.00</span>
+      </div>
+      <button id="autoplayBtn" class="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-[var(--border-color)] bg-[var(--clay)] text-[10px] lg:text-[11px] mono font-black hover:bg-[var(--ink)] hover:text-[var(--bg)] transition-all">
+        <div id="autoplayIndicator" class="w-2.5 h-2.5 rounded-full bg-[var(--ink-light)]"></div>
+        <span class="hide-on-mobile">RL_DYN:</span> <span id="autoplayLabel">OFF</span>
+      </button>
+      <button id="modeToggle" class="px-3 py-2 rounded-xl border-2 border-[var(--border-color)] bg-[var(--clay)] text-[10px] lg:text-[11px] mono font-black hover:bg-[var(--clay-mid)] transition-all uppercase">Mode</button>
+    </div>
+  </header>
+
+  <main class="flex-1 flex overflow-hidden relative app-shell">
+    <section id="viewport" class="flex-1 relative overflow-hidden bg-[var(--bg)] z-30 min-w-[460px]">
+      <div class="viewport-bg"></div>
+      <svg id="edgeLayer" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+      <div id="entityContainer" class="absolute inset-0 w-full h-full"></div>
+
+      <div id="floatingInspector">
+        <div class="p-5">
+          <div class="flex justify-between items-start mb-5 border-b-2 border-[var(--border-color)] pb-4 gap-3">
+            <div class="truncate min-w-0">
+              <h2 id="insName" class="serif text-2xl md:text-3xl font-bold italic mb-1 truncate">Entity</h2>
+              <div class="text-[10px] mono opacity-40 font-black uppercase tracking-[0.2em]" id="insId">ID: null</div>
+            </div>
+            <button onclick="window.diveIntoSelected()" class="shrink-0 px-3 py-2 bg-[var(--ink)] text-[var(--bg)] text-[9px] mono font-black rounded-lg hover:scale-105 transition-transform shadow-md">DIVE ⤓</button>
+          </div>
+          <div class="space-y-3">
+            <div class="trait-box" onclick="handleTraitClick('GOAL')">
+              <div class="text-[8px] font-black uppercase tracking-widest opacity-50 mb-1">Relational Goal</div>
+              <p id="insGoal" class="text-sm font-light opacity-90 leading-snug italic"></p>
+            </div>
+            <div class="trait-box" onclick="handleTraitClick('OBSTACLE')">
+              <div class="text-[8px] font-black uppercase tracking-widest text-[var(--accent)] mb-1">Policy Obstacle</div>
+              <p id="insObstacle" class="text-sm font-light opacity-90 leading-snug italic"></p>
+            </div>
+            <div class="trait-box" onclick="handleTraitClick('SHIFT')">
+              <div class="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">Last Shift</div>
+              <p id="insShift" class="text-sm font-light opacity-90 leading-snug italic"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="targetingBanner" class="target-banner-hidden absolute top-6 left-1/2 -translate-x-1/2 bg-[var(--ink)] text-[var(--bg)] px-6 py-3 rounded-full text-[11px] mono font-black tracking-[0.18em] z-[170] shadow-2xl border-2 border-[var(--accent-pos)] text-center flex-col md:flex-row items-center w-11/12 md:w-auto">
+        <span>TARGETING: RESOLVE <span id="targetingActionName" class="text-[var(--accent-pos)] ml-1"></span></span>
+        <button onclick="cancelTargeting()" class="md:ml-6 mt-2 md:mt-0 opacity-60 hover:opacity-100 uppercase underline text-[10px]">[Cancel]</button>
+      </div>
+
+      <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[calc(100%-100px)] max-w-4xl z-[100]" id="communeWrapperOuter">
+        <div class="bg-[var(--bg)] p-1 rounded-full flex items-center shadow-2xl border-4 border-[var(--ink)] transition-all backdrop-blur-md" id="communeWrapper">
+          <div id="targetIndicator" class="hidden pl-5 text-[12px] mono font-black text-[var(--accent-pos)] uppercase flex items-center gap-3 shrink-0">
+            <span class="w-3 h-3 rounded-full bg-[var(--accent-pos)] animate-pulse"></span>
+            <span id="targetName" class="truncate max-w-[85px] md:max-w-[160px]"></span>
+            <span class="text-[var(--ink)] opacity-30">::</span>
+          </div>
+          <input type="text" id="communeInput" placeholder="Command the fabric into evolution..." class="flex-1 bg-transparent px-4 md:px-6 py-4 text-[15px] md:text-[18px] outline-none rounded-full italic font-light text-[var(--ink)] min-w-0">
+          <button id="sendCommune" class="p-4 mr-1 rounded-full hover:bg-[var(--ink)] hover:text-[var(--bg)] transition-all shrink-0" title="Send / Apply">
+            <svg viewBox="0 0 24 24" class="w-6 h-6" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+          </button>
+          <button id="compareFromCommand" class="px-3 py-2 mr-1 rounded-full border border-[var(--border-color)] text-[10px] mono font-black hover:bg-[var(--clay)] transition-all shrink-0" title="Compare multiple completions">COMPARE</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="panel-resizer" id="resizerMain"></div>
+
+    <aside id="rightPanel" class="right-panel z-40 border-l border-[var(--border-color)]">
+      <div class="tab-bar">
+        <button id="btnChronicle" class="tab-btn active" onclick="switchTab('chronicle')">Chronicle</button>
+        <button id="btnLedger" class="tab-btn" onclick="switchTab('ledger')">Ledger</button>
+        <button id="btnLLM" class="tab-btn" onclick="switchTab('llm')">LLM Bridge</button>
+      </div>
+
+      <div id="viewChronicle" class="view-content active relative">
+        <div class="p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg)] z-10 shadow-sm shrink-0">
+          <h3 class="text-[12px] font-black opacity-50 uppercase tracking-[0.3em]">Worldtext Chronicle</h3>
+          <div class="flex items-center gap-2">
+            <div id="genIndicator" class="hidden text-[9px] px-4 py-1.5 bg-[var(--ink)] text-[var(--bg)] rounded-full uppercase font-black animate-pulse tracking-widest">SENSING</div>
+            <button id="clearChronicle" class="mini-btn">Clear</button>
+          </div>
+        </div>
+        <div id="worldtextContent" class="flex-1 p-6 md:p-10 serif prose-block overflow-y-auto custom-scrollbar relative">
+          <div class="opacity-30 italic mt-20 text-center px-4">The ecology resides in stasis. Provide a command or target an entity to synthesize reality.</div>
+        </div>
+      </div>
+
+      <div id="viewLedger" class="view-content bg-[var(--clay)] relative">
+        <div class="p-5 border-b border-[var(--border-color)] bg-[var(--bg)] shrink-0">
+          <div class="flex justify-between items-center gap-4">
+            <div class="flex justify-between text-[11px] mono opacity-60 font-black tracking-widest flex-1">
+              <span>RL STATE VECTORS</span>
+              <span id="statusTick">S_000</span>
+            </div>
+            <button id="clearLedger" class="mini-btn">Clear</button>
+          </div>
+        </div>
+        <div id="impactRegistry" class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-4">
+          <div class="text-[12px] opacity-30 italic font-bold text-center mt-20">Awaiting Disturbance...</div>
+        </div>
+      </div>
+
+      <div id="viewLLM" class="view-content">
+        <div class="p-4 border-b border-[var(--border-color)] bg-[var(--bg)] shrink-0 flex items-center justify-between gap-3">
+          <div>
+            <div class="text-[12px] font-black uppercase tracking-[0.22em] opacity-60">AI Link Config</div>
+            <div class="text-[10px] mono opacity-50">Priority: `api.md` / stored remote > local fallback</div>
+          </div>
+          <div id="llmStatusPill" class="status-pill"><span class="status-dot"></span><span>idle</span></div>
+        </div>
+
+        <div class="llm-panel custom-scrollbar">
+          <div class="llm-card">
+            <div class="flex items-center justify-between mb-3 gap-2">
+              <div class="text-[11px] mono font-black uppercase tracking-[0.16em] opacity-70">Connection</div>
+              <div class="flex items-center gap-2 text-[10px] mono opacity-60"><span id="llmResolvedProvider">provider: ?</span><span>•</span><span id="llmResolvedModel">model: ?</span></div>
+            </div>
+            <div class="llm-grid">
+              <label>
+                <span class="field-label">LLM Mode</span>
+                <select id="llmMode" class="field-select">
+                  <option value="auto">Auto (api.md → local)</option>
+                  <option value="remote">Remote Only</option>
+                  <option value="local">Local Only</option>
+                </select>
+              </label>
+              <label>
+                <span class="field-label">api.md Path</span>
+                <input id="apiMdPath" class="field-input" value="api.md" />
+              </label>
+              <label>
+                <span class="field-label">Remote Model</span>
+                <input id="remoteModel" class="field-input" value="gpt-4.1-mini" />
+              </label>
+              <label>
+                <span class="field-label">Local Model</span>
+                <input id="localModel" class="field-input" value="llama3" />
+              </label>
+              <label>
+                <span class="field-label">Local Host</span>
+                <input id="localHost" class="field-input" value="localhost:11434" />
+              </label>
+              <label>
+                <span class="field-label">Temperature</span>
+                <input id="llmTemp" class="field-input" type="number" min="0" max="2" step="0.05" value="0.55" />
+              </label>
+            </div>
+            <div class="btn-row mt-3">
+              <button id="saveLLMConfig" class="mini-btn primary">Save Config</button>
+              <button id="testAPIBtn" class="mini-btn good">Test API</button>
+              <button id="testLocalBtn" class="mini-btn">Test Local</button>
+              <button id="refreshLLMInfo" class="mini-btn">Refresh</button>
+            </div>
+            <div id="llmStatusLine" class="text-[10px] mono opacity-70 mt-3 whitespace-pre-wrap break-words">Ready.</div>
+          </div>
+
+          <div class="llm-card">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="text-[11px] mono font-black uppercase tracking-[0.16em] opacity-70">Phenotype Compare (Outputs)</div>
+              <div class="legend-chip">output-first</div>
+            </div>
+            <div class="llm-grid-3">
+              <label>
+                <span class="field-label">Variants</span>
+                <input id="cmpVariants" class="field-input" type="number" min="2" max="6" step="1" value="3" />
+              </label>
+              <label>
+                <span class="field-label">Max Tokens</span>
+                <input id="cmpMaxTokens" class="field-input" type="number" min="200" max="4000" step="50" value="2200" />
+              </label>
+              <label>
+                <span class="field-label">Focus</span>
+                <select id="cmpFocus" class="field-select">
+                  <option value="mdp">JSON Patch + Worldtext</option>
+                  <option value="worldtext">Worldtext Only</option>
+                  <option value="subscene">Subscene Generation</option>
+                </select>
+              </label>
+            </div>
+            <div class="btn-row mt-3">
+              <label class="mini-btn" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input id="cmpLocalBaseline" type="checkbox" checked style="accent-color: var(--accent-pos);">
+                <span>add local baseline</span>
+              </label>
+              <button id="runCompareBtn" class="mini-btn primary">Run Compare</button>
+              <button id="clearCompareBtn" class="mini-btn">Clear Results</button>
+            </div>
+            <div class="text-[10px] mono opacity-60 mt-3">Uses current command input (and selected entity context if active). Results can be mirrored or applied.</div>
+            <div id="compareResults" class="compare-list mt-4"></div>
+          </div>
+
+          <div class="llm-card">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="text-[11px] mono font-black uppercase tracking-[0.16em] opacity-70">Bridge Inspector</div>
+              <div class="btn-row">
+                <button id="copyBridgeRaw" class="mini-btn">Copy Raw</button>
+                <button id="copyBridgeJSON" class="mini-btn">Copy JSON</button>
+              </div>
+            </div>
+            <div id="bridgeParseStatus" class="text-[10px] mono mb-2 opacity-70">No response parsed yet.</div>
+            <div class="llm-grid">
+              <div>
+                <span class="field-label">Prefix / prose note</span>
+                <div id="bridgePrefix" class="bridge-box">(none)</div>
+              </div>
+              <div>
+                <span class="field-label">Suffix / trailing text</span>
+                <div id="bridgeSuffix" class="bridge-box">(none)</div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <span class="field-label">Extracted JSON (applied payload)</span>
+              <div id="bridgeJSON" class="bridge-box bridge-ok">(none)</div>
+            </div>
+            <div class="mt-3">
+              <span class="field-label">Raw Completion</span>
+              <div id="bridgeRaw" class="bridge-box">(none)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    const INITIAL_STATE = [
+      { id: "ray", name: "Sharp Ray", state: { intensity: 0.8, signal: 0.65 }, pos: { x: 28, y: 28 }, icon: "☀️", goal: "Illuminate interior volume.", obstacle: "Refracted by vessel.", shift: "Emanating." },
+      { id: "glass", name: "Silica Vessel", state: { stress: 0.2, resonance: 0.35 }, pos: { x: 72, y: 30 }, icon: "🥃", goal: "Maintain lattice.", obstacle: "Scouting vibrations.", shift: "Static." },
+      { id: "scout", name: "The Scout", state: { kinetic: 0.4, hunger: 0.55 }, pos: { x: 30, y: 73 }, icon: "🐜", goal: "Locate calories.", obstacle: "The glass barrier.", shift: "Foraging." },
+      { id: "void", name: "Depth Shadow", state: { chill: 0.7, pull: 0.6 }, pos: { x: 70, y: 72 }, icon: "🌑", goal: "Consume photons.", obstacle: "Pierced by light.", shift: "Lurking." }
+    ];
+
+    const state = {
+      sceneStack: [{ name: 'ROOT_ENV', entities: structuredClone(INITIAL_STATE) }],
+      currentIdx: 0,
+      get entities() { return this.sceneStack[this.currentIdx].entities; },
+      set entities(v) { this.sceneStack[this.currentIdx].entities = v; },
+      snapshots: {},
+      selectedId: null,
+      tick: 0,
+      globalQ: 1.0,
+      isDragging: false,
+      dragTarget: null,
+      isAutoplay: false,
+      autoplayTimeout: null,
+      targetingMode: false,
+      targetingAction: null,
+      targetingSourceId: null,
+      lastBridge: null,
+      compareData: null,
+      isBusy: false
+    };
+
+    const el = {};
+    const haptic = () => { if (navigator.vibrate) navigator.vibrate(12); };
+
+    function q(sel) { return document.querySelector(sel); }
+    function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function initializeDomRefs() {
+      ['viewport','entityContainer','edgeLayer','worldtextContent','impactRegistry','rightPanel','genIndicator','communeInput','sendCommune','compareFromCommand'].forEach(id => {
+        el[id] = document.getElementById(id);
+      });
+    }
+
+    function meanStateValue(ent) {
+      const vals = Object.values(ent.state || {});
+      if (!vals.length) return 0.5;
+      return vals.reduce((a,b)=>a+(Number(b)||0),0) / vals.length;
+    }
+
+    function formatProse(text) {
+      let clean = String(text || '').replace(/<[^>]*>/g, '');
+      clean = clean.replace(/\b(goal|obstacle|shift|reward|policy|stability|entropy|manifest|fracture|coupling)\b/gi, m => `<span class="hl-term">${m}</span>`);
+      const names = [...state.entities].sort((a,b)=>b.name.length-a.name.length);
+      for (const ent of names) {
+        const escaped = ent.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+        clean = clean.replace(new RegExp(`\\b(${escaped})\\b`, 'gi'), `<span class="entity-link" onclick="window.selectEntity('${ent.id}')">$1</span>`);
+      }
+      return clean;
+    }
+
+    function proseParagraphsFromMDP(data) {
+      const parts = [];
+      if (data.incantation) parts.push(`<div class="prose-incantation impact-item">${formatProse(data.incantation)}</div>`);
+      if (data.mechanism) parts.push(`<div class="prose-block">${formatProse(data.mechanism)}</div>`);
+      const reward = Number(data.reward_signal || 0);
+      const qText = data.q_analysis ? formatProse(data.q_analysis) : 'Policy path evaluated.';
+      parts.push(`
+        <div class="mt-8 pt-5 border-t border-[var(--border-color)]">
+          <div class="flex flex-wrap gap-2 mb-2">
+            <span class="legend-chip">R ${reward >= 0 ? '+' : ''}${reward.toFixed(2)}</span>
+            <span class="legend-chip">T${state.tick}</span>
+            <span class="legend-chip">${state.sceneStack[state.currentIdx].name}</span>
+          </div>
+          <div class="text-[10px] mono font-black uppercase tracking-[0.14em] opacity-55 mb-2">Policy Analysis</div>
+          <p class="text-sm font-sans italic opacity-85 mt-1">${qText}</p>
+        </div>
+      `);
+      return parts.join('');
+    }
+
+    function appendChronicleHtml(html, prepend = true) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'mb-10 pb-8 border-b border-[var(--border-color)]';
+      wrapper.innerHTML = html;
+      const empty = el.worldtextContent.querySelector('.opacity-30,.opacity-40');
+      if (empty && el.worldtextContent.children.length === 1) empty.remove();
+      if (prepend && el.worldtextContent.firstChild) el.worldtextContent.insertBefore(wrapper, el.worldtextContent.firstChild);
+      else el.worldtextContent.appendChild(wrapper);
+    }
+
+    function setWorldtextHtml(html) {
+      el.worldtextContent.innerHTML = html;
+    }
+
+    function showGenIndicator(show) {
+      el.genIndicator.classList.toggle('hidden', !show);
+    }
+
+    window.switchTab = function(tab) {
+      haptic();
+      for (const t of ['Chronicle','Ledger','LLM']) {
+        document.getElementById(`btn${t}`).classList.remove('active');
+      }
+      for (const v of ['Chronicle','Ledger','LLM']) {
+        document.getElementById(`view${v}`).classList.remove('active');
+      }
+      if (tab === 'chronicle') {
+        q('#btnChronicle').classList.add('active'); q('#viewChronicle').classList.add('active');
+      } else if (tab === 'ledger') {
+        q('#btnLedger').classList.add('active'); q('#viewLedger').classList.add('active');
+      } else {
+        q('#btnLLM').classList.add('active'); q('#viewLLM').classList.add('active');
+      }
+    };
+
+    function setupResizers() {
+      const resizer = document.getElementById('resizerMain');
+      const rightPanel = document.getElementById('rightPanel');
+      if (!resizer || !rightPanel) return;
+      resizer.addEventListener('mousedown', (e) => {
+        const startX = e.clientX;
+        const startW = rightPanel.offsetWidth;
+        const onMove = (me) => {
+          rightPanel.style.width = Math.max(360, startW - me.clientX + startX) + 'px';
+          updateTopology();
+        };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+    }
+
+    function updateBreadcrumbs() {
+      const c = document.getElementById('breadcrumbContainer');
+      let html = '';
+      state.sceneStack.forEach((layer, i) => {
+        if (i > 0) html += `<span class="opacity-20 px-1">/</span>`;
+        if (i === state.currentIdx) html += `<span class="text-[var(--ink)] bg-white/30 px-2 py-0.5 rounded-md font-black">${escHtml(layer.name)}</span>`;
+        else html += `<span class="cursor-pointer hover:underline" onclick="jumpToScene(${i})">${escHtml(layer.name)}</span>`;
+      });
+      c.innerHTML = html;
+    }
+
+    function ensureVel(ent) {
+      if (typeof ent.vx !== 'number') ent.vx = 0;
+      if (typeof ent.vy !== 'number') ent.vy = 0;
+    }
+
+    function physicsLoop() {
+      const entities = state.entities;
+      if (entities.length) {
+        const rect = el.viewport.getBoundingClientRect();
+        const isMobile = window.innerWidth <= 1024;
+        const repulseR = isMobile ? Math.max(35, rect.width * 0.2) : Math.max(26, rect.width * 0.12);
+        const repulseS = isMobile ? 5.8 : 4.2;
+        const gravity = 0.0045;
+        const damping = 0.78;
+        const sleep = 0.045;
+
+        entities.forEach(ensureVel);
+
+        for (let i = 0; i < entities.length; i++) {
+          for (let j = i + 1; j < entities.length; j++) {
+            const a = entities[i], b = entities[j];
+            let dx = b.pos.x - a.pos.x;
+            let dy = b.pos.y - a.pos.y;
+            if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+              dx = (Math.random() - 0.5) * 5;
+              dy = (Math.random() - 0.5) * 5;
+            }
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < repulseR) {
+              const force = ((repulseR - dist) / dist) * repulseS;
+              a.vx -= dx * force * 0.01;
+              a.vy -= dy * force * 0.01;
+              b.vx += dx * force * 0.01;
+              b.vy += dy * force * 0.01;
+            }
+          }
+          const e = entities[i];
+          e.vx += (50 - e.pos.x) * gravity;
+          e.vy += (50 - e.pos.y) * gravity;
+        }
+
+        entities.forEach(e => {
+          if (state.isDragging && state.dragTarget && state.dragTarget.id === e.id) {
+            e.vx = 0; e.vy = 0;
+            return;
+          }
+          e.pos.x += e.vx;
+          e.pos.y += e.vy;
+          e.vx *= damping;
+          e.vy *= damping;
+          if (Math.abs(e.vx) < sleep) e.vx = 0;
+          if (Math.abs(e.vy) < sleep) e.vy = 0;
+          const bound = 9;
+          if (e.pos.x < bound) { e.pos.x = bound; e.vx *= -1.1; }
+          if (e.pos.x > 100-bound) { e.pos.x = 100-bound; e.vx *= -1.1; }
+          if (e.pos.y < bound) { e.pos.y = bound; e.vy *= -1.1; }
+          if (e.pos.y > 100-bound) { e.pos.y = 100-bound; e.vy *= -1.1; }
+          const node = document.getElementById(`node-${e.id}`);
+          if (node) { node.style.left = `${e.pos.x}%`; node.style.top = `${e.pos.y}%`; }
+        });
+        updateTopology();
+      }
+      requestAnimationFrame(physicsLoop);
+    }
+
+    function renderEntities() {
+      const entities = state.entities;
+      const ids = entities.map(e => e.id);
+      Array.from(el.entityContainer.children).forEach(node => {
+        const id = node.id.replace('node-', '');
+        if (node.classList.contains('entity-node') && !ids.includes(id)) {
+          node.style.opacity = '0';
+          setTimeout(() => node.remove(), 250);
+        }
+      });
+
+      entities.forEach(ent => {
+        let node = document.getElementById(`node-${ent.id}`);
+        const qVal = meanStateValue(ent);
+        if (!node) {
+          node = document.createElement('div');
+          node.className = 'entity-node';
+          node.id = `node-${ent.id}`;
+          node.innerHTML = `
+            <div class="node-core" id="core-${ent.id}">
+              <span class="text-3xl">${escHtml(ent.icon || '🔹')}</span>
+              <div class="q-tag">Q:${qVal.toFixed(2)}</div>
+            </div>
+            <div class="node-label">${escHtml(ent.name || ent.id)}</div>
+          `;
+
+          node.addEventListener('mousedown', (e) => { if (!state.targetingMode) { state.isDragging = true; state.dragTarget = ent; } });
+          node.addEventListener('touchstart', () => { if (!state.targetingMode) { state.isDragging = true; state.dragTarget = ent; } }, { passive: true });
+          node.addEventListener('click', (e) => {
+            e.stopPropagation();
+            haptic();
+            if (state.targetingMode && state.targetingSourceId !== ent.id) executeRelationalAction(ent.id);
+            else window.selectEntity(ent.id);
+          });
+          node.addEventListener('dblclick', (e) => { e.stopPropagation(); haptic(); if (!state.targetingMode) window.diveIntoSelected(); });
+
+          el.entityContainer.appendChild(node);
+        }
+        node.style.left = `${ent.pos.x}%`;
+        node.style.top = `${ent.pos.y}%`;
+        const qTag = node.querySelector('.q-tag');
+        if (qTag) qTag.textContent = `Q:${qVal.toFixed(2)}`;
+        const core = node.querySelector('.node-core');
+        if (core) core.classList.toggle('selected', state.selectedId === ent.id);
+      });
+      updateTopology();
+    }
+
+    function updateTopology() {
+      if (!el.edgeLayer || !el.viewport) return;
+      el.edgeLayer.innerHTML = '';
+      const rect = el.viewport.getBoundingClientRect();
+      const entities = state.entities;
+      for (let i = 0; i < entities.length; i++) {
+        for (let j = i + 1; j < entities.length; j++) {
+          const a = entities[i], b = entities[j];
+          const dx = a.pos.x - b.pos.x;
+          const dy = a.pos.y - b.pos.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 45) {
+            const coupling = Math.max(0, 1 - dist / 45);
+            const x1 = (a.pos.x / 100) * rect.width;
+            const y1 = (a.pos.y / 100) * rect.height;
+            const x2 = (b.pos.x / 100) * rect.width;
+            const y2 = (b.pos.y / 100) * rect.height;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${x1} ${y1} Q ${(x1+x2)/2} ${(y1+y2)/2 - 10} ${x2} ${y2}`);
+            path.setAttribute('class', `connection-path${coupling > 0.65 ? ' active-path' : ''}`);
+            path.setAttribute('stroke-width', String(1 + coupling * 4));
+            el.edgeLayer.appendChild(path);
+          }
+        }
+      }
+    }
+
+    function clearSelection() {
+      if (state.targetingMode) cancelTargeting();
+      state.selectedId = null;
+      document.querySelectorAll('.node-core').forEach(c => c.classList.remove('selected'));
+      q('#targetIndicator').classList.add('hidden');
+      q('#communeWrapperOuter').classList.remove('scale-105','-translate-y-2');
+      q('#floatingInspector').classList.remove('active');
+    }
+
+    window.selectEntity = function(id) {
+      if (state.targetingMode) return;
+      state.selectedId = id;
+      document.querySelectorAll('.node-core').forEach(c => c.classList.remove('selected'));
+      const core = document.getElementById(`core-${id}`);
+      if (core) core.classList.add('selected');
+      const ent = state.entities.find(e => e.id === id);
+      if (!ent) return;
+      q('#targetIndicator').classList.remove('hidden');
+      q('#targetName').textContent = ent.name;
+      q('#communeWrapperOuter').classList.add('scale-105','-translate-y-2');
+      q('#insName').textContent = ent.name;
+      q('#insId').textContent = `ID: ${ent.id}`;
+      q('#insGoal').innerHTML = formatProse(ent.goal || 'Emerge.');
+      q('#insObstacle').innerHTML = formatProse(ent.obstacle || 'None.');
+      q('#insShift').innerHTML = formatProse(ent.shift || 'Static.');
+      q('#floatingInspector').classList.add('active');
+    };
+
+    window.handleTraitClick = function(trait) {
+      if (!state.selectedId) return;
+      haptic();
+      if (trait === 'SHIFT') {
+        triggerStructuralShift('COMMUNE_ACTION', `Apply a SHIFT to ${state.entities.find(e=>e.id===state.selectedId)?.name}.`);
+        return;
+      }
+      window.startTargeting(trait === 'GOAL' ? 'RESOLVE GOAL' : 'MITIGATE OBSTACLE');
+    };
+
+    window.startTargeting = function(type) {
+      if (!state.selectedId) return;
+      state.targetingMode = true;
+      state.targetingAction = type;
+      state.targetingSourceId = state.selectedId;
+      q('#targetingActionName').textContent = type;
+      q('#targetingBanner').classList.remove('target-banner-hidden');
+      q('#targetingBanner').style.display = 'flex';
+      document.querySelectorAll('.node-core').forEach(c => {
+        if (c.id !== `core-${state.selectedId}`) c.classList.add('targeting');
+      });
+    };
+
+    window.cancelTargeting = function() {
+      state.targetingMode = false;
+      state.targetingAction = null;
+      state.targetingSourceId = null;
+      const banner = q('#targetingBanner');
+      banner.classList.add('target-banner-hidden');
+      banner.style.display = 'none';
+      document.querySelectorAll('.node-core').forEach(c => c.classList.remove('targeting'));
+    };
+    const cancelTargeting = window.cancelTargeting;
+
+    function triggerRLRipple() {
+      const pulse = document.createElement('div');
+      pulse.className = 'rl-sonar';
+      el.viewport.appendChild(pulse);
+      setTimeout(() => pulse.remove(), 2200);
+    }
+
+    function fireBeam(src, tgt) {
+      const rect = el.viewport.getBoundingClientRect();
+      const beam = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      beam.setAttribute('x1', (src.pos.x/100) * rect.width);
+      beam.setAttribute('y1', (src.pos.y/100) * rect.height);
+      beam.setAttribute('x2', (tgt.pos.x/100) * rect.width);
+      beam.setAttribute('y2', (tgt.pos.y/100) * rect.height);
+      beam.setAttribute('class', 'causal-beam');
+      el.edgeLayer.appendChild(beam);
+      setTimeout(() => beam.remove(), 1400);
+    }
+
+    function executeRelationalAction(targetId) {
+      const src = state.entities.find(e => e.id === state.targetingSourceId);
+      const tgt = state.entities.find(e => e.id === targetId);
+      if (!src || !tgt) return;
+      fireBeam(src, tgt);
+      triggerRLRipple();
+      cancelTargeting();
+      triggerStructuralShift('RELATIONAL_ACTION', `[RELATIONAL_INTERVENTION] ${src.name} interacts with ${tgt.name} to ${state.targetingAction}.`);
+    }
+
+    function saveSnapshot() {
+      state.snapshots[state.tick] = {
+        stack: structuredClone(state.sceneStack),
+        level: state.currentIdx,
+        q: state.globalQ
+      };
+    }
+
+    window.rollbackToTick = function(t) {
+      if (!state.snapshots[t]) return;
+      haptic();
+      const s = state.snapshots[t];
+      state.sceneStack = structuredClone(s.stack);
+      state.currentIdx = s.level;
+      state.globalQ = s.q;
+      state.tick = Number(t);
+      q('#statusTick').textContent = `S_${String(state.tick).padStart(3,'0')}`;
+      q('#globalQ').textContent = `SYS_Q: ${state.globalQ.toFixed(3)}`;
+      Array.from(el.impactRegistry.children).forEach(i => {
+        if (Number(i.getAttribute('data-tick')) > state.tick) i.remove();
+      });
+      updateBreadcrumbs();
+      renderEntities();
+      clearSelection();
+    };
+
+    window.jumpToScene = function(idx) {
+      if (idx === state.currentIdx) return;
+      haptic();
+      state.sceneStack[state.currentIdx].entities = structuredClone(state.entities);
+      state.sceneStack = state.sceneStack.slice(0, idx + 1);
+      state.currentIdx = idx;
+      updateBreadcrumbs();
+      renderEntities();
+      clearSelection();
+    };
+
+    window.diveIntoSelected = async function() {
+      if (!state.selectedId || state.isBusy) return;
+      haptic();
+      const target = state.entities.find(e => e.id === state.selectedId);
+      const overlay = q('#loadingOverlay');
+      overlay.classList.add('active');
+      state.sceneStack[state.currentIdx].entities = structuredClone(state.entities);
+      const nextIdx = state.currentIdx + 1;
+      try {
+        state.sceneStack[nextIdx] = { name: target.name, entities: [] };
+        state.currentIdx = nextIdx;
+        renderEntities();
+        updateBreadcrumbs();
+        await triggerStructuralShift('SUB_SCENE_GENERATION', `FRACTAL_DIVE: generate 3-6 sub-components representing the internal micro-ecology of ${target.name}.`);
+      } catch (e) {
+        console.error('Dive failed', e);
+        state.sceneStack = state.sceneStack.slice(0, nextIdx);
+        state.currentIdx = nextIdx - 1;
+        renderEntities();
+        updateBreadcrumbs();
+      } finally {
+        setTimeout(() => overlay.classList.remove('active'), 700);
+      }
+    };
+
+    function normalizeEntity(ent) {
+      const id = String(ent.id || `ent_${Date.now()}_${Math.floor(Math.random()*10000)}`).replace(/\W/g, '_');
+      return {
+        id,
+        name: String(ent.name || id),
+        icon: String(ent.icon || '🔹'),
+        state: (ent.state && typeof ent.state === 'object') ? ent.state : { e: 0.5 },
+        goal: String(ent.goal || 'Emerge.'),
+        obstacle: String(ent.obstacle || 'None.'),
+        shift: String(ent.shift || 'Manifested.'),
+        pos: ent.pos && typeof ent.pos.x === 'number' && typeof ent.pos.y === 'number'
+          ? { x: clamp(ent.pos.x, 8, 92), y: clamp(ent.pos.y, 8, 92) }
+          : { x: 45 + Math.random()*10, y: 45 + Math.random()*10 },
+        vx: 0,
+        vy: 0
+      };
+    }
+
+    function normalizeMDPPayload(parsed, rawBridge = null) {
+      let data = parsed;
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.mdp && typeof parsed.mdp === 'object') data = parsed.mdp;
+        else if (parsed.ripple_mdp && typeof parsed.ripple_mdp === 'object') data = parsed.ripple_mdp;
+        else if (parsed.world_patch && parsed.world_patch.mdp && typeof parsed.world_patch.mdp === 'object') data = parsed.world_patch.mdp;
+      }
+      if (!data || typeof data !== 'object') throw new Error('Parsed bridge payload is not an object');
+
+      const out = {
+        incantation: data.incantation || data.response_text || data.worldtext || 'The field recalculates itself under pressure.',
+        mechanism: data.mechanism || data.patch_summary || data.summary || 'Mechanism trace unavailable; bridge applied a partial state update.',
+        reward_signal: typeof data.reward_signal === 'number' ? data.reward_signal : parseFloat(data.reward_signal || 0),
+        q_analysis: data.q_analysis || (rawBridge?.mixed ? 'Mixed response parsed: prose + JSON bridge segmented and applied.' : 'JSON bridge parsed directly.'),
+        add: Array.isArray(data.add) ? data.add : [],
+        remove: Array.isArray(data.remove) ? data.remove : [],
+        modify: Array.isArray(data.modify) ? data.modify : []
+      };
+
+      if (!Number.isFinite(out.reward_signal)) out.reward_signal = 0;
+
+      if (!out.add.length && !out.modify.length && !out.remove.length && parsed && parsed.world_patch && typeof parsed.world_patch === 'object') {
+        const wp = parsed.world_patch;
+        if (Array.isArray(wp.entities)) out.add = wp.entities;
+        if (Array.isArray(wp.add)) out.add = wp.add;
+        if (Array.isArray(wp.modify)) out.modify = wp.modify;
+        if (Array.isArray(wp.remove)) out.remove = wp.remove;
+      }
+
+      return out;
+    }
+
+    function renderBridgeInspector(bridge, appliedPayload = null, err = null) {
+      state.lastBridge = { bridge, appliedPayload, err };
+      const parseStatus = q('#bridgeParseStatus');
+      const rawBox = q('#bridgeRaw');
+      const jsonBox = q('#bridgeJSON');
+      const preBox = q('#bridgePrefix');
+      const sufBox = q('#bridgeSuffix');
+
+      if (err) {
+        parseStatus.textContent = `Bridge parse failed: ${err.message || err}`;
+        rawBox.textContent = bridge?.rawText || '(none)';
+        jsonBox.textContent = '(none)';
+        preBox.textContent = '(none)';
+        sufBox.textContent = '(none)';
+        jsonBox.classList.remove('bridge-ok'); jsonBox.classList.add('bridge-bad');
+        return;
+      }
+
+      const mixed = !!bridge?.mixed;
+      const keys = appliedPayload && typeof appliedPayload === 'object' ? Object.keys(appliedPayload).join(', ') : 'none';
+      parseStatus.textContent = mixed ? `Mixed completion segmented. Applied JSON keys: ${keys}` : `Direct JSON completion parsed. Applied JSON keys: ${keys}`;
+      rawBox.textContent = bridge?.rawText || '(none)';
+      jsonBox.textContent = bridge?.jsonText || '(none)';
+      preBox.textContent = bridge?.prefixText || '(none)';
+      sufBox.textContent = bridge?.suffixText || '(none)';
+      jsonBox.classList.remove('bridge-bad'); jsonBox.classList.add('bridge-ok');
+    }
+
+    function applyMDP(data, type) {
+      state.tick += 1;
+      const reward = Number(data.reward_signal || 0);
+      state.globalQ = (state.globalQ * 0.9) + (reward * 0.1);
+      q('#globalR').textContent = `LAST_R: ${reward > 0 ? '+' : ''}${reward.toFixed(2)}`;
+      q('#globalQ').textContent = `SYS_Q: ${state.globalQ.toFixed(3)}`;
+      q('#statusTick').textContent = `S_${String(state.tick).padStart(3,'0')}`;
+
+      if (type === 'SUB_SCENE_GENERATION') {
+        state.entities.length = 0;
+        clearSelection();
+      } else if (Array.isArray(data.remove) && data.remove.length) {
+        const filtered = state.entities.filter(e => !data.remove.includes(e.id));
+        state.entities.length = 0;
+        state.entities.push(...filtered);
+        if (state.selectedId && data.remove.includes(state.selectedId)) clearSelection();
+      }
+
+      if (Array.isArray(data.add)) {
+        data.add.forEach(item => {
+          const n = normalizeEntity(item);
+          if (!state.entities.find(e => e.id === n.id)) state.entities.push(n);
+        });
+      }
+
+      if (Array.isArray(data.modify)) {
+        data.modify.forEach(mod => {
+          if (!mod || !mod.id) return;
+          const ent = state.entities.find(e => e.id === mod.id);
+          if (!ent) return;
+          if (mod.stateDelta && typeof mod.stateDelta === 'object') {
+            Object.entries(mod.stateDelta).forEach(([k, v]) => {
+              const dv = parseFloat(v);
+              if (!Number.isNaN(dv)) {
+                ent.state[k] = clamp((Number(ent.state[k]) || 0) + dv, 0, 1);
+              }
+            });
+          }
+          if (mod.goal) ent.goal = String(mod.goal);
+          if (mod.obstacle) ent.obstacle = String(mod.obstacle);
+          if (mod.shift) ent.shift = String(mod.shift);
+          if (state.selectedId === ent.id) window.selectEntity(ent.id);
+        });
+      }
+
+      state.sceneStack[state.currentIdx].entities = state.entities;
+      saveSnapshot();
+      renderEntities();
+      logLedger(data, type);
+    }
+
+    function logLedger(data, type) {
+      if (state.tick === 1 && el.impactRegistry.innerText.includes('Awaiting')) {
+        el.impactRegistry.innerHTML = '';
+      }
+      const reward = Number(data.reward_signal || 0);
+      const div = document.createElement('div');
+      div.className = 'ledger-item text-[11px] mono';
+      div.setAttribute('data-tick', String(state.tick));
+      const addCount = Array.isArray(data.add) ? data.add.length : 0;
+      const modCount = Array.isArray(data.modify) ? data.modify.length : 0;
+      const remCount = Array.isArray(data.remove) ? data.remove.length : 0;
+      const typeTag = type || 'COMMUNE_ACTION';
+      div.innerHTML = `
+        <button class="rollback-btn" onclick="rollbackToTick(${state.tick})">⟲ REVERT</button>
+        <div class="font-black text-[12px] mb-2 uppercase tracking-widest">SEQ_${String(state.tick).padStart(3,'0')} · ${escHtml(typeTag)} · [R: ${reward.toFixed(2)}]</div>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <span class="legend-chip">+ ${addCount}</span>
+          <span class="legend-chip">Δ ${modCount}</span>
+          <span class="legend-chip">- ${remCount}</span>
+        </div>
+        <div class="opacity-70 italic font-sans text-[13px] leading-relaxed">"${formatProse(data.q_analysis || 'Field analyzed.')}"</div>
+      `;
+      el.impactRegistry.prepend(div);
+    }
+
+    function captureLLMSettingsFromUI() {
+      return {
+        mode: q('#llmMode').value,
+        apiMdPath: q('#apiMdPath').value.trim() || 'api.md',
+        remoteModel: q('#remoteModel').value.trim() || 'gpt-4.1-mini',
+        localModel: q('#localModel').value.trim() || 'llama3',
+        host: q('#localHost').value.trim() || 'localhost:11434',
+        temperature: clamp(parseFloat(q('#llmTemp').value || '0.55'), 0, 2)
+      };
+    }
+
+    function applyLLMSettingsToUI(cfg = {}) {
+      q('#llmMode').value = cfg.mode || 'auto';
+      q('#apiMdPath').value = cfg.apiMdPath || 'api.md';
+      q('#remoteModel').value = cfg.remoteModel || 'gpt-4.1-mini';
+      q('#localModel').value = cfg.model || cfg.localModel || 'llama3';
+      q('#localHost').value = cfg.host || 'localhost:11434';
+    }
+
+    function saveLLMConfig() {
+      if (!window.RIPPLE_AI) {
+        setLLMStatus('RIPPLE_AI bridge not loaded.', false);
+        return;
+      }
+      const s = captureLLMSettingsFromUI();
+      window.RIPPLE_AI.setConfig({
+        mode: s.mode,
+        apiMdPath: s.apiMdPath,
+        remoteModel: s.remoteModel,
+        model: s.localModel,
+        host: s.host
+      });
+      setLLMStatus(`Saved config · mode=${s.mode} · remote=${s.remoteModel} · local=${s.localModel}`, true);
+      refreshResolvedLLMInfo();
+    }
+
+    function setLLMStatus(text, ok = null) {
+      q('#llmStatusLine').textContent = text;
+      const pill = q('#llmStatusPill');
+      const dot = pill.querySelector('.status-dot');
+      const span = pill.querySelector('span:last-child');
+      dot.classList.remove('ok','bad');
+      if (ok === true) dot.classList.add('ok');
+      if (ok === false) dot.classList.add('bad');
+      span.textContent = ok === true ? 'ok' : ok === false ? 'error' : 'idle';
+    }
+
+    async function refreshResolvedLLMInfo() {
+      if (!window.RIPPLE_AI) return;
+      const cfg = window.RIPPLE_AI.getConfig();
+      q('#llmResolvedProvider').textContent = `mode: ${cfg.mode}`;
+      q('#llmResolvedModel').textContent = `remote ${cfg.remoteModel || '?'} / local ${cfg.model || '?'}`;
+    }
+
+    async function testLLM(mode) {
+      if (!window.RIPPLE_AI) {
+        setLLMStatus('RIPPLE_AI bridge not loaded.', false);
+        return;
+      }
+      saveLLMConfig();
+      setLLMStatus(`Testing ${mode}...`, null);
+      try {
+        const cfg = captureLLMSettingsFromUI();
+        const res = await window.RIPPLE_AI.testConnection({
+          mode,
+          apiMdPath: cfg.apiMdPath,
+          remoteModel: cfg.remoteModel,
+          localModel: cfg.localModel
+        });
+        if (res.ok) {
+          setLLMStatus(`API OK · ${res.provider || ''} · ${res.model || ''} · ${res.latencyMs || '?'}ms · ${String(res.preview || res.text || '').slice(0, 80)}`, true);
+          q('#llmResolvedProvider').textContent = `provider: ${res.provider || '?'}`;
+          q('#llmResolvedModel').textContent = `model: ${res.model || '?'}`;
+        } else {
+          setLLMStatus(`Test failed: ${res.error || 'unknown error'}`, false);
+        }
+      } catch (e) {
+        setLLMStatus(`Test failed: ${e.message || e}`, false);
+      }
+    }
+
+    function buildPromptContext(input, type) {
+      const sceneName = state.sceneStack[state.currentIdx]?.name || 'ROOT_ENV';
+      const selected = state.selectedId ? state.entities.find(e => e.id === state.selectedId) : null;
+      let action = input || '';
+      if (selected && input && type === 'COMMUNE_ACTION') {
+        action = `[CHAT WITH ${selected.name}] ${input}`;
+      }
+      return { sceneName, selected, action };
+    }
+
+    function buildSystemPrompt(type = 'COMMUNE_ACTION') {
+      const mode = q('#cmpFocus')?.value || 'mdp';
+      if (mode === 'worldtext') {
+        return `You are a RIPPLES worldtext renderer. Produce vivid but concrete prose grounded in causal changes. If possible include a compact JSON object at the end with keys: incantation, mechanism, reward_signal, q_analysis, add, remove, modify. Do not use markdown fences.`;
+      }
+      if (type === 'SUB_SCENE_GENERATION' || mode === 'subscene') {
+        return `Deep-RL Fractal Scene Modeler. Return valid JSON only. Schema: { incantation, mechanism, reward_signal, q_analysis, add:[{id,name,icon,state,goal,obstacle,shift}], remove:[...ids], modify:[{id,stateDelta,goal,obstacle,shift}] }. For SUB_SCENE_GENERATION you must populate add with 3-6 micro-components and usually remove current layer.`;
+      }
+      return `Deep-RL Modeler / Causal Worldtext Engine. Return strictly valid JSON only using this schema: { "incantation": string, "mechanism": string, "reward_signal": number, "q_analysis": string, "add": [{id,name,icon,state,goal,obstacle,shift}], "remove": [id], "modify": [{id,stateDelta,goal,obstacle,shift}] }. No markdown fences. No HTML tags. All entities added/modified must include goal, obstacle, shift.`;
+    }
+
+    function buildModelPrompt(type, input) {
+      const { sceneName, selected, action } = buildPromptContext(input, type);
+      const statePayload = JSON.stringify(state.entities);
+      const selectedMeta = selected ? `SELECTED: ${JSON.stringify(selected)}` : 'SELECTED: null';
+      return `TYPE: ${type}\nSCENE: ${sceneName}\nACTION: ${action || 'None'}\n${selectedMeta}\nSTATE: ${statePayload}`;
+    }
+
+    async function callLLMForShift(type, input) {
+      if (!window.RIPPLE_AI) throw new Error('RIPPLE_AI bridge not loaded');
+      const llm = captureLLMSettingsFromUI();
+      window.RIPPLE_AI.setConfig({ mode: llm.mode, apiMdPath: llm.apiMdPath, remoteModel: llm.remoteModel, model: llm.localModel, host: llm.host });
+      const system = buildSystemPrompt(type);
+      const prompt = buildModelPrompt(type, input);
+      const res = await window.RIPPLE_AI.callDetailed(prompt, system, {
+        mode: llm.mode,
+        apiMdPath: llm.apiMdPath,
+        remoteModel: llm.remoteModel,
+        localModel: llm.localModel,
+        maxTokens: 2200,
+        temperature: llm.temperature
+      });
+      return { system, prompt, result: res };
+    }
+
+    async function triggerStructuralShift(type, input = null) {
+      if (state.isBusy) return;
+      state.isBusy = true;
+      showGenIndicator(true);
+      if (type === 'AUTOPLAY_POLICY') triggerRLRipple();
+      try {
+        const call = await callLLMForShift(type, input);
+        const rawText = String(call.result?.text || '').trim();
+        let bridge;
+        let parsed;
+        try {
+          bridge = window.RIPPLE_AI.parseBridgeJSON(rawText);
+          bridge.rawText = rawText;
+          parsed = bridge.parsed;
+        } catch (parseErr) {
+          renderBridgeInspector({ rawText }, null, parseErr);
+          throw parseErr;
+        }
+
+        const mdp = normalizeMDPPayload(parsed, bridge);
+        renderBridgeInspector(bridge, mdp, null);
+
+        if (bridge.prefixText || bridge.suffixText) {
+          const note = `
+            <div class="text-[10px] mono uppercase tracking-[0.14em] opacity-50 mb-2">Bridge Notes · ${escHtml(call.result.provider || '')} ${escHtml(call.result.model || '')}</div>
+            ${bridge.prefixText ? `<div class="text-sm font-sans italic opacity-75 mb-3">${formatProse(bridge.prefixText)}</div>` : ''}
+            ${bridge.suffixText ? `<div class="text-xs mono opacity-55">Tail: ${escHtml(bridge.suffixText.slice(0, 300))}</div>` : ''}
+          `;
+          appendChronicleHtml(note, true);
+        }
+
+        if (type === 'SUB_SCENE_GENERATION' && (!Array.isArray(mdp.add) || mdp.add.length === 0)) {
+          mdp.add = [
+            { id: `core_${Date.now()}`, name: 'System Core', icon: '💠', state: { e: 0.82, spin: 0.55 }, goal: 'Stabilize local lattice.', obstacle: 'Input turbulence.', shift: 'Revealed by fallback.' },
+            { id: `periphery_${Date.now()}`, name: 'Peripheral Veil', icon: '⭕', state: { e: 0.44 }, goal: 'Buffer pressure.', obstacle: 'Fracture drift.', shift: 'Revealed by fallback.' }
+          ];
+          mdp.q_analysis = (mdp.q_analysis || '') + ' Fallback micro-components inserted because sub-scene add array was empty.';
+        }
+
+        applyMDP(mdp, type);
+        setWorldtextHtml(proseParagraphsFromMDP(mdp));
+        switchTab('chronicle');
+
+        if (state.isAutoplay && type !== 'SUB_SCENE_GENERATION') {
+          if (state.autoplayTimeout) clearTimeout(state.autoplayTimeout);
+          state.autoplayTimeout = setTimeout(() => {
+            if (state.isAutoplay) triggerStructuralShift('AUTOPLAY_POLICY', 'Optimize systemic value while maintaining narrative legibility.');
+          }, 12000);
+        }
+
+        setLLMStatus(`Completion · ${call.result.provider || '?'} · ${call.result.model || '?'} · ${call.result.source || ''}`, true);
+        return mdp;
+      } catch (e) {
+        console.error(e);
+        setWorldtextHtml(`<div class="opacity-80 italic text-sm">Causal resistance: ${escHtml(e.message || String(e))}</div>`);
+        setLLMStatus(`Error: ${e.message || e}`, false);
+        throw e;
+      } finally {
+        showGenIndicator(false);
+        el.communeInput.value = '';
+        state.isBusy = false;
+      }
+    }
+
+    function buildComparePrompt() {
+      const cmd = el.communeInput.value.trim();
+      if (cmd) return cmd;
+      if (state.selectedId) {
+        const ent = state.entities.find(e => e.id === state.selectedId);
+        return `Respond to ${ent.name} and update the ecology with a plausible causal ripple.`;
+      }
+      return 'Apply a small but legible causal shift to the current ecology and explain the mechanism.';
+    }
+
+    function buildCompareSystem(focus) {
+      if (focus === 'worldtext') {
+        return `You are the worldtext phenotype generator for RIPPLES. Produce a compelling but concrete response grounded in observable causal change. If you include JSON, append it after prose as a single object.`;
+      }
+      if (focus === 'subscene') {
+        return buildSystemPrompt('SUB_SCENE_GENERATION');
+      }
+      return buildSystemPrompt('COMMUNE_ACTION');
+    }
+
+    function renderCompareResults(results = []) {
+      const root = q('#compareResults');
+      if (!results.length) {
+        root.innerHTML = `<div class="text-[11px] mono opacity-50">No compare results yet.</div>`;
+        return;
+      }
+      root.innerHTML = '';
+      results.forEach((r, idx) => {
+        const card = document.createElement('div');
+        card.className = 'compare-card';
+        const preview = r.ok ? r.text : `ERROR: ${r.error || 'unknown'}`;
+        const statusColor = r.ok ? 'var(--accent-pos)' : 'var(--accent)';
+        card.innerHTML = `
+          <div class="compare-head">
+            <div>
+              <div class="text-[11px] mono font-black">${escHtml(r.label)} · run ${r.runIndex + 1}</div>
+              <div class="compare-meta">${escHtml(r.provider || '?')} · ${escHtml(r.model || '?')} · ${r.latencyMs || '?'}ms</div>
+            </div>
+            <div class="btn-row">
+              <button class="mini-btn" data-action="copy" data-idx="${idx}">Copy</button>
+              <button class="mini-btn" data-action="mirror" data-idx="${idx}">Mirror</button>
+              <button class="mini-btn" data-action="apply" data-idx="${idx}">Use JSON</button>
+            </div>
+          </div>
+          <div class="compare-output" style="border-left:4px solid ${statusColor}">${escHtml(preview)}</div>
+        `;
+        root.appendChild(card);
+      });
+    }
+
+    async function runCompare() {
+      if (!window.RIPPLE_AI || state.isBusy) return;
+      saveLLMConfig();
+      const promptInput = buildComparePrompt();
+      const focus = q('#cmpFocus').value;
+      const variants = clamp(parseInt(q('#cmpVariants').value || '3', 10), 2, 6);
+      const maxTokens = clamp(parseInt(q('#cmpMaxTokens').value || '2200', 10), 200, 4000);
+      const temp = captureLLMSettingsFromUI().temperature;
+      const cfg = captureLLMSettingsFromUI();
+
+      const lanes = [
+        {
+          label: `current:${cfg.mode}`,
+          mode: cfg.mode,
+          repeat: variants,
+          temperature: temp,
+          maxTokens,
+          apiMdPath: cfg.apiMdPath,
+          model: cfg.mode === 'local' ? cfg.localModel : cfg.remoteModel
+        }
+      ];
+      if (q('#cmpLocalBaseline').checked && cfg.mode !== 'local') {
+        lanes.push({ label: 'local-baseline', mode: 'local', repeat: 1, temperature: temp, maxTokens, model: cfg.localModel });
+      }
+      if (q('#cmpLocalBaseline').checked && cfg.mode === 'local') {
+        lanes.push({ label: 'remote-baseline', mode: 'remote', repeat: 1, temperature: temp, maxTokens, apiMdPath: cfg.apiMdPath, model: cfg.remoteModel });
+      }
+
+      const type = focus === 'subscene' ? 'SUB_SCENE_GENERATION' : 'COMMUNE_ACTION';
+      const selected = state.selectedId ? state.entities.find(e => e.id === state.selectedId) : null;
+      const comparePrompt = `TYPE: ${type}\nFOCUS: ${focus}\nACTION: ${selected ? `[CHAT WITH ${selected.name}] ` : ''}${promptInput}\nSTATE: ${JSON.stringify(state.entities)}`;
+      const system = buildCompareSystem(focus);
+
+      state.isBusy = true;
+      setLLMStatus('Running compare...', null);
+      switchTab('llm');
+      try {
+        const out = await window.RIPPLE_AI.compareCompletions({
+          prompt: comparePrompt,
+          system,
+          lanes,
+          parallel: true
+        });
+        state.compareData = out;
+        renderCompareResults(out.results || []);
+        setLLMStatus(`Compare complete · ${out.count || 0} runs · ${out.totalLatencyMs || '?'}ms`, true);
+      } catch (e) {
+        setLLMStatus(`Compare failed: ${e.message || e}`, false);
+      } finally {
+        state.isBusy = false;
+      }
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(String(text || ''));
+        setLLMStatus('Copied to clipboard.', true);
+      } catch (e) {
+        setLLMStatus('Clipboard copy failed.', false);
+      }
+    }
+
+    function handleCompareAction(action, idx) {
+      const row = state.compareData?.results?.[idx];
+      if (!row) return;
+      if (action === 'copy') {
+        copyText(row.text || '');
+        return;
+      }
+      if (action === 'mirror') {
+        setWorldtextHtml(`<div class="prose-incantation">${formatProse(row.text || '')}</div>`);
+        switchTab('chronicle');
+        return;
+      }
+      if (action === 'apply') {
+        try {
+          const bridge = window.RIPPLE_AI.parseBridgeJSON(row.text || '');
+          bridge.rawText = row.text || '';
+          const mdp = normalizeMDPPayload(bridge.parsed, bridge);
+          renderBridgeInspector(bridge, mdp, null);
+          applyMDP(mdp, 'COMPARE_APPLY');
+          setWorldtextHtml(proseParagraphsFromMDP(mdp));
+          switchTab('chronicle');
+          setLLMStatus(`Applied JSON from compare lane ${row.label}.`, true);
+        } catch (e) {
+          renderBridgeInspector({ rawText: row.text || '' }, null, e);
+          setLLMStatus(`Use JSON failed: ${e.message || e}`, false);
+        }
+      }
+    }
+
+    function setupCompareDelegation() {
+      q('#compareResults').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        handleCompareAction(btn.getAttribute('data-action'), Number(btn.getAttribute('data-idx')));
+      });
+    }
+
+    function setupInteractions() {
+      el.viewport.addEventListener('mousedown', (e) => {
+        if (e.target === el.viewport || e.target === el.entityContainer || e.target === el.edgeLayer) clearSelection();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!state.isDragging || !state.dragTarget) return;
+        const rect = el.viewport.getBoundingClientRect();
+        state.dragTarget.pos.x = clamp(((e.clientX - rect.left) / rect.width) * 100, 5, 95);
+        state.dragTarget.pos.y = clamp(((e.clientY - rect.top) / rect.height) * 100, 5, 95);
+        state.dragTarget.vx = 0; state.dragTarget.vy = 0;
+        const node = document.getElementById(`node-${state.dragTarget.id}`);
+        if (node) { node.style.left = `${state.dragTarget.pos.x}%`; node.style.top = `${state.dragTarget.pos.y}%`; }
+        updateTopology();
+      });
+      window.addEventListener('mouseup', () => { state.isDragging = false; state.dragTarget = null; });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!state.isDragging || !state.dragTarget) return;
+        const touch = e.touches[0];
+        const rect = el.viewport.getBoundingClientRect();
+        state.dragTarget.pos.x = clamp(((touch.clientX - rect.left) / rect.width) * 100, 5, 95);
+        state.dragTarget.pos.y = clamp(((touch.clientY - rect.top) / rect.height) * 100, 5, 95);
+        state.dragTarget.vx = 0; state.dragTarget.vy = 0;
+        const node = document.getElementById(`node-${state.dragTarget.id}`);
+        if (node) { node.style.left = `${state.dragTarget.pos.x}%`; node.style.top = `${state.dragTarget.pos.y}%`; }
+        updateTopology();
+      }, { passive: true });
+      window.addEventListener('touchend', () => { state.isDragging = false; state.dragTarget = null; });
+
+      el.sendCommune.addEventListener('click', () => {
+        haptic();
+        const v = el.communeInput.value.trim();
+        if (v) triggerStructuralShift('COMMUNE_ACTION', v);
+      });
+      el.communeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); el.sendCommune.click(); }
+      });
+
+      el.compareFromCommand.addEventListener('click', () => { haptic(); runCompare(); });
+      q('#runCompareBtn').addEventListener('click', runCompare);
+      q('#clearCompareBtn').addEventListener('click', () => { state.compareData = null; renderCompareResults([]); });
+      q('#clearChronicle').addEventListener('click', () => {
+        setWorldtextHtml('<div class="opacity-30 italic mt-20 text-center px-4">Chronicle cleared. Provide a command to synthesize reality.</div>');
+      });
+      q('#clearLedger').addEventListener('click', () => {
+        el.impactRegistry.innerHTML = '<div class="text-[12px] opacity-30 italic font-bold text-center mt-20">Awaiting Disturbance...</div>';
+      });
+
+      q('#autoplayBtn').addEventListener('click', () => {
+        haptic();
+        state.isAutoplay = !state.isAutoplay;
+        const ind = q('#autoplayIndicator');
+        const lab = q('#autoplayLabel');
+        if (state.isAutoplay) {
+          lab.textContent = 'RUN';
+          ind.classList.add('animate-pulse');
+          ind.style.background = 'var(--accent-pos)';
+          triggerStructuralShift('AUTOPLAY_POLICY', 'Optimize systemic value and narrative legibility.');
+        } else {
+          lab.textContent = 'OFF';
+          ind.classList.remove('animate-pulse');
+          ind.style.background = 'var(--ink-light)';
+          if (state.autoplayTimeout) clearTimeout(state.autoplayTimeout);
+        }
+      });
+
+      q('#modeToggle').addEventListener('click', () => { haptic(); document.body.classList.toggle('dark-mode'); });
+
+      q('#saveLLMConfig').addEventListener('click', saveLLMConfig);
+      q('#testAPIBtn').addEventListener('click', () => testLLM('remote'));
+      q('#testLocalBtn').addEventListener('click', () => testLLM('local'));
+      q('#refreshLLMInfo').addEventListener('click', refreshResolvedLLMInfo);
+      q('#copyBridgeRaw').addEventListener('click', () => copyText(state.lastBridge?.bridge?.rawText || ''));
+      q('#copyBridgeJSON').addEventListener('click', () => copyText(state.lastBridge?.bridge?.jsonText || ''));
+
+      setupCompareDelegation();
+
+      window.addEventListener('keydown', (e) => {
+        const tag = (e.target && e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (e.key === 'l' || e.key === 'L') { switchTab('llm'); }
+        if (e.key === '?' ) { switchTab('chronicle'); }
+        if (e.key === 'Escape') { cancelTargeting(); clearSelection(); }
+      });
+    }
+
+    function initLLMBridgeUI() {
+      if (!window.RIPPLE_AI) {
+        setLLMStatus('RIPPLE_AI not found. Check ripple-ai.js include.', false);
+        return;
+      }
+      const cfg = window.RIPPLE_AI.getConfig();
+      applyLLMSettingsToUI(cfg);
+      q('#remoteModel').value = cfg.remoteModel || q('#remoteModel').value;
+      q('#localModel').value = cfg.model || q('#localModel').value;
+      q('#apiMdPath').value = cfg.apiMdPath || q('#apiMdPath').value;
+      q('#localHost').value = cfg.host || q('#localHost').value;
+      q('#llmMode').value = cfg.mode || q('#llmMode').value;
+      refreshResolvedLLMInfo();
+      renderCompareResults([]);
+      renderBridgeInspector({ rawText: '(none)', jsonText: '', prefixText: '', suffixText: '', mixed: false }, null, null);
+    }
+
+    function init() {
+      initializeDomRefs();
+      setupResizers();
+      setupInteractions();
+      saveSnapshot();
+      updateBreadcrumbs();
+      renderEntities();
+      initLLMBridgeUI();
+      physicsLoop();
+      window.addEventListener('resize', updateTopology);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
