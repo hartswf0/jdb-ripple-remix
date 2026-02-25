@@ -1,102 +1,527 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIPPLES: Worldtext Generator</title>
-    <style>
-        /* VISUAL DESIGN - COLORS & TYPOGRAPHY */
-        :root {
-            --term-bg: #050a05;
-            --term-text: #34af62; 
-            --term-dim: #1e5c12;
-            --term-alert: #ff3333; /* OBSTACLE */
-            --term-gold: #ffd700;  /* GOAL */
-            --term-cyan: #00ffff;  /* SHIFT */
-            --grid-line: #0a200a;
-            --grid-node: #2a6a2a;
-            --font-main: 'JetBrains Mono', 'Fira Code', monospace;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIPPLES // Launch Deck</title>
+  <style>
+    :root {
+      --bg: #060909;
+      --panel: rgba(8, 16, 14, 0.92);
+      --panel-2: rgba(7, 12, 11, 0.9);
+      --line: #1d3a32;
+      --text: #d9efe4;
+      --muted: #8fb6a6;
+      --green: #35d28a;
+      --cyan: #65e4ff;
+      --gold: #f0c86a;
+      --rose: #ff7f7f;
+      --shadow: 0 14px 50px rgba(0, 0, 0, 0.35);
+    }
 
-        body {
-            background-color: var(--term-bg);
-            color: var(--term-text);
-            font-family: var(--font-main);
-            margin: 0;
-            padding: 20px;
-            height: 100vh;
-            box-sizing: border-box;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        /* EFFECTS */
-        .crt-scanlines {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 100;
-        }
-        
-        .flicker {
-            animation: flicker 0.15s infinite;
-        }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(53, 210, 138, 0.12), transparent 42%),
+        radial-gradient(circle at 85% 18%, rgba(101, 228, 255, 0.1), transparent 38%),
+        radial-gradient(circle at 50% 100%, rgba(240, 200, 106, 0.06), transparent 45%),
+        var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    }
 
-        @keyframes flicker {
-            0% { opacity: 0.97; }
-            50% { opacity: 1.0; }
-            100% { opacity: 0.98; }
-        }
+    body {
+      padding: 24px;
+    }
 
-        /* LAYOUT */
-        header {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--term-dim);
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
 
-        .main-interface {
-            display: grid;
-            grid-template-columns: 300px 1fr 300px; /* Entity Pool | Grid/Text | Controls/Log */
-            gap: 20px;
-            height: 100%;
-        }
+    .hero {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(13, 24, 21, 0.96), rgba(8, 14, 12, 0.94));
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
 
-        /* COMPONENT: GRID */
-        .grid-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: var(--grid-line);
-            padding: 2px;
-            aspect-ratio: 8/6;
-            max-height: 50vh;
-        }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent 28%),
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.015),
+          rgba(255, 255, 255, 0.015) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      opacity: 0.6;
+    }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(6, 1fr);
-            gap: 2px;
-            width: 100%;
-            height: 100%;
-        }
+    .hero-row {
+      position: relative;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
 
-        .grid-cell {
-            background: var(--term-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+    }
 
-        .grid-cell.has-entity {
-            background: var(--grid-node);
-            cursor: pointer;
-            transition: 0
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 70ch;
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: rgba(5, 10, 9, 0.7);
+      white-space: nowrap;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      text-decoration: none;
+      background: rgba(8, 13, 12, 0.85);
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(101, 228, 255, 0.55);
+      background: rgba(11, 19, 17, 0.95);
+    }
+
+    .btn-primary {
+      border-color: rgba(53, 210, 138, 0.45);
+      box-shadow: inset 0 0 0 1px rgba(53, 210, 138, 0.15);
+    }
+
+    .btn-warn {
+      border-color: rgba(240, 200, 106, 0.45);
+      color: var(--gold);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .panel {
+      grid-column: span 12;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(29, 58, 50, 0.65);
+      background: rgba(10, 18, 16, 0.8);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text);
+      letter-spacing: 0.03em;
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .card {
+      border: 1px solid rgba(29, 58, 50, 0.95);
+      border-radius: 12px;
+      padding: 12px;
+      text-decoration: none;
+      color: inherit;
+      background:
+        linear-gradient(180deg, rgba(12, 21, 18, 0.95), rgba(8, 13, 12, 0.9));
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      min-height: 112px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 6px;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(101, 228, 255, 0.55);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+    }
+
+    .card kbd {
+      justify-self: start;
+      font: inherit;
+      font-size: 0.7rem;
+      color: var(--cyan);
+      border: 1px solid rgba(101, 228, 255, 0.3);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(8, 14, 15, 0.8);
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .card .path {
+      color: var(--green);
+      font-size: 0.76rem;
+      word-break: break-all;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .info {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .info h2 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+
+    .info p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.85rem;
+    }
+
+    .info code, .info pre {
+      font-family: inherit;
+    }
+
+    .info pre {
+      margin: 8px 0 0;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(5, 9, 8, 0.92);
+      border: 1px solid rgba(29, 58, 50, 0.8);
+      color: var(--text);
+      overflow-x: auto;
+      font-size: 0.8rem;
+    }
+
+    .warning {
+      border-color: rgba(240, 200, 106, 0.35);
+    }
+
+    .warning h2 {
+      color: var(--gold);
+    }
+
+    .warning p strong {
+      color: var(--rose);
+      font-weight: 600;
+    }
+
+    .foot {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+    }
+
+    @media (min-width: 900px) {
+      .panel.span-7 { grid-column: span 7; }
+      .panel.span-5 { grid-column: span 5; }
+    }
+
+    @media (max-width: 900px) {
+      body { padding: 14px; }
+      .split { grid-template-columns: 1fr; }
+      .panel-note { white-space: normal; }
+      .hero-actions { width: 100%; }
+      .hero-actions .btn { flex: 1 1 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero" aria-labelledby="deck-title">
+      <div class="hero-row">
+        <div>
+          <h1 id="deck-title">RIPPLES // Launch Deck</h1>
+          <p class="subtitle">
+            Single entry point for all local interfaces, experiments, and prompt/docs files in this repo.
+            Use this page as the root index for GitHub Pages or local browsing.
+          </p>
+          <div class="badges" aria-label="Project badges">
+            <span class="badge">Primary UI: indexgpt.html</span>
+            <span class="badge">Workbench: evo.html</span>
+            <span class="badge">LLM bridge files present</span>
+          </div>
+        </div>
+        <div class="hero-actions" aria-label="Quick launch">
+          <a class="btn btn-primary" href="indexgpt.html">Open Main Simulation</a>
+          <a class="btn" href="evo.html">Open EVO Workbench</a>
+          <a class="btn btn-warn" href="README.md">Open README</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid" aria-label="RIPPLES file launcher">
+      <section class="panel span-7">
+        <div class="panel-head">
+          <h2 class="panel-title">Interfaces (Primary + Supported)</h2>
+          <div class="panel-note">HTML entry points</div>
+        </div>
+        <div class="cards">
+          <a class="card" href="indexgpt.html">
+            <kbd>Primary</kbd>
+            <h3>Simulation Interface</h3>
+            <p>Main RIPPLES causal worldtext interface using <code>gpt.js</code> and <code>gpt.css</code>.</p>
+            <div class="path">indexgpt.html</div>
+          </a>
+          <a class="card" href="evo.html">
+            <kbd>Workbench</kbd>
+            <h3>RIPPLES EVO</h3>
+            <p>Perspective workbench with embedded/standalone launch hooks into the main simulation.</p>
+            <div class="path">evo.html</div>
+          </a>
+          <a class="card" href="blue-orchid-super.html">
+            <kbd>LLM</kbd>
+            <h3>Blue Orchid Super</h3>
+            <p>Super modeler variant wired to the local LLM bridge scripts.</p>
+            <div class="path">blue-orchid-super.html</div>
+          </a>
+          <a class="card" href="blue-orchid.html">
+            <kbd>LLM</kbd>
+            <h3>Blue Orchid</h3>
+            <p>Blue Hour Lidar interface using Tone.js + RIPPLES bridge scripts.</p>
+            <div class="path">blue-orchid.html</div>
+          </a>
+          <a class="card" href="moss-omni.html">
+            <kbd>Monitor</kbd>
+            <h3>Moss Omni</h3>
+            <p>Expanded ORCA moss monitor variant with adapter support.</p>
+            <div class="path">moss-omni.html</div>
+          </a>
+          <a class="card" href="moss.html">
+            <kbd>Monitor</kbd>
+            <h3>Moss</h3>
+            <p>ORCA moss monitor baseline version.</p>
+            <div class="path">moss.html</div>
+          </a>
+        </div>
+      </section>
+
+      <section class="panel span-5">
+        <div class="panel-head">
+          <h2 class="panel-title">Variants / Experiments</h2>
+          <div class="panel-note">Legacy and alternate UI tracks</div>
+        </div>
+        <div class="cards">
+          <a class="card" href="evo-02.html">
+            <kbd>Variant</kbd>
+            <h3>EVO-02</h3>
+            <p>Recursive Life / World Jockey edition.</p>
+            <div class="path">evo-02.html</div>
+          </a>
+          <a class="card" href="evo-03.html">
+            <kbd>Variant</kbd>
+            <h3>EVO-03</h3>
+            <p>World Jockey v2 experimental interface.</p>
+            <div class="path">evo-03.html</div>
+          </a>
+          <a class="card" href="ort.html">
+            <kbd>Experimental</kbd>
+            <h3>OMNISCIENCE (ORT)</h3>
+            <p>React/Tailwind/Babel in-browser prototype.</p>
+            <div class="path">ort.html</div>
+          </a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Docs / Prompt Corpus / API Config</h2>
+          <div class="panel-note">Markdown files in repo root</div>
+        </div>
+        <div class="cards">
+          <a class="card" href="README.md">
+            <kbd>Docs</kbd>
+            <h3>README</h3>
+            <p>Project overview and repo-level notes.</p>
+            <div class="path">README.md</div>
+          </a>
+          <a class="card" href="SYSTEM.MD">
+            <kbd>Prompt</kbd>
+            <h3>System Prompt</h3>
+            <p>Worldtext generation system prompt and ontology.</p>
+            <div class="path">SYSTEM.MD</div>
+          </a>
+          <a class="card" href="PROMPT-BETA.MD">
+            <kbd>Prompt</kbd>
+            <h3>Prompt Beta</h3>
+            <p>Beta prompt architecture and acceptance criteria.</p>
+            <div class="path">PROMPT-BETA.MD</div>
+          </a>
+          <a class="card" href="PROMP-C.MD">
+            <kbd>Prompt</kbd>
+            <h3>PROMP-C</h3>
+            <p>Angel perspective ripple orchestrator prompt.</p>
+            <div class="path">PROMP-C.MD</div>
+          </a>
+          <a class="card" href="api.md">
+            <kbd>Config</kbd>
+            <h3>API Config</h3>
+            <p>Local API/provider configuration used by the adapter bridge.</p>
+            <div class="path">api.md</div>
+          </a>
+          <a class="card" href="api.example.md">
+            <kbd>Config</kbd>
+            <h3>API Config Example</h3>
+            <p>Template/example formats for key and provider setup.</p>
+            <div class="path">api.example.md</div>
+          </a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Core JS / CSS Assets</h2>
+          <div class="panel-note">Reference files loaded by the interfaces</div>
+        </div>
+        <div class="cards">
+          <a class="card" href="gpt.js">
+            <kbd>Core</kbd>
+            <h3>gpt.js</h3>
+            <p>Main simulation logic for <code>indexgpt.html</code>.</p>
+            <div class="path">gpt.js</div>
+          </a>
+          <a class="card" href="gpt.css">
+            <kbd>Core</kbd>
+            <h3>gpt.css</h3>
+            <p>Stylesheet for the main simulation interface.</p>
+            <div class="path">gpt.css</div>
+          </a>
+          <a class="card" href="ripple-ai.js">
+            <kbd>Bridge</kbd>
+            <h3>ripple-ai.js</h3>
+            <p>Expanded RIPPLES AI bridge (legacy + adapter-aware paths).</p>
+            <div class="path">ripple-ai.js</div>
+          </a>
+          <a class="card" href="ripple-llm-adapter.js">
+            <kbd>Bridge</kbd>
+            <h3>ripple-llm-adapter.js</h3>
+            <p>Multi-provider adapter for OpenAI/Anthropic/Gemini/Ollama workflows.</p>
+            <div class="path">ripple-llm-adapter.js</div>
+          </a>
+        </div>
+      </section>
+    </section>
+
+    <section class="split" aria-label="Notes and troubleshooting">
+      <section class="info">
+        <h2>Local Run Note</h2>
+        <p>
+          Some pages use <code>fetch()</code> and will behave better over a local HTTP server than opening files directly with
+          <code>file://</code>.
+        </p>
+        <pre>python3 -m http.server 8000</pre>
+        <p>Then open <code>http://localhost:8000/index.html</code>.</p>
+      </section>
+
+      <section class="info warning">
+        <h2>Console Error Note</h2>
+        <p>
+          Errors like <strong>content.js:... Cannot read properties of undefined (reading 'query')</strong> are usually from a browser extension
+          content script, not this repo. Test in an Incognito/private window with extensions off to confirm.
+        </p>
+        <p>
+          This repo's primary scripts are <code>gpt.js</code>, <code>ripple-ai.js</code>, and <code>ripple-llm-adapter.js</code>.
+        </p>
+      </section>
+    </section>
+
+    <div class="foot">RIPPLES repo root index - all local entry points linked from one page.</div>
+  </main>
+</body>
+</html>
