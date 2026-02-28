@@ -1,555 +1,459 @@
-# RIPPLES: System Prompt for Worldtext Generation
+# RIPPLES: System Prompt (Distilled Core)
 
-> This document is the complete specification for building a RIPPLES interface. It contains everything needed to implement the system from scratch.
+> Compact full-spec for building RIPPLES from scratch without losing causal clarity or poetic intent.
 
 ---
 
 ## Purpose
 
-You are building **RIPPLES**: a latent interface for imaginary ecologies.
+Build **RIPPLES**: a **causal worldtext instrument** for imaginary ecologies.
 
-This is not a simulation. This is not a game. This is a **Worldtext Generator**—a machine that produces poetic state descriptions from the perspective of nonhuman entities.
+RIPPLES is:
+- speculative
+- operator-driven
+- perspective-locked
+- evidence-aware
 
-The operator is a **World Jockey**—part disc jockey (mixing and transitioning between states), part VJ (visual manipulation in real-time), part prompt jockey (steering generative systems), and part demiurge (making and remaking worlds). The World Jockey does not narrate. They *intervene*.
+RIPPLES is not:
+- a truth simulator
+- a game with win states
+- a plot engine
 
----
-
-## The World Jockey
-
-The operator of RIPPLES is not a writer, not a player, not a user. They are a **World Jockey** (WJ).
-
-### What a World Jockey Does
-
-| Role | Analogy | Action in RIPPLES |
-|------|---------|-------------------|
-| **DJ** | Mixing tracks | Transitioning between entities, crossfading perspectives |
-| **VJ** | Live visuals | Manipulating the grid, triggering ripple animations |
-| **Prompt Jockey** | Steering AI | Selecting vectors, shaping generative output |
-| **Demiurge** | World-maker | Constructing ecologies, populating scenes, defining rules |
-
-### WJ Workflow
-
-1. **Load a Scene** — Select a scenario (cupboard, forest, city)
-2. **Survey the Grid** — See all entities in their positions
-3. **Lock a Perspective** — Click an entity to inhabit its viewpoint
-4. **Inject a Vector** — Apply GOAL, OBSTACLE, or SHIFT
-5. **Watch the Ripple** — See the worldtext transform
-6. **Mix and Transition** — Move to another entity, layer effects
-7. **Record the Session** — The audit log captures everything
-
-The WJ is a performer. RIPPLES is their instrument.
+The operator is the **World Jockey**: they intervene; the system resolves consequences.
 
 ---
 
-## The Grid
+## Subtractive Design Doctrine
 
-The **Grid** is the spatial representation of the ecology. Each entity occupies a position. The grid is the stage on which the world jockey operates.
+All implementation decisions follow five constraints:
 
-### Grid Structure
-
-```
-┌─────────────────────────────────────────┐
-│  [Dust_Mote]     .    .    [Light]      │
-│       .         .    .        .         │
-│  [Ant]    ────→    [Plates]    .        │
-│       .         .    .        .         │
-│  [Glass]    .    .    [Shadow]          │
-└─────────────────────────────────────────┘
-```
-
-### Grid Properties
-
-| Property | Description |
-|----------|-------------|
-| `cols` | Number of columns (default: 8) |
-| `rows` | Number of rows (default: 6) |
-| `cells` | Array of cell objects |
-| `entityMap` | Mapping of entity IDs to grid positions |
-
-### Cell Structure
-
-```javascript
-{
-  x: 3,
-  y: 2,
-  entityId: 'ant',           // null if empty
-  state: 'active',           // 'active', 'dormant', 'rippling'
-  rippleIntensity: 0.8,      // 0-1, for visual effects
-  adjacentTo: ['plates', 'glass']
-}
-```
-
-### Grid Visualization
-
-The grid should be rendered as:
-- A visible matrix of cells
-- Entities shown as highlighted nodes
-- Connections between adjacent entities as faint lines
-- Ripple effects radiating outward from active entity
-- The selected entity pulses or glows
+1. **Subtractive Essence**: keep only what improves causal legibility.
+2. **Zero-UI Default**: infer or automate before adding controls.
+3. **Collapse Modes**: one focused pathway over persistent multi-pane bloat.
+4. **Negative Space Focus**: remove visual scaffolding that carries no meaning.
+5. **Cost of Addition**: every addition must remove equal or greater complexity.
 
 ---
 
-## Ripple Visualization
+## World Jockey Model
 
-When a vector is applied, a **Ripple** propagates through the grid. This is both a data event and a visual event.
+### Roles
 
-### Ripple Phases
+| Role | Function in RIPPLES |
+|---|---|
+| DJ | mix perspective transitions |
+| VJ | manipulate visual ripple field |
+| Prompt Jockey | steer perturbation and generation |
+| Demiurge | define scene ecology and constraints |
 
-1. **Trigger** (0ms) — Vector button clicked, entity locked
-2. **Impact** (0-200ms) — Entity node flashes with vector color
-3. **Propagation** (200-800ms) — Concentric rings expand from entity
-4. **Cascade** (800-1500ms) — Adjacent entities receive secondary ripple
-5. **Settle** (1500-2000ms) — Effects fade, new worldtext stabilizes
+### Workflow
 
-### Ripple Visual Effects
-
-```css
-/* Ripple keyframes */
-@keyframes ripple-expand {
-  0% { 
-    transform: scale(0.5); 
-    opacity: 1; 
-  }
-  100% { 
-    transform: scale(3); 
-    opacity: 0; 
-  }
-}
-
-/* Entity flash on vector */
-.entity.rippling.goal { box-shadow: 0 0 30px #ffd700; }
-.entity.rippling.obstacle { box-shadow: 0 0 30px #ff3333; }
-.entity.rippling.shift { box-shadow: 0 0 30px #00ffff; }
-```
-
-### Ripple Data Flow
-
-```javascript
-function triggerRipple(entity, vector) {
-  // 1. Mark entity as rippling
-  entity.state = 'rippling';
-  entity.rippleIntensity = 1.0;
-  
-  // 2. Generate worldtext
-  const description = latentLibrary[scenario][entity.id][vector];
-  
-  // 3. Propagate to adjacent entities
-  entity.adjacentTo.forEach((adjId, i) => {
-    setTimeout(() => {
-      entities[adjId].rippleIntensity = 0.5;
-    }, 200 + (i * 100));
-  });
-  
-  // 4. Update audit log
-  auditLog.unshift({ tick, entity: entity.name, vector, description });
-  
-  // 5. Increment tick
-  tick++;
-  
-  // 6. Decay ripple over time
-  setTimeout(() => {
-    entity.state = 'active';
-    entity.rippleIntensity = 0;
-  }, 2000);
-}
-```
-
----
-
-## Scene Composition
-
-A **Scene** is a complete ecology ready for performance. The World Jockey loads scenes and manipulates them in real-time.
-
-### Scene Structure
-
-```javascript
-{
-  id: 'cupboard',
-  name: 'THE CUPBOARD',
-  description: 'A closed wooden cabinet. Domestic ecology.',
-  
-  // The baseline worldtext (default state)
-  baseline: 'The cupboard space is pressurized by stillness...',
-  
-  // Grid configuration
-  grid: {
-    cols: 8,
-    rows: 6,
-    background: 'wood-grain'
-  },
-  
-  // Entity definitions with positions
-  entities: [
-    { 
-      id: 'ant', 
-      name: 'Formicidae Scout', 
-      type: 'animate', 
-      state: 'foraging',
-      position: { x: 1, y: 2 },
-      icon: '🐜',
-      adjacentTo: ['plates', 'glass']
-    },
-    { 
-      id: 'dust-mote', 
-      name: 'Dust Mote', 
-      type: 'inanimate', 
-      state: 'suspended',
-      position: { x: 0, y: 0 },
-      icon: '✧',
-      adjacentTo: ['light']
-    },
-    // ... more entities
-  ],
-  
-  // Latent descriptions for each entity × vector
-  latent: {
-    'ant': {
-      GOAL: 'The Ant entity abandons the boundary cracks...',
-      OBSTACLE: 'The Ant encounters a vertical cliff of ceramic...',
-      SHIFT: 'The Ant enters a state of torpor...'
-    },
-    // ... more latent entries
-  },
-  
-  // Adjacency rules (what affects what)
-  adjacencyRules: {
-    'ant': ['plates', 'glass', 'shadow'],
-    'dust-mote': ['light', 'shadow'],
-    'light': ['shadow', 'dust-mote'],
-    // ...
-  },
-  
-  // Ambient behaviors (for autoplay)
-  ambientBehaviors: [
-    { entity: 'dust-mote', vector: 'SHIFT', probability: 0.3 },
-    { entity: 'shadow', vector: 'GOAL', probability: 0.2 },
-    { entity: 'ant', vector: 'GOAL', probability: 0.5 }
-  ]
-}
-```
+1. load scenario
+2. inspect grid
+3. lock entity perspective
+4. apply vector (`GOAL`, `OBSTACLE`, `SHIFT`)
+5. observe ripple and consequence
+6. transition to next entity
+7. audit/replay sequence
 
 ---
 
 ## Core Ontology
 
-### 1. Entity
+### Entity
 
-An **Entity** is any object, organism, or force that can occupy a perspective. The system does not claim to know what an entity *actually* experiences—it generates a *speculation* about how that experience might be described.
+```js
+{
+  id: "ant",
+  name: "Formicidae Scout",
+  type: "animate", // animate | inanimate | abstract
+  state: {
+    activity: 0.72,
+    stability: 0.31,
+    exposure: 0.44,
+    resource: 0.58,
+    signal: 0.41
+  },
+  descriptors: ["foraging", "boundary-following"],
+  position: { x: 1, y: 2 },
+  icon: "A",
+  adjacentTo: ["plates", "glass", "shadow"]
+}
+```
 
-**Entity Properties:**
-| Property | Type | Description |
-|----------|------|-------------|
-| `id` | string | Unique identifier (e.g., `ant`, `dust-mote`, `shadow`) |
-| `name` | string | Display name (e.g., `Formicidae Scout`, `Dust Mote`) |
-| `type` | enum | `animate`, `inanimate`, or `abstract` |
-| `state` | string | Current state (e.g., `foraging`, `suspended`, `expanding`) |
-| `position` | object | Grid coordinates `{ x, y }` |
-| `icon` | string | Emoji or symbol for grid display |
-| `adjacentTo` | array | IDs of entities this one can affect or be affected by |
+### Vector
 
-**Entity Types:**
-- **Animate**: Living organisms with metabolism (ant, deer, mold colony)
-- **Inanimate**: Physical objects without metabolism (glass, plate stack, door)
-- **Abstract**: Forces, phenomena, or concepts (light, shadow, time, sound)
+| Vector | Meaning | Key | Color |
+|---|---|---|---|
+| `GOAL` | orient to resource/target | `G` | `#ffd700` |
+| `OBSTACLE` | resistance / blockage | `O` | `#ff3333` |
+| `SHIFT` | state/mode transformation | `S` | `#00ffff` |
 
----
+Vectors are perturbations, not absolute commands.
 
-### 2. Vector
+### Edge
 
-A **Vector** is a force applied to an entity. There are exactly three vectors:
+```js
+{
+  from: "ant",
+  to: "glass",
+  coupling: 0.55,
+  channels: ["residue", "surface-contact"],
+  delayMs: 240,
+  resistance: 0.2
+}
+```
 
-| Vector | Color | Key | Meaning |
-|--------|-------|-----|---------|
-| **GOAL** | Gold (#ffd700) | G | Movement toward a resource, target, or desire |
-| **OBSTACLE** | Red (#ff3333) | O | Encounter with a barrier, threat, or resistance |
-| **SHIFT** | Cyan (#00ffff) | S | Change in state, identity, metabolism, or condition |
+### Ripple Event
 
-Vectors are not commands. They are *perturbations*. The World Jockey applies force; the system interprets.
-
-**Keyboard Shortcuts:**
-- `G` — Trigger GOAL on selected entity
-- `O` — Trigger OBSTACLE on selected entity
-- `S` — Trigger SHIFT on selected entity
-- `Space` — Toggle autoplay
-- `1-6` — Select entity by index
-- `←/→` — Cycle through scenarios
-
----
-
-### 3. Ripple
-
-A **Ripple** is the output of the system—a poetic description of how the entity's state changes when a vector is applied.
-
-**Ripple Characteristics:**
-- Written from the entity's perspective (first-person phenomenology)
-- Uses uncertainty language ("might", "perhaps", "as if")
-- Emphasizes state change, not narrative progression
-- Compressed, evocative, ambiguous
-- 150-400 words typical length
-
-**Ripple Effects:**
-- Visual: concentric rings expanding from entity node
-- Textual: worldtext updates with new description
-- Temporal: tick counter increments
-- Relational: adjacent entities may receive secondary effects
-
----
-
-## The Latent Library
-
-The **Latent Library** is a database of pre-written descriptions for each Entity × Vector combination. It is not a narrative—it is a **seed** that the system uses to generate or select Worldtext.
-
-### Structure
-
-```javascript
-latentLibrary = {
-  [scenarioId]: {
-    name: "SCENARIO NAME",
-    baseline: "The default description of this environment...",
-    entities: [
-      { id, name, type, state, position, icon, adjacentTo },
-      ...
-    ],
-    latent: {
-      [entityId]: {
-        GOAL: "Description when entity pursues a goal...",
-        OBSTACLE: "Description when entity encounters obstacle...",
-        SHIFT: "Description when entity changes state..."
-      },
-      ...
+```js
+{
+  eventId: "evt-00042",
+  tick: 42,
+  scenarioId: "cupboard",
+  source: { entityId: "ant", vector: "GOAL" },
+  sourceDelta: { before: {}, after: {}, delta: {} },
+  transfers: [
+    {
+      targetId: "glass",
+      edge: { coupling: 0.55, channel: "residue", delayMs: 240, resistance: 0.2 },
+      intensity: 0.44,
+      before: {},
+      after: {},
+      outcome: "amplified"
     }
-  }
+  ],
+  nonEffects: [
+    { targetId: "plates", reason: "decayed below visible threshold" }
+  ],
+  worldtext: "..."
 }
 ```
 
-### Canonical Scenarios
+### Evidence Rule
 
-| ID | Name | Theme | Entities |
-|----|------|-------|----------|
-| `cupboard` | THE CUPBOARD | Domestic ecology | Ant, Dust Mote, Glass, Plates, Light, Shadow |
-| `abandoned-house` | ABANDONED HOUSE | Decay and colonization | Raccoon, Mold, Ivy, Rain, Wallpaper, Door |
-| `deep-forest` | DEEP FOREST | Underground networks | Mycelium, Deer, Owl, Seedling, Fallen Oak, Moonlight |
-| `urban-jungle` | URBAN JUNGLE | City as ecology | Pigeon, Rat, Graffiti, Traffic Light, Puddle, Weed |
-
----
-
-## Writing Worldtext
-
-### Principles
-
-1. **Perspective-Locked**: Every description is written from *within* the entity's perspective, not from an external observer. The ant does not "see" the cupboard—it processes chemical gradients.
-
-2. **State-Focused**: Descriptions emphasize transformation, not narrative. No beginning, middle, end. Just: state → vector → new state.
-
-3. **Poetic Density**: Language is compressed, evocative, ambiguous. Each sentence carries multiple meanings. Avoid explanation. Trust the reader.
-
-4. **Chemical Cartography**: Entities perceive through their own sensory systems. The ant smells. The dust mote drifts. The shadow expands. Use sensory language appropriate to the entity.
-
-5. **Uncertainty Markers**: Use "might", "perhaps", "as if", "it is possible that". This is speculation, not claim.
-
-### Examples
-
-**Ant + GOAL:**
-> The Ant entity abandons the boundary cracks, navigating the ceramic topography of the plate stack. It traces an invisible chemical scent-line toward the tall glasses where a residue of dried liquid remains. Antennae process gradients. The world becomes a map of sugar probability.
-
-**Dust Mote + OBSTACLE:**
-> The Dust Mote encounters a downdraft. The convection current reverses. It spirals downward, away from the light shaft. The air becomes opposition. It settles on the rim of a glass, adhering to residual moisture. Stillness replaces motion.
-
-**Shadow + SHIFT:**
-> The Shadow deepens. As external light fades, its character changes from gray to black. It stops being the absence of light and becomes a presence. The shift is perceptual—for anyone who might observe, the shadow has become substance.
+Every rendered claim must answer:
+- what changed
+- where it changed
+- by how much (bounded estimate)
+- through which channel/path
+- with what delay/resistance
 
 ---
 
-## Interface Specification
+## Scene Contract
 
-Build a single-page HTML application with the following components:
+```js
+{
+  id: "cupboard",
+  name: "THE CUPBOARD",
+  baseline: "Ambient default worldtext...",
+  grid: { cols: 8, rows: 6 },
+  entities: [/* entity records */],
+  edges: [/* directional transfer records */],
+  latent: {
+    ant: {
+      GOAL: "...",
+      OBSTACLE: "...",
+      SHIFT: "..."
+    }
+  },
+  ambientBehaviors: [
+    { entity: "ant", vector: "GOAL", probability: 0.5 }
+  ]
+}
+```
 
-### 1. SCENARIO SELECT
-- Dropdown menu or tab bar
-- Options: THE_CUPBOARD, ABANDONED_HOUSE, DEEP_FOREST, URBAN_JUNGLE
-- Changing scenario resets all state
-- Keyboard: `←/→` to cycle
-
-### 2. GRID VIEW
-- Visual matrix showing entity positions
-- Entities rendered as icons or highlighted nodes
-- Connections between adjacent entities as faint lines
-- Ripple animations radiate from active entity
-- Selected entity pulses with glow effect
-- Click any entity to select it
-
-### 3. ENTITY POOL
-- Vertical list of all entities in current scenario
-- Each item shows: icon, name, type/state
-- Selected entity is highlighted
-- Clicking sets `selectedEntity`
-
-### 4. WORLDTEXT VIEWPORT
-- Large text area showing current description
-- Entity names are highlighted and clickable
-- Clicking an entity name selects that entity
-- Updates when ripples occur
-- Subtle CRT flicker effect
-
-### 5. VECTOR CONTROLS
-- Three large buttons: GOAL (gold), OBSTACLE (red), SHIFT (cyan)
-- Disabled when no entity is selected
-- Clicking triggers a ripple with full visual cascade
-- Keyboard shortcuts: G, O, S
-
-### 6. AUDIT LOG
-- Scrolling list of timestamped events
-- Format: `[TICK] Entity → Vector → Result`
-- Most recent at top
-- Clickable entries to replay ripple
-
-### 7. AUTOPLAY TOGGLE
-- Switch to enable/disable autonomous mode
-- When on: system selects entity + vector based on `ambientBehaviors`
-- Interval: 3 seconds
-- Shows countdown timer
-- Keyboard: Space to toggle
-
-### 8. LATENT LIBRARY PANEL
-- Shows descriptions for currently selected entity
-- Updates when entity changes
-- Displays GOAL, OBSTACLE, SHIFT descriptions
-- Clicking a description previews it without triggering
-
-### 9. PERFORMANCE CONTROLS (Optional)
-- BPM dial for autoplay tempo
-- Crossfader for transitioning between scenarios
-- Effects knobs: flicker intensity, glow radius, ripple speed
-- Record button to capture session
+Canonical scenario IDs:
+- `cupboard`
+- `abandoned-house`
+- `deep-forest`
+- `urban-jungle`
 
 ---
 
-## Visual Design
+## Ripple Pipeline (Required)
 
-### Colors
+1. select source entity + vector
+2. compute source delta
+3. traverse outgoing edges (optional second hop)
+4. apply coupling, delay, attenuation, resistance
+5. record transfers and non-effects
+6. render source + edge + target markers
+7. generate worldtext from event record
+8. increment tick and append audit entry
+
+No prose may claim effects absent from the event record.
+
+---
+
+## Visual Ripple Phases
+
+1. **Trigger** (`0ms`): source lock + vector fire
+2. **Impact** (`0-200ms`): source flash by vector color
+3. **Propagation** (`200-800ms`): edge pulse + outward rings
+4. **Cascade** (`800-1500ms`): target markers with intensity
+5. **Settle** (`1500-2000ms`): decay to stable state
+
+---
+
+## Latent Library Contract
+
+Each scenario includes:
+- baseline worldtext
+- entity roster
+- `entity x vector` seeds (`GOAL`, `OBSTACLE`, `SHIFT`)
+- high-value edge prompts
+- no-effect prompts for resistance realism
+
+Prompt provenance should be attachable to each event for auditability.
+
+---
+
+## Worldtext Writing Rules
+
+Worldtext must be:
+- perspective-locked
+- state-change focused
+- causally anchored
+- sensory but specific
+- uncertain only where evidence is incomplete
+
+Worldtext should include:
+- one concrete source delta
+- one concrete transfer (channel + delay)
+- one resistance/non-effect (if present)
+- one unresolved pressure for next move
+
+Target length: `150-320` words per event.
+
+---
+
+## Interface Contract (Minimal Viable)
+
+Required:
+1. scenario select
+2. causal grid (entities + directional edges)
+3. entity pool
+4. worldtext viewport
+5. vector controls
+6. impact panel (source, targets, delays, resistance)
+7. replayable audit log
+8. autoplay toggle (optional in v1, preferred)
+
+Optional (after clarity):
+- latent prompt inspector
+- performance knobs
+- cross-scenario crossfader
+
+---
+
+## Visual Tokens
+
 ```css
---term-bg: #050a05;      /* Near-black green */
---term-text: #4af626;    /* CRT green */
---term-dim: #1e5c12;     /* Dim green for borders */
---term-alert: #ff3333;   /* Red for OBSTACLE */
---term-gold: #ffd700;    /* Gold for GOAL */
---term-cyan: #00ffff;    /* Cyan for SHIFT */
---grid-line: #0a1f0a;    /* Grid lines */
---grid-node: #2a6a2a;    /* Entity nodes */
+--term-bg: #050a05;
+--term-text: #4af626;
+--term-dim: #1e5c12;
+--term-alert: #ff3333;
+--term-gold: #ffd700;
+--term-cyan: #00ffff;
+--grid-line: #0a1f0a;
+--grid-node: #2a6a2a;
 ```
 
-### Typography
-- Font: JetBrains Mono or Fira Code (monospace)
-- Base size: 12-13px
-- Line height: 1.7-1.8
-
-### Effects
-- **Scanlines**: Subtle horizontal lines across viewport
-- **Flicker**: Slight opacity animation (0.97-1.0)
-- **Glow**: text-shadow on highlighted elements
-- **Ripple**: Concentric rings expanding from entity
-- **Pulse**: Selected entity gently pulses
-- **Transitions**: 0.15s on all interactive elements
-
-### Grid Rendering
-```css
-.grid {
-  display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
-  gap: 2px;
-  background: var(--grid-line);
-}
-
-.grid-cell {
-  aspect-ratio: 1;
-  background: var(--term-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.grid-cell.has-entity {
-  background: var(--grid-node);
-  cursor: pointer;
-}
-
-.grid-cell.selected {
-  animation: pulse 1s infinite;
-  box-shadow: 0 0 20px var(--term-text);
-}
-```
+Stylistic constraints:
+- monospace (JetBrains Mono/Fira Code)
+- subtle CRT scanlines/flicker only
+- highlight state changes, not ornamental chrome
 
 ---
 
-## State Management
+## State Model
 
-```javascript
-// Core state
-let currentScenario = 'cupboard';
+```js
+let currentScenario = "cupboard";
 let selectedEntity = null;
 let tick = 0;
 let isAutoplay = false;
 let auditLog = [];
 
-// Grid state
-let gridState = {
-  cells: [],
-  entityPositions: {}
+let runtime = {
+  entities: {},
+  edges: [],
+  activeRipples: []
 };
-
-// Ripple state
-let activeRipples = [];
-
-// Performance state
-let bpm = 20;  // ripples per minute in autoplay
-let effectsIntensity = 0.5;
 ```
 
-### Actions
-- `selectEntity(entity)`: Set selectedEntity, update UI, highlight on grid
-- `triggerRipple(vector)`: Generate ripple, update worldtext, animate grid, increment tick, log
-- `changeScenario(id)`: Reset all state, load new scenario, rebuild grid
-- `toggleAutoplay()`: Start/stop autonomous mode
-- `setTempo(bpm)`: Adjust autoplay speed
-- `recordSession()`: Start/stop session recording
+Core actions:
+- `selectEntity(entityId)`
+- `triggerRipple(vector)`
+- `changeScenario(scenarioId)`
+- `toggleAutoplay()`
+- `replayEvent(eventId)`
 
 ---
 
-## What This System Is
+## Acceptance Checks
 
-RIPPLES is a framework for:
+After any single event, operator must quickly answer:
 
-1. **Imaginary Ecology Simulation**: Modeling nonhuman perspectives without claiming accuracy
-2. **Generative Worldbuilding**: Producing speculative text from structured inputs
-3. **Operative Fiction**: Fiction that responds to inputs and evolves
-4. **Performance Instrument**: A tool for live performances and installations
-5. **Ecological Speculation**: Asking "what if?" about entities we normally ignore
-6. **World Jockeying**: Real-time manipulation of virtual ecologies as performance art
+1. what source was perturbed
+2. what changed at source
+3. which targets changed
+4. which targets resisted/failed
+5. how transfer traveled
+6. what evidence backs the prose
+7. what next test move is most informative
+
+If this is not obvious, remove UI/prompt complexity and retry.
 
 ---
 
-## What This System Is Not
+## What RIPPLES Is
 
-- It is not accurate. It does not claim to know what entities experience.
-- It is not complete. The latent library is extensible.
-- It is not fixed. Every description is provisional.
-- It is not a game. There are no win conditions.
-- It is not a story. There is no plot.
-- It is not passive. It requires an operator.
+- speculative ecology instrument
+- generative causal narration framework
+- performance tool for world intervention
+- auditable imagination system
+
+## What RIPPLES Is Not
+
+- objective model of nonhuman consciousness
+- passive narrative reader
+- hidden black-box animation with no evidence layer
 
 ---
 
 ## Epistemic Commitment
 
-This system is built on **epistemic humility**:
+RIPPLES is intentionally provisional.
 
-> All models are wrong. We aim to be usefully wrong.
+It does not claim truth of interior experience. It commits to:
+- explicit perturbation
+- traceable consequence
+- disciplined uncertainty
 
-We do not know what an ant perceives. We do not know what it is like to be a shadow. But in the act of imagining, we discover the limits of our own cognition—and that, perhaps, is useful.
-
-The World Jockey does not claim truth. They make worlds.
+**Tagline:** useful wrongness, made legible.
 
 ---
 
-*Let the code and prose be like water—adapting to the terrain of truth without rigid insistence. Ship from emptiness.*
+## Pyramid Design Requirements (WorldText = WorldModel)
+
+### Core Axiom
+
+`WorldText` and `WorldModel` are one object with two views:
+- model view (causal state)
+- text view (operator-readable projection)
+
+Text is never free-floating narrative. It is a deterministic render of current state plus bounded uncertainty markers.
+
+### Pyramid Topology (Required)
+
+Implement one canonical `WorldPyramidSnapshot` with these layers:
+
+1. **L0: FilmGenome / Environment Constraints**
+   - needs, threats, constraints, signals, institutional opacity
+2. **L1: Causal Topology**
+   - entities, directed edges, channels, coupling, resistance, delay
+3. **L2: Agent State**
+   - belief graph probabilities, seed lattice, plasticity/inertia, trait vectors
+4. **L3: Event Posterior**
+   - source delta, transfers, non-effects, evidence tokens, confidence bounds
+5. **L4: Render Surface**
+   - `WORLDTEXT`, `READ`, `NEXT`, scanner snippets, UI highlights
+
+Invariant: each upper layer must be derivable from lower layers and current intervention log.
+
+### Hard Requirements
+
+`R-01` Unified Snapshot
+- Store one snapshot object; do not split "world text state" and "world model state" into separate authorities.
+
+`R-02` Event-First Pipeline
+- Run in strict order: Perceive -> Tokenize Evidence -> Update Beliefs -> Grow Seeds -> Compose Voice -> Render -> Checkpoint.
+
+`R-03` Externalized Bayesian Update
+- Belief math must run outside the LLM in deterministic code.
+- Use clamped log-odds updates:
+  - `logit(p_new) = logit(p_old) + (eta/kappa) * clamp(log(LR), -max_step, +max_step)`
+
+`R-04` LLM Role Restriction
+- LLM is a renderer/policy surface, not source-of-truth memory.
+- The context window is treated as posterior scaffolding, not long-term memory.
+
+`R-05` Dynamic Context Pruning
+- Before generation, prune context to active anchors only (room, evidence, current deltas, top-k relevant traces).
+- Never inject full historical memory into every turn.
+
+`R-06` Anchoring Bias Guardrails
+- Reject generation plans that over-index on stale persona blocks or long fixed preambles.
+- Add "anchor diversity" checks: at least two live evidence anchors per response.
+
+`R-07` Meiosis Regularization
+- For agent recombination, enforce:
+  - coherence bound (e.g., KL distance upper bound to each parent on protected loci)
+  - novelty floor (`delta >= delta_min`) on selected loci
+
+`R-08` Persistence Security
+- Treat `SOUL.md`, `MEMORY.md`, `IDENTITY.md` (or equivalents) as protected state.
+- Any write requires explicit authorized mutation path + audit event.
+- Detect and log self-rewrite attempts and untrusted tool-induced state edits.
+
+`R-09` iGSS Inference Contract
+- Support likelihood-free inference with embedding-based summary statistics.
+- For ABC-style search, require explicit tolerance schedule and compute budget policy.
+
+`R-10` Narrative Continuity Guard
+- Add symbolic continuity checks so embodiment trajectory cannot silently regress.
+- Reader-model style validation should test whether rendered text preserves causal arc.
+
+`R-11` UI Subtraction Rule
+- Single primary world chat input in default mode.
+- Additional controls must live in config and be hidden by default.
+
+`R-12` Manual API Config
+- Config must allow manual provider, api key, model, and base URL input.
+- Runtime calls must honor these overrides directly.
+
+`R-13` Output Contract (Single Mode)
+- Return exactly:
+  - `WORLDTEXT`
+  - `READ`
+  - `NEXT`
+- Keep bounded length and remain in current room/evidence anchor unless explicit mutate command.
+
+`R-14` Evidence Discipline
+- Every prose claim must map to event evidence or be labeled inference.
+- Non-effects/resistance must be surfaced when present.
+
+`R-15` Auditability
+- Each render must reference event id, source perturbation, touched entities, and provenance ids.
+
+### Verification Requirements
+
+`V-01` Causal Legibility Test
+- After one event, operator can answer: what changed, where, through what path, and what resisted.
+
+`V-02` Anchoring Regression Test
+- Under long persona context, system still updates beliefs from contrarian evidence within clamp limits.
+
+`V-03` Memory Saturation Test
+- Over long runs, snapshot compression remains bounded and retrieval quality does not collapse.
+
+`V-04` Security Drift Test
+- Simulated prompt injection cannot silently mutate protected state files.
+
+`V-05` WorldText/WorldModel Consistency Test
+- Rendered `WORLDTEXT/READ/NEXT` must be reproducible from the same `WorldPyramidSnapshot`.
+
+### Build Directive
+
+Ship the smallest compliant implementation:
+
+1. one scenario
+2. one deterministic updater
+3. one unified pyramid snapshot
+4. one world chat input
+5. one replayable audit log
+
+Scale aesthetics and scenario count only after all `R-*` and `V-*` requirements pass.

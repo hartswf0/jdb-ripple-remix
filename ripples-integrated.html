@@ -1,0 +1,1211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIPPLES // Fully Integrated</title>
+  <style>
+    :root {
+      --bg: #040907;
+      --panel: rgba(7, 15, 12, 0.95);
+      --panel-2: rgba(9, 19, 15, 0.95);
+      --line: #1f4b3d;
+      --text: #d8f2e8;
+      --muted: #95bcad;
+      --goal: #f0cc6e;
+      --obstacle: #ff6f6f;
+      --shift: #70e9ff;
+      --ok: #45d894;
+      --grid-line: #0a2018;
+      --grid-node: #1a4b34;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 14% 8%, rgba(69, 216, 148, 0.14), transparent 42%),
+        radial-gradient(circle at 86% 18%, rgba(112, 233, 255, 0.11), transparent 38%),
+        radial-gradient(circle at 50% 100%, rgba(240, 204, 110, 0.07), transparent 46%),
+        var(--bg);
+      font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+    }
+
+    body { padding: 12px; }
+
+    .app {
+      max-width: 1520px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .head {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .head::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.02),
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      opacity: 0.55;
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: clamp(1rem, 2.4vw, 1.5rem);
+      letter-spacing: 0.04em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      max-width: 78ch;
+      position: relative;
+      z-index: 1;
+    }
+
+    .head-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: rgba(7, 13, 11, 0.85);
+      white-space: nowrap;
+    }
+
+    .mode-tabs {
+      display: none;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 6px;
+      background: rgba(7, 13, 11, 0.9);
+      position: sticky;
+      top: 8px;
+      z-index: 45;
+    }
+
+    .mode-btn {
+      flex: 1;
+      min-height: 42px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(8, 14, 12, 0.95);
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.74rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      color: var(--text);
+      border-color: rgba(112, 233, 255, 0.64);
+      box-shadow: inset 0 0 0 1px rgba(112, 233, 255, 0.24);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 360px;
+      gap: 12px;
+      min-height: 74vh;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .ph {
+      border-bottom: 1px solid rgba(31, 75, 61, 0.78);
+      background: rgba(6, 11, 10, 0.8);
+      padding: 9px 10px;
+      font-size: 0.78rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .body {
+      padding: 10px;
+      min-height: 0;
+    }
+
+    .small { color: var(--muted); font-size: 0.72rem; }
+
+    select {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(6, 12, 10, 0.93);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.74rem;
+      padding: 8px;
+      min-width: 170px;
+    }
+
+    .entity-strip {
+      display: flex;
+      gap: 8px;
+      overflow: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+
+    .entity-chip {
+      min-width: 150px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(7, 13, 11, 0.9);
+      color: var(--text);
+      text-align: left;
+      padding: 10px;
+      font: inherit;
+      font-size: 0.73rem;
+      cursor: pointer;
+      min-height: 46px;
+      transition: border-color 120ms ease, transform 120ms ease;
+    }
+
+    .entity-chip:hover { border-color: rgba(112, 233, 255, 0.56); transform: translateY(-1px); }
+
+    .entity-chip.active {
+      border-color: rgba(69, 216, 148, 0.72);
+      box-shadow: inset 0 0 0 1px rgba(69, 216, 148, 0.24);
+    }
+
+    .grid-wrap {
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--grid-line);
+      padding: 3px;
+      min-height: 264px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 3px;
+      min-height: 256px;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      border: 1px solid rgba(31, 75, 61, 0.35);
+      border-radius: 8px;
+      background: rgba(6, 12, 10, 0.88);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      font-size: 0.96rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cell.has {
+      background: var(--grid-node);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .cell.has.active {
+      border-color: rgba(69, 216, 148, 0.82);
+      box-shadow: 0 0 0 1px rgba(69, 216, 148, 0.45), 0 0 18px rgba(69, 216, 148, 0.22);
+    }
+
+    .cell.goal::after,
+    .cell.obstacle::after,
+    .cell.shift::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      animation: ring 900ms ease-out forwards;
+    }
+
+    .cell.goal::after { border: 2px solid var(--goal); }
+    .cell.obstacle::after { border: 2px solid var(--obstacle); }
+    .cell.shift::after { border: 2px solid var(--shift); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .vbtn {
+      min-height: 44px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(7, 13, 11, 0.93);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: border-color 120ms ease, transform 120ms ease;
+    }
+
+    .vbtn:hover { transform: translateY(-1px); }
+    .vbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .vbtn.goal { color: var(--goal); border-color: rgba(240, 204, 110, 0.54); }
+    .vbtn.obstacle { color: var(--obstacle); border-color: rgba(255, 111, 111, 0.54); }
+    .vbtn.shift { color: var(--shift); border-color: rgba(112, 233, 255, 0.58); }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .row button,
+    .row select {
+      min-height: 40px;
+    }
+
+    .action-btn {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(7, 13, 11, 0.93);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.74rem;
+      padding: 8px 11px;
+      cursor: pointer;
+    }
+
+    .mono {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(6, 12, 10, 0.9);
+      padding: 10px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 0.75rem;
+      overflow: auto;
+      max-height: 210px;
+    }
+
+    .trace-section {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(6, 12, 10, 0.92);
+      padding: 9px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .trace-section h3 {
+      margin: 0;
+      font-size: 0.76rem;
+      letter-spacing: 0.04em;
+    }
+
+    .trace-section pre,
+    .trace-section p {
+      margin: 0;
+      font-size: 0.74rem;
+      line-height: 1.42;
+      white-space: pre-wrap;
+    }
+
+    .impact,
+    .audit {
+      display: grid;
+      gap: 8px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(6, 12, 10, 0.9);
+      padding: 8px;
+      font-size: 0.73rem;
+      line-height: 1.4;
+    }
+
+    .audit {
+      max-height: 32vh;
+      overflow: auto;
+    }
+
+    .audit button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(7, 13, 11, 0.9);
+      color: var(--text);
+      text-align: left;
+      padding: 10px 8px;
+      font: inherit;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    .audit button:hover { border-color: rgba(112, 233, 255, 0.56); }
+
+    .mobile-vector-dock {
+      display: none;
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 60;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(6, 12, 10, 0.96);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    .mobile-vector-dock button {
+      min-height: 44px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(7, 13, 11, 0.95);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+    }
+
+    .mobile-vector-dock .goal { color: var(--goal); border-color: rgba(240, 204, 110, 0.55); }
+    .mobile-vector-dock .obstacle { color: var(--obstacle); border-color: rgba(255, 111, 111, 0.55); }
+    .mobile-vector-dock .shift { color: var(--shift); border-color: rgba(112, 233, 255, 0.59); }
+
+    @keyframes ring {
+      0% { transform: scale(0.28); opacity: 1; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+
+    @media (max-width: 1260px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .layout [data-mode-panel="audit"] {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 980px) {
+      body { padding: 10px; }
+      .mode-tabs { display: flex; }
+      .mobile-vector-dock { display: grid; }
+      .layout {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+      .layout [data-mode-panel] { display: none; }
+      body[data-mode="operate"] .layout [data-mode-panel="operate"] { display: grid; }
+      body[data-mode="trace"] .layout [data-mode-panel="trace"] { display: grid; }
+      body[data-mode="audit"] .layout [data-mode-panel="audit"] { display: grid; }
+      .audit { max-height: none; }
+      .app { padding-bottom: 82px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="head">
+      <div>
+        <h1>RIPPLES // FULLY INTEGRATED</h1>
+        <p>One interface for operation, ANGEL TRACE analysis, and audit replay. Mobile mode uses focused tabs; desktop shows all panels together.</p>
+      </div>
+      <div class="head-row">
+        <span class="pill">Tick: <span id="tickPill">0</span></span>
+        <span class="pill">Selected: <span id="selectedPill">none</span></span>
+        <span class="pill">Autoplay: <span id="autoplayPill">OFF</span></span>
+      </div>
+    </header>
+
+    <nav class="mode-tabs" aria-label="Mobile mode switcher">
+      <button class="mode-btn active" type="button" data-mode="operate">Operate</button>
+      <button class="mode-btn" type="button" data-mode="trace">Trace</button>
+      <button class="mode-btn" type="button" data-mode="audit">Audit</button>
+    </nav>
+
+    <section class="layout">
+      <section class="stack" data-mode-panel="operate">
+        <section class="panel">
+          <div class="ph">
+            <strong>OPERATOR WORKBENCH</strong>
+            <span class="small">scenario + entities + vectors</span>
+          </div>
+          <div class="body">
+            <div class="row" style="margin-top:0;">
+              <select id="scenarioSelect" aria-label="Scenario select"></select>
+              <button id="autoplayBtn" type="button" class="action-btn">TOGGLE AUTOPLAY</button>
+              <span class="pill">next in <span id="countdownPill">--</span>s</span>
+            </div>
+
+            <div id="entityStrip" class="entity-strip" style="margin-top:10px;"></div>
+
+            <div class="grid-wrap" style="margin-top:10px;">
+              <div id="grid" class="grid" aria-label="Integrated causal grid"></div>
+            </div>
+
+            <div class="controls" style="margin-top:10px;">
+              <button id="btnGoal" type="button" class="vbtn goal">GOAL</button>
+              <button id="btnObstacle" type="button" class="vbtn obstacle">OBSTACLE</button>
+              <button id="btnShift" type="button" class="vbtn shift">SHIFT</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="ph">
+            <strong>PERSPECTIVE_WORLDTEXT</strong>
+            <span class="small">event-derived</span>
+          </div>
+          <div class="body">
+            <div id="worldtext" class="mono"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="stack" data-mode-panel="trace">
+        <section class="panel">
+          <div class="ph">
+            <strong>PROMP-C ANGEL TRACE</strong>
+            <span class="small">from latest event</span>
+          </div>
+          <div class="body">
+            <div class="row" style="margin-top:0;">
+              <select id="styleMode" aria-label="Style mode">
+                <option value="cold_instrument">cold_instrument</option>
+                <option value="panicky_cacophony">panicky_cacophony</option>
+              </select>
+              <button id="refreshTraceBtn" class="action-btn" type="button">REFRESH TRACE</button>
+            </div>
+
+            <div class="trace-section" style="margin-top:10px;">
+              <h3>EVENT_ANCHOR</h3>
+              <pre id="traceAnchor"></pre>
+            </div>
+            <div class="trace-section" style="margin-top:10px;">
+              <h3>THEREFORE_CHAIN</h3>
+              <pre id="traceChain"></pre>
+            </div>
+            <div class="trace-section" style="margin-top:10px;">
+              <h3>FRACTURE_POINT</h3>
+              <p id="traceFracture"></p>
+            </div>
+            <div class="trace-section" style="margin-top:10px;">
+              <h3>OPERATOR_NEXT_MOVES</h3>
+              <pre id="traceMoves"></pre>
+            </div>
+            <div class="trace-section" style="margin-top:10px;">
+              <h3>MISSING_EVIDENCE</h3>
+              <pre id="traceMissing"></pre>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="stack" data-mode-panel="audit">
+        <section class="panel">
+          <div class="ph">
+            <strong>IMPACT PANEL</strong>
+            <span class="small">source / transfer / non-effect</span>
+          </div>
+          <div class="body">
+            <div id="impact" class="impact"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="ph">
+            <strong>AUDIT LOG</strong>
+            <span class="small">click to replay</span>
+          </div>
+          <div class="body">
+            <div id="audit" class="audit"></div>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <div class="mobile-vector-dock" aria-label="Mobile quick vectors">
+      <button type="button" class="goal" data-vector-trigger="GOAL">GOAL</button>
+      <button type="button" class="obstacle" data-vector-trigger="OBSTACLE">OBSTACLE</button>
+      <button type="button" class="shift" data-vector-trigger="SHIFT">SHIFT</button>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const VECTOR_BIAS = {
+        GOAL: { activity: 0.17, stability: -0.05, exposure: 0.08, resource: 0.15, signal: 0.05 },
+        OBSTACLE: { activity: -0.11, stability: -0.15, exposure: 0.08, resource: -0.11, signal: 0.08 },
+        SHIFT: { activity: 0.04, stability: -0.04, exposure: 0.10, resource: 0.01, signal: 0.17 }
+      };
+
+      const CHANNEL_BIAS = {
+        residue: { resource: 0.14, exposure: 0.08, signal: 0.03 },
+        resource: { resource: 0.12, stability: 0.03, signal: 0.04 },
+        shadow: { exposure: -0.1, signal: 0.09, stability: 0.03 },
+        reflection: { signal: 0.12, exposure: 0.08 },
+        light: { exposure: 0.13, signal: 0.1, stability: -0.02 },
+        pressure: { stability: -0.08, signal: 0.06, activity: 0.03 },
+        contact: { stability: -0.06, exposure: 0.06, activity: 0.03 },
+        current: { activity: 0.08, signal: 0.05, exposure: 0.05 },
+        growth: { resource: 0.11, activity: 0.05, stability: -0.02 },
+        noise: { signal: 0.08, stability: -0.05, activity: 0.03 }
+      };
+
+      const DIMS = ["activity", "stability", "exposure", "resource", "signal"];
+
+      const SCENARIOS = {
+        cupboard: {
+          name: "THE CUPBOARD",
+          baseline: "Stillness compresses the cabinet air; residues remain as small maps of possible movement.",
+          entities: [
+            mkEntity("ant", "Formicidae Scout", "🐜", "animate", "foraging", 1, 2, { activity: 0.44, stability: 0.63, exposure: 0.29, resource: 0.35, signal: 0.41 }),
+            mkEntity("dust", "Dust Mote", "✧", "inanimate", "suspended", 0, 0, { activity: 0.26, stability: 0.52, exposure: 0.61, resource: 0.18, signal: 0.47 }),
+            mkEntity("plates", "Plate Stack", "🍽️", "inanimate", "stacked", 4, 2, { activity: 0.18, stability: 0.86, exposure: 0.16, resource: 0.41, signal: 0.28 }),
+            mkEntity("glass", "Tall Glass", "🥛", "inanimate", "film-wet", 1, 4, { activity: 0.23, stability: 0.68, exposure: 0.44, resource: 0.66, signal: 0.31 }),
+            mkEntity("light", "Light Shaft", "🔆", "abstract", "slanting", 6, 0, { activity: 0.52, stability: 0.35, exposure: 0.88, resource: 0.1, signal: 0.84 }),
+            mkEntity("shadow", "Shadow", "⬛", "abstract", "pooled", 6, 4, { activity: 0.29, stability: 0.51, exposure: 0.12, resource: 0.05, signal: 0.72 })
+          ],
+          edges: [
+            edge("ant", "plates", "contact", 0.27, 0.63, 280), edge("ant", "glass", "residue", 0.55, 0.2, 240), edge("ant", "shadow", "shadow", 0.28, 0.48, 320),
+            edge("dust", "light", "light", 0.49, 0.22, 180), edge("dust", "shadow", "shadow", 0.35, 0.36, 220), edge("plates", "glass", "contact", 0.4, 0.37, 260),
+            edge("light", "shadow", "light", 0.58, 0.19, 210), edge("shadow", "light", "shadow", 0.42, 0.25, 210)
+          ]
+        },
+        "abandoned-house": {
+          name: "ABANDONED HOUSE",
+          baseline: "Decay distributes agency across mold, rain, and broken thresholds.",
+          entities: [
+            mkEntity("raccoon", "Raccoon", "🦝", "animate", "scavenging", 1, 3, { activity: 0.58, stability: 0.41, exposure: 0.5, resource: 0.47, signal: 0.55 }),
+            mkEntity("mold", "Mold Colony", "🟢", "inanimate", "expanding", 3, 4, { activity: 0.39, stability: 0.7, exposure: 0.27, resource: 0.72, signal: 0.31 }),
+            mkEntity("ivy", "Ivy", "🌿", "animate", "climbing", 0, 1, { activity: 0.36, stability: 0.64, exposure: 0.48, resource: 0.52, signal: 0.29 }),
+            mkEntity("rain", "Rain Leak", "💧", "abstract", "dripping", 6, 0, { activity: 0.62, stability: 0.34, exposure: 0.8, resource: 0.45, signal: 0.69 }),
+            mkEntity("wallpaper", "Wallpaper", "📜", "inanimate", "peeling", 4, 2, { activity: 0.14, stability: 0.44, exposure: 0.57, resource: 0.2, signal: 0.38 }),
+            mkEntity("door", "Door Frame", "🚪", "inanimate", "warped", 7, 3, { activity: 0.1, stability: 0.39, exposure: 0.61, resource: 0.12, signal: 0.46 })
+          ],
+          edges: [
+            edge("rain", "mold", "growth", 0.62, 0.18, 200), edge("rain", "wallpaper", "pressure", 0.48, 0.3, 280), edge("ivy", "door", "contact", 0.33, 0.42, 320),
+            edge("raccoon", "door", "pressure", 0.44, 0.26, 260), edge("mold", "wallpaper", "growth", 0.51, 0.24, 240), edge("door", "rain", "current", 0.25, 0.45, 360)
+          ]
+        },
+        "deep-forest": {
+          name: "DEEP FOREST",
+          baseline: "Root, spore, and moonlight negotiate through damp attenuation.",
+          entities: [
+            mkEntity("mycelium", "Mycelium", "🍄", "animate", "networking", 2, 4, { activity: 0.46, stability: 0.72, exposure: 0.19, resource: 0.74, signal: 0.58 }),
+            mkEntity("deer", "Deer", "🦌", "animate", "listening", 5, 3, { activity: 0.55, stability: 0.48, exposure: 0.52, resource: 0.41, signal: 0.62 }),
+            mkEntity("owl", "Owl", "🦉", "animate", "perched", 6, 1, { activity: 0.38, stability: 0.57, exposure: 0.44, resource: 0.36, signal: 0.71 }),
+            mkEntity("seedling", "Seedling", "🌱", "animate", "sprouting", 1, 2, { activity: 0.31, stability: 0.65, exposure: 0.33, resource: 0.63, signal: 0.27 }),
+            mkEntity("oak", "Fallen Oak", "🪵", "inanimate", "decaying", 3, 1, { activity: 0.09, stability: 0.51, exposure: 0.22, resource: 0.69, signal: 0.31 }),
+            mkEntity("moon", "Moonlight", "🌙", "abstract", "filtering", 7, 0, { activity: 0.43, stability: 0.34, exposure: 0.86, resource: 0.14, signal: 0.78 })
+          ],
+          edges: [
+            edge("moon", "owl", "light", 0.54, 0.22, 180), edge("mycelium", "seedling", "growth", 0.59, 0.21, 220), edge("mycelium", "oak", "growth", 0.45, 0.29, 260),
+            edge("deer", "owl", "noise", 0.34, 0.33, 240), edge("oak", "mycelium", "resource", 0.4, 0.31, 300), edge("seedling", "deer", "current", 0.25, 0.46, 360)
+          ]
+        },
+        "urban-jungle": {
+          name: "URBAN JUNGLE",
+          baseline: "Concrete channels pressure between light cycles, traffic noise, and opportunistic life.",
+          entities: [
+            mkEntity("pigeon", "Pigeon", "🕊️", "animate", "scanning", 1, 2, { activity: 0.53, stability: 0.48, exposure: 0.62, resource: 0.4, signal: 0.57 }),
+            mkEntity("rat", "Rat", "🐀", "animate", "foraging", 2, 4, { activity: 0.61, stability: 0.37, exposure: 0.31, resource: 0.58, signal: 0.51 }),
+            mkEntity("graffiti", "Graffiti Wall", "🧱", "inanimate", "layered", 4, 1, { activity: 0.08, stability: 0.59, exposure: 0.5, resource: 0.11, signal: 0.63 }),
+            mkEntity("traffic", "Traffic Light", "🚦", "abstract", "cycling", 6, 0, { activity: 0.57, stability: 0.43, exposure: 0.77, resource: 0.15, signal: 0.82 }),
+            mkEntity("puddle", "Puddle", "🫧", "inanimate", "reflecting", 5, 3, { activity: 0.2, stability: 0.42, exposure: 0.69, resource: 0.33, signal: 0.66 }),
+            mkEntity("weed", "Sidewalk Weed", "🌾", "animate", "pushing", 0, 5, { activity: 0.34, stability: 0.62, exposure: 0.58, resource: 0.46, signal: 0.35 })
+          ],
+          edges: [
+            edge("traffic", "pigeon", "light", 0.52, 0.26, 190), edge("traffic", "puddle", "light", 0.56, 0.21, 210), edge("rat", "pigeon", "noise", 0.31, 0.39, 270),
+            edge("puddle", "graffiti", "reflection", 0.39, 0.33, 250), edge("weed", "puddle", "growth", 0.27, 0.41, 320), edge("pigeon", "weed", "current", 0.24, 0.45, 340)
+          ]
+        }
+      };
+
+      function mkEntity(id, name, icon, type, stateLabel, x, y, state) {
+        return { id, name, icon, type, stateLabel, position: { x, y }, state };
+      }
+
+      function edge(from, to, channel, coupling, resistance, delayMs) {
+        return { from, to, channel, coupling, resistance, delayMs };
+      }
+
+      const state = {
+        scenarioId: "cupboard",
+        selectedId: null,
+        tick: 0,
+        runtime: null,
+        audit: [],
+        viewedEventId: null,
+        autoplay: false,
+        autoplayTimer: null,
+        countdownTimer: null,
+        secondsToNext: 0,
+        styleMode: "cold_instrument"
+      };
+
+      const elScenarioSelect = document.getElementById("scenarioSelect");
+      const elEntityStrip = document.getElementById("entityStrip");
+      const elGrid = document.getElementById("grid");
+      const elWorldtext = document.getElementById("worldtext");
+      const elImpact = document.getElementById("impact");
+      const elAudit = document.getElementById("audit");
+      const elTickPill = document.getElementById("tickPill");
+      const elSelectedPill = document.getElementById("selectedPill");
+      const elAutoplayPill = document.getElementById("autoplayPill");
+      const elCountdownPill = document.getElementById("countdownPill");
+      const elStyleMode = document.getElementById("styleMode");
+
+      const elTraceAnchor = document.getElementById("traceAnchor");
+      const elTraceChain = document.getElementById("traceChain");
+      const elTraceFracture = document.getElementById("traceFracture");
+      const elTraceMoves = document.getElementById("traceMoves");
+      const elTraceMissing = document.getElementById("traceMissing");
+
+      const btnGoal = document.getElementById("btnGoal");
+      const btnObstacle = document.getElementById("btnObstacle");
+      const btnShift = document.getElementById("btnShift");
+      const btnAutoplay = document.getElementById("autoplayBtn");
+      const btnRefreshTrace = document.getElementById("refreshTraceBtn");
+      const modeButtons = document.querySelectorAll("[data-mode]");
+      const dockVectorButtons = document.querySelectorAll("[data-vector-trigger]");
+
+      function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+      function round2(v) { return Math.round(v * 100) / 100; }
+      function jitter(v) { return v + (Math.random() - 0.5) * 0.04; }
+      function copy(v) { return JSON.parse(JSON.stringify(v)); }
+
+      function setMode(mode) {
+        document.body.dataset.mode = mode;
+        modeButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mode === mode);
+        });
+      }
+
+      function entityIds() {
+        return Object.keys(state.runtime.entities);
+      }
+
+      function summarizeDelta(delta) {
+        return DIMS.map((d) => `${d}:${delta[d] >= 0 ? "+" : ""}${delta[d].toFixed(2)}`).join("  ");
+      }
+
+      function loadScenario(id) {
+        const scenario = SCENARIOS[id];
+        state.runtime = {
+          entities: Object.fromEntries(scenario.entities.map((entity) => [entity.id, copy(entity)])),
+          edges: copy(scenario.edges),
+          baseline: scenario.baseline,
+          name: scenario.name
+        };
+        state.selectedId = scenario.entities[0]?.id || null;
+      }
+
+      function initScenarioSelect() {
+        Object.entries(SCENARIOS).forEach(([id, s]) => {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = s.name;
+          elScenarioSelect.appendChild(opt);
+        });
+        elScenarioSelect.value = state.scenarioId;
+        elScenarioSelect.addEventListener("change", () => {
+          changeScenario(elScenarioSelect.value);
+        });
+      }
+
+      function changeScenario(id) {
+        state.scenarioId = id;
+        loadScenario(id);
+        state.audit = [];
+        state.tick = 0;
+        state.viewedEventId = null;
+        renderAll();
+      }
+
+      function computeSourceDelta(before, vector) {
+        const bias = VECTOR_BIAS[vector];
+        const after = {};
+        const delta = {};
+        DIMS.forEach((d) => {
+          after[d] = round2(clamp01(before[d] + jitter(bias[d] || 0)));
+          delta[d] = round2(after[d] - before[d]);
+        });
+        return { before, after, delta };
+      }
+
+      function applyTransfer(targetState, edge, intensity) {
+        const bias = CHANNEL_BIAS[edge.channel] || CHANNEL_BIAS.contact;
+        const before = { ...targetState };
+        const after = { ...targetState };
+        DIMS.forEach((d) => {
+          after[d] = round2(clamp01(after[d] + (bias[d] || 0) * intensity + (Math.random() - 0.5) * 0.02));
+        });
+        return { before, after };
+      }
+
+      function generateWorldtext(event) {
+        const src = state.runtime.entities[event.source.entityId];
+        const transfer = event.transfers[0];
+        const blocked = event.nonEffects[0];
+
+        const sourceLine = `${src.name} absorbs ${event.source.vector}. ${summarizeDelta(event.sourceDelta.delta)}.`;
+        const transferLine = transfer
+          ? `A path to ${state.runtime.entities[transfer.targetId].name} opens via ${transfer.edge.channel} after ${transfer.edge.delayMs}ms, resistance ${transfer.edge.resistance.toFixed(2)}, intensity ${transfer.intensity.toFixed(2)}.`
+          : "No transfer crossed the visibility threshold; pressure remains local.";
+        const blockedLine = blocked
+          ? `Blocked route: ${state.runtime.entities[blocked.targetId].name} remains unchanged because ${blocked.reason}.`
+          : "No non-effect dominated this cycle.";
+
+        return `${sourceLine}\n\n${transferLine}\n\n${blockedLine}\n\nThe event stays unresolved and points to a next perturbation test.`;
+      }
+
+      function trigger(vector, origin = "manual") {
+        const src = state.runtime.entities[state.selectedId];
+        if (!src) return;
+
+        const sourceBefore = { ...src.state };
+        const sourceDelta = computeSourceDelta(sourceBefore, vector);
+        src.state = { ...sourceDelta.after };
+
+        const transfers = [];
+        const nonEffects = [];
+
+        state.runtime.edges.filter((edge) => edge.from === src.id).forEach((edge) => {
+          const base = Math.abs(sourceDelta.delta.activity) + Math.abs(sourceDelta.delta.signal) + Math.abs(sourceDelta.delta.resource);
+          const intensity = round2(base * edge.coupling * (1 - edge.resistance));
+          if (intensity < 0.08) {
+            nonEffects.push({ fromId: src.id, targetId: edge.to, edge, reason: "transfer decayed below visible threshold" });
+            return;
+          }
+          const target = state.runtime.entities[edge.to];
+          const moved = applyTransfer(target.state, edge, intensity);
+          target.state = moved.after;
+          transfers.push({
+            fromId: src.id,
+            targetId: edge.to,
+            edge,
+            pathDelayMs: edge.delayMs,
+            intensity,
+            before: moved.before,
+            after: moved.after,
+            outcome: intensity > 0.22 ? "amplified" : "damped"
+          });
+        });
+
+        state.tick += 1;
+
+        const event = {
+          eventId: `evt-${String(state.tick).padStart(4, "0")}`,
+          tick: state.tick,
+          scenarioId: state.scenarioId,
+          origin,
+          source: { entityId: src.id, vector },
+          selected_entity: { id: src.id, name: src.name, type: src.type },
+          vector,
+          sourceDelta,
+          source_delta: sourceDelta,
+          transfers,
+          nonEffects,
+          non_effects: nonEffects,
+          worldtext: ""
+        };
+
+        event.worldtext = generateWorldtext(event);
+        state.audit.unshift(event);
+        state.viewedEventId = event.eventId;
+
+        flash(event);
+        renderAll();
+      }
+
+      function flash(event) {
+        const srcCell = elGrid.querySelector(`[data-entity-id="${event.source.entityId}"]`);
+        if (srcCell) {
+          const cls = event.vector === "GOAL" ? "goal" : event.vector === "OBSTACLE" ? "obstacle" : "shift";
+          srcCell.classList.add(cls);
+          setTimeout(() => srcCell.classList.remove(cls), 900);
+        }
+        event.transfers.forEach((t) => {
+          const targetCell = elGrid.querySelector(`[data-entity-id="${t.targetId}"]`);
+          if (!targetCell) return;
+          targetCell.classList.add("shift");
+          setTimeout(() => targetCell.classList.remove("shift"), 760);
+        });
+      }
+
+      function renderEntities() {
+        elEntityStrip.innerHTML = "";
+        entityIds().forEach((id, idx) => {
+          const entity = state.runtime.entities[id];
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `entity-chip${id === state.selectedId ? " active" : ""}`;
+          btn.innerHTML = `<strong>${idx + 1}. ${entity.icon} ${entity.name}</strong><br><span class="small">${entity.type} / ${entity.stateLabel}</span>`;
+          btn.addEventListener("click", () => {
+            state.selectedId = id;
+            setMode("operate");
+            renderAll();
+          });
+          elEntityStrip.appendChild(btn);
+        });
+      }
+
+      function renderGrid() {
+        elGrid.innerHTML = "";
+        for (let y = 0; y < 6; y += 1) {
+          for (let x = 0; x < 8; x += 1) {
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "cell";
+            cell.disabled = true;
+            const entity = entityIds().map((id) => state.runtime.entities[id]).find((item) => item.position.x === x && item.position.y === y);
+            if (entity) {
+              cell.classList.add("has");
+              if (entity.id === state.selectedId) cell.classList.add("active");
+              cell.disabled = false;
+              cell.dataset.entityId = entity.id;
+              cell.textContent = entity.icon;
+              cell.title = entity.name;
+              cell.addEventListener("click", () => {
+                state.selectedId = entity.id;
+                setMode("operate");
+                renderAll();
+              });
+            } else {
+              cell.textContent = "·";
+            }
+            elGrid.appendChild(cell);
+          }
+        }
+      }
+
+      function renderWorldtextImpactAudit() {
+        const event = state.audit.find((e) => e.eventId === state.viewedEventId) || state.audit[0];
+        if (!event) {
+          elWorldtext.textContent = state.runtime.baseline;
+          elImpact.innerHTML = `<div class="card">No event yet. Apply GOAL, OBSTACLE, or SHIFT to generate evidence.</div>`;
+          elAudit.innerHTML = "";
+          return;
+        }
+
+        elWorldtext.textContent = event.worldtext;
+        const srcName = state.runtime.entities[event.source.entityId].name;
+
+        const cards = [];
+        cards.push(`<div class="card"><strong>SOURCE DELTA</strong><br>${srcName} -> ${event.vector}<br>${summarizeDelta(event.sourceDelta.delta)}</div>`);
+
+        if (event.transfers.length) {
+          event.transfers.forEach((t) => {
+            cards.push(`<div class="card"><strong>TRANSFER</strong><br>${srcName} -> ${state.runtime.entities[t.targetId].name}<br>channel ${t.edge.channel}, delay ${t.edge.delayMs}ms, resistance ${t.edge.resistance.toFixed(2)}, intensity ${t.intensity.toFixed(2)}, ${t.outcome}</div>`);
+          });
+        } else {
+          cards.push(`<div class="card"><strong>TRANSFER</strong><br>No transfer crossed threshold.</div>`);
+        }
+
+        if (event.nonEffects.length) {
+          event.nonEffects.forEach((n) => {
+            cards.push(`<div class="card"><strong>NON-EFFECT</strong><br>${state.runtime.entities[n.targetId].name}: ${n.reason}</div>`);
+          });
+        } else {
+          cards.push(`<div class="card"><strong>NON-EFFECT</strong><br>No blocked path recorded.</div>`);
+        }
+
+        elImpact.innerHTML = cards.join("");
+
+        elAudit.innerHTML = "";
+        state.audit.slice(0, 30).forEach((e) => {
+          const source = state.runtime.entities[e.source.entityId];
+          const btn = document.createElement("button");
+          btn.textContent = `[${e.tick}] ${source.name} -> ${e.vector} (${e.transfers.length} transfer / ${e.nonEffects.length} blocked)`;
+          btn.addEventListener("click", () => {
+            state.viewedEventId = e.eventId;
+            setMode("audit");
+            renderWorldtextImpactAudit();
+            renderTrace();
+          });
+          elAudit.appendChild(btn);
+        });
+      }
+
+      function chainOutput(event, style) {
+        const sourceName = event.selected_entity?.name || event.source?.entityId || "selected entity";
+        const vector = event.vector || event.source?.vector || "UNKNOWN";
+        const sourceDelta = event.source_delta?.delta || event.sourceDelta?.delta || {};
+        const transfers = Array.isArray(event.transfers) ? event.transfers : [];
+        const nonEffects = Array.isArray(event.non_effects) ? event.non_effects : Array.isArray(event.nonEffects) ? event.nonEffects : [];
+
+        const strongestTransfer = transfers
+          .slice()
+          .sort((a, b) => Number(b.intensity || 0) - Number(a.intensity || 0))[0];
+
+        const l0 = `L0 Stone: ${sourceName} receives ${vector}. No extra stone beyond recorded perturbation.`;
+        const l1 = `L1 Source: ${sourceName} shifts by ${summarizeDelta(sourceDelta)}.`;
+
+        const l2Parts = [];
+        if (transfers.length) {
+          transfers.forEach((t) => {
+            l2Parts.push(`${t.fromId || sourceName} -> ${t.targetId} via ${t.edge?.channel || "unknown"}, delay ${t.pathDelayMs || t.edge?.delayMs || "?"}ms, resistance ${Number(t.edge?.resistance || 0).toFixed(2)}, intensity ${Number(t.intensity || 0).toFixed(2)}, outcome ${t.outcome || "unlabeled"}.`);
+          });
+        } else {
+          l2Parts.push("No transfer crossed significance threshold.");
+        }
+        if (nonEffects.length) {
+          l2Parts.push(`Blocked path: ${nonEffects[0].fromId || sourceName} -> ${nonEffects[0].targetId} because ${nonEffects[0].reason || "insufficient pathway"}.`);
+        }
+
+        const fieldGain = transfers.reduce((acc, t) => acc + Number(t.intensity || 0), 0);
+        const fieldLoss = nonEffects.length * 0.18;
+        const l3 = `L3 Field: transfer mass ${fieldGain.toFixed(2)} vs blockage pressure ${fieldLoss.toFixed(2)}; therefore ${fieldGain > fieldLoss ? "active channel consolidates leverage" : "constraint dominates diffusion"}.`;
+
+        const l4 = style === "panicky_cacophony"
+          ? `L4 Mask: ${sourceName} experiences over-amplified signal and unstable attention boundaries.`
+          : `L4 Mask: ${sourceName} perceives one path strengthening while another collapses.`;
+
+        return { l0, l1, l2: `L2 Edge: ${l2Parts.join(" ")}`, l3, l4, strongestTransfer, nonEffects, sourceName, vector, transfers };
+      }
+
+      function renderTrace() {
+        const event = state.audit.find((e) => e.eventId === state.viewedEventId) || state.audit[0];
+        if (!event) {
+          elTraceAnchor.textContent = "No event selected.";
+          elTraceChain.textContent = "Trigger a vector to build an event record.";
+          elTraceFracture.textContent = "Fracture point unavailable until an event exists.";
+          elTraceMoves.textContent = "1. Select an entity\n2. Trigger a vector\n3. Return to trace";
+          elTraceMissing.textContent = "- event record";
+          return;
+        }
+
+        const style = state.styleMode;
+        const chain = chainOutput(event, style);
+
+        elTraceAnchor.textContent = [
+          `event_id: ${event.eventId}`,
+          `tick: ${event.tick}`,
+          `scenario: ${event.scenarioId}`,
+          `origin: ${event.origin}`,
+          `source: ${chain.sourceName}`,
+          `vector: ${chain.vector}`
+        ].join("\n");
+
+        elTraceChain.textContent = [chain.l0, chain.l1, chain.l2, chain.l3, chain.l4].join("\n\n");
+
+        if (chain.nonEffects.length) {
+          elTraceFracture.textContent = `Fracture Point: field pressure expects propagation, but lived perspective meets resistance at ${chain.nonEffects[0].targetId}. This blocked seam is the highest-value test site.`;
+        } else if (chain.strongestTransfer) {
+          elTraceFracture.textContent = `Fracture Point: leverage concentrates at ${chain.strongestTransfer.targetId} while source identity remains partially unresolved.`;
+        } else {
+          elTraceFracture.textContent = "Fracture Point: perturbation exists but no outward path stabilized.";
+        }
+
+        const moves = [];
+        if (chain.strongestTransfer) {
+          moves.push(`1. Trigger SHIFT on ${chain.strongestTransfer.targetId} to test if received pressure stabilizes as state change.`);
+        } else {
+          moves.push(`1. Re-apply ${chain.vector} on ${chain.sourceName} through a higher-coupling edge.`);
+        }
+        if (chain.nonEffects.length) {
+          moves.push(`2. Probe ${chain.nonEffects[0].targetId} with GOAL to test if failure is resistance or missing channel.`);
+        } else {
+          moves.push(`2. Apply OBSTACLE on ${chain.sourceName} and compare transfer collapse order.`);
+        }
+        moves.push(`3. Replay this event and compare one alternate vector. Keep whichever increases evidence density.`);
+        elTraceMoves.textContent = moves.join("\n");
+
+        const missing = [];
+        if (!chain.transfers.length) missing.push("- no significant transfer recorded");
+        if (!chain.nonEffects.length) missing.push("- no non-effect for resistance contrast");
+        missing.push("- prompt_provenance IDs not attached in this integrated build");
+        elTraceMissing.textContent = missing.join("\n");
+      }
+
+      function renderTop() {
+        elTickPill.textContent = String(state.tick);
+        const selected = state.runtime.entities[state.selectedId];
+        elSelectedPill.textContent = selected ? selected.name : "none";
+        elAutoplayPill.textContent = state.autoplay ? "ON" : "OFF";
+        elCountdownPill.textContent = state.autoplay ? String(state.secondsToNext) : "--";
+      }
+
+      function renderButtons() {
+        const disabled = !state.selectedId;
+        [btnGoal, btnObstacle, btnShift].forEach((btn) => { btn.disabled = disabled; });
+        dockVectorButtons.forEach((btn) => { btn.disabled = disabled; });
+      }
+
+      function renderAll() {
+        renderTop();
+        renderEntities();
+        renderGrid();
+        renderWorldtextImpactAudit();
+        renderTrace();
+        renderButtons();
+      }
+
+      function startAutoplay() {
+        if (state.autoplay) return;
+        state.autoplay = true;
+        state.secondsToNext = 3;
+
+        const vectors = ["GOAL", "OBSTACLE", "SHIFT"];
+
+        state.autoplayTimer = setInterval(() => {
+          const ids = entityIds();
+          state.selectedId = ids[Math.floor(Math.random() * ids.length)];
+          const vector = vectors[Math.floor(Math.random() * vectors.length)];
+          trigger(vector, "autoplay");
+          state.secondsToNext = 3;
+        }, 3000);
+
+        state.countdownTimer = setInterval(() => {
+          state.secondsToNext = Math.max(0, state.secondsToNext - 1);
+          renderTop();
+        }, 1000);
+
+        renderTop();
+      }
+
+      function stopAutoplay() {
+        state.autoplay = false;
+        if (state.autoplayTimer) clearInterval(state.autoplayTimer);
+        if (state.countdownTimer) clearInterval(state.countdownTimer);
+        state.autoplayTimer = null;
+        state.countdownTimer = null;
+        state.secondsToNext = 0;
+        renderTop();
+      }
+
+      function toggleAutoplay() {
+        if (state.autoplay) stopAutoplay();
+        else startAutoplay();
+      }
+
+      function fireVector(vector) {
+        trigger(vector, "manual");
+      }
+
+      btnGoal.addEventListener("click", () => fireVector("GOAL"));
+      btnObstacle.addEventListener("click", () => fireVector("OBSTACLE"));
+      btnShift.addEventListener("click", () => fireVector("SHIFT"));
+      btnAutoplay.addEventListener("click", toggleAutoplay);
+
+      dockVectorButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          fireVector(btn.dataset.vectorTrigger);
+        });
+      });
+
+      modeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => setMode(btn.dataset.mode));
+      });
+
+      elStyleMode.addEventListener("change", () => {
+        state.styleMode = elStyleMode.value;
+        renderTrace();
+      });
+
+      btnRefreshTrace.addEventListener("click", () => {
+        renderTrace();
+        if (window.matchMedia("(max-width: 980px)").matches) {
+          setMode("trace");
+        }
+      });
+
+      document.addEventListener("keydown", (ev) => {
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(ev.target.tagName)) return;
+
+        if (ev.key === "g" || ev.key === "G") fireVector("GOAL");
+        if (ev.key === "o" || ev.key === "O") fireVector("OBSTACLE");
+        if (ev.key === "s" || ev.key === "S") fireVector("SHIFT");
+
+        if (ev.key === " ") {
+          ev.preventDefault();
+          toggleAutoplay();
+        }
+
+        const n = Number(ev.key);
+        const ids = entityIds();
+        if (n >= 1 && n <= ids.length) {
+          state.selectedId = ids[n - 1];
+          setMode("operate");
+          renderAll();
+        }
+
+        if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+          ev.preventDefault();
+          const keys = Object.keys(SCENARIOS);
+          const idx = keys.indexOf(state.scenarioId);
+          const next = ev.key === "ArrowRight"
+            ? keys[(idx + 1) % keys.length]
+            : keys[(idx - 1 + keys.length) % keys.length];
+          elScenarioSelect.value = next;
+          changeScenario(next);
+        }
+      });
+
+      initScenarioSelect();
+      loadScenario(state.scenarioId);
+      setMode("operate");
+      renderAll();
+    })();
+  </script>
+</body>
+</html>

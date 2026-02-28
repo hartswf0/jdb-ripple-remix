@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORCA // MOSS_WINGS_BAYESIAN_V1</title>
+  <style>
+    :root {
+      --bg: #050708;
+      --panel: #0b1114;
+      --panel2: #0e161a;
+      --line: #1f3138;
+      --text: #d6e8ec;
+      --muted: #8aa4ad;
+      --teal: #72dec2;
+      --gold: #f0cf7a;
+      --rose: #ff8d95;
+      --blue: #86a8ff;
+      --mono: #c8c8c8;
+      --color: #ffd89c;
+      --ok: #8cf1bc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(114, 222, 194, 0.12), transparent 32%),
+        radial-gradient(circle at 82% 14%, rgba(134, 168, 255, 0.1), transparent 34%),
+        linear-gradient(180deg, #040607, #020304 60%);
+    }
+
+    .shell {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .head {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #0d1519, #091015);
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1rem, 2.4vw, 1.45rem);
+      letter-spacing: 0.06em;
+      color: var(--teal);
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-width: 88ch;
+      line-height: 1.4;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .controls > * { min-width: 0; }
+
+    label {
+      display: grid;
+      gap: 4px;
+      font-size: 0.63rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    select, button {
+      width: 100%;
+      background: #0a1013;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font: inherit;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    button:hover, select:hover { border-color: var(--teal); }
+
+    button.primary {
+      border-color: rgba(114, 222, 194, 0.55);
+      color: #e8fffa;
+      background: rgba(114, 222, 194, 0.08);
+    }
+
+    button.ghost {
+      border-color: rgba(240, 207, 122, 0.5);
+      color: var(--gold);
+    }
+
+    button.warn {
+      border-color: rgba(255, 141, 149, 0.5);
+      color: #ffcad0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.08fr 1.2fr 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+    }
+
+    .panel-head {
+      border-bottom: 1px solid rgba(31, 49, 56, 0.85);
+      padding: 9px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #cfe7ec;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      font-size: 0.62rem;
+      color: var(--muted);
+      padding: 2px 6px;
+      text-transform: uppercase;
+    }
+
+    .panel-body {
+      padding: 10px;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      line-height: 1.42;
+      color: var(--muted);
+      border: 1px solid rgba(31, 49, 56, 0.75);
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .metric {
+      border: 1px solid rgba(31, 49, 56, 0.8);
+      background: rgba(0, 0, 0, 0.22);
+      padding: 7px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .metric .k { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .metric .v { font-size: 0.72rem; color: #e8f6fa; }
+
+    .bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+    }
+
+    .bar > span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0;
+      background: linear-gradient(90deg, #5fb7ff, #72dec2);
+    }
+
+    .scene-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.66rem;
+    }
+
+    .scene-table th,
+    .scene-table td {
+      border: 1px solid rgba(31, 49, 56, 0.85);
+      padding: 5px;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+
+    .scene-table th {
+      color: #e5f6fa;
+      background: rgba(255, 255, 255, 0.03);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.59rem;
+    }
+
+    .cards {
+      display: grid;
+      gap: 9px;
+    }
+
+    .char-card {
+      border: 1px solid rgba(31, 49, 56, 0.86);
+      background: rgba(0, 0, 0, 0.22);
+      padding: 8px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .char-card.active {
+      border-color: rgba(114, 222, 194, 0.55);
+      box-shadow: inset 0 0 0 1px rgba(114, 222, 194, 0.14);
+    }
+
+    .char-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .char-name {
+      font-size: 0.82rem;
+      color: #e9f8fb;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .char-meta {
+      font-size: 0.58rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .seed-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px;
+      font-size: 0.62rem;
+    }
+
+    .seed {
+      border: 1px solid rgba(31, 49, 56, 0.7);
+      background: rgba(255, 255, 255, 0.015);
+      padding: 5px;
+      line-height: 1.35;
+    }
+
+    .seed b { color: var(--gold); font-weight: 700; }
+
+    .belief-grid,
+    .trait-grid {
+      display: grid;
+      gap: 4px;
+      font-size: 0.63rem;
+    }
+
+    .belief-row,
+    .trait-row {
+      border: 1px solid rgba(31, 49, 56, 0.7);
+      background: rgba(255, 255, 255, 0.012);
+      padding: 5px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .belief-top,
+    .trait-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .belief-name,
+    .trait-name { color: #def3f8; }
+
+    .belief-stat,
+    .trait-stat { color: var(--muted); font-size: 0.58rem; }
+
+    .belief-row.good .bar > span { background: linear-gradient(90deg, #7ee5bb, #b6ffdb); }
+    .belief-row.bad .bar > span { background: linear-gradient(90deg, #ff9ca4, #ffd2d7); }
+    .belief-row.neutral .bar > span { background: linear-gradient(90deg, #8fb2ff, #bfd1ff); }
+
+    .turn-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .formula {
+      border: 1px solid rgba(114, 222, 194, 0.32);
+      background: rgba(114, 222, 194, 0.08);
+      padding: 8px;
+      font-size: 0.66rem;
+      line-height: 1.45;
+      color: #d9fff5;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #e8fff7;
+    }
+
+    .lens {
+      border: 1px solid rgba(31, 49, 56, 0.85);
+      padding: 8px;
+      font-size: 0.67rem;
+      line-height: 1.45;
+      background: rgba(0, 0, 0, 0.24);
+      display: grid;
+      gap: 5px;
+    }
+
+    .lens .mode-mono { color: var(--mono); }
+    .lens .mode-color { color: var(--color); }
+
+    .event-log {
+      border: 1px solid rgba(31, 49, 56, 0.85);
+      background: rgba(0, 0, 0, 0.22);
+      max-height: 340px;
+      overflow: auto;
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .event {
+      border: 1px solid rgba(31, 49, 56, 0.8);
+      background: rgba(255, 255, 255, 0.015);
+      padding: 6px;
+      display: grid;
+      gap: 4px;
+      font-size: 0.64rem;
+      line-height: 1.35;
+    }
+
+    .event .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      color: #d8eff5;
+      font-size: 0.61rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .event .row { color: #c3dce3; }
+    .event .row b { color: #f7ffff; }
+    .delta-plus { color: var(--ok); }
+    .delta-minus { color: var(--rose); }
+
+    .foot {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px 10px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 1200px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .grid > .panel:last-child { grid-column: 1 / -1; }
+      .controls { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .seed-grid,
+      .metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="head">
+      <div class="title">
+        <h1>MOSS // Wings Inverse Generative Architecture</h1>
+        <div class="pill" id="turn-pill">turn 0</div>
+      </div>
+      <div class="subtitle">
+        Souls as Bayesian graphs. Berlin scenes emit evidence. Beliefs drift, traits couple, cinema lens updates.
+      </div>
+      <div class="controls">
+        <label>
+          Scene Evidence Cluster
+          <select id="scene-select"></select>
+        </label>
+        <label>
+          Focus Character
+          <select id="char-select"></select>
+        </label>
+        <label>
+          Run Focused Turn
+          <button id="run-turn" class="primary">Run Bayesian Turn</button>
+        </label>
+        <label>
+          Ensemble Sweep
+          <button id="run-ensemble" class="ghost">Run Ensemble</button>
+        </label>
+        <label>
+          Stress Test
+          <button id="run-triplet" class="ghost">Run 3 Turns</button>
+        </label>
+        <label>
+          Reset Model
+          <button id="reset" class="warn">Reset Priors</button>
+        </label>
+        <label>
+          Drift Clamp
+          <select id="drift-clamp">
+            <option value="0.65">strict (0.65)</option>
+            <option value="0.95" selected>balanced (0.95)</option>
+            <option value="1.25">loose (1.25)</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">World Model State</h2>
+          <span class="pill" id="scene-pill">scene</span>
+        </div>
+        <div class="panel-body" id="world-panel"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Soul Seeds + Belief Topology</h2>
+          <span class="pill">Damiel · Cassiel · Marion · Falk · Homer</span>
+        </div>
+        <div class="panel-body" id="character-panel"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Turn Engine</h2>
+          <span class="pill" id="event-pill">no event</span>
+        </div>
+        <div class="panel-body" id="turn-panel"></div>
+      </section>
+    </div>
+
+    <div class="foot">
+      Low embodiment keeps monochrome witness mode. Rising embodiment + agency pushes color, tactile diction, grounded camera.
+    </div>
+  </div>
+
+  <script>
+    const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+    const deepClone = (x) => JSON.parse(JSON.stringify(x));
+    const logit = (p) => Math.log(p / (1 - p));
+    const invLogit = (z) => 1 / (1 + Math.exp(-z));
+    const fmt = (n, d = 3) => Number(n).toFixed(d);
+    const pct = (n) => `${Math.round(Number(n) * 100)}%`;
+
+    const SCENES = {
+      library: {
+        name: "Berlin State Library",
+        pressure: "polyphonic whispers, archival stillness, detached observation",
+        tokens: ["overlapping_whispers", "historical_text", "shared_silence", "solitary_readers"],
+        global: { spatialFragmentation: 0.72, sensoryDuality: 0.34, temporalPressure: 0.39, acousticOverlap: 0.92 },
+        effects: [
+          { target: "damiel", belief: "OBSERVATION_IS_ENOUGH", lr: 0.82, token: "overlapping_whispers", why: "data saturation undermines pure witnessing" },
+          { target: "damiel", belief: "MORTALITY_IS_SUPERIOR", lr: 1.12, token: "solitary_readers", why: "disembodied seeing feels insufficient" },
+          { target: "cassiel", belief: "OBSERVATION_IS_SACRED", lr: 1.55, token: "historical_text", why: "archive reinforces duty" },
+          { target: "cassiel", belief: "HUMANITY_IS_TRAGIC", lr: 1.18, token: "overlapping_whispers", why: "collective loneliness as evidence" },
+          { target: "homer", belief: "MEMORY_IS_FADING", lr: 1.2, token: "shared_silence", why: "silence reads as eroded audience" }
+        ]
+      },
+      circus: {
+        name: "Circus Alekan",
+        pressure: "precarious grace, closure threat, financial collapse",
+        tokens: ["falling_risk", "physical_grace", "financial_ruin", "transience"],
+        global: { spatialFragmentation: 0.6, sensoryDuality: 0.76, temporalPressure: 0.84, acousticOverlap: 0.4 },
+        effects: [
+          { target: "damiel", belief: "MORTALITY_IS_SUPERIOR", lr: 1.6, token: "physical_grace", why: "vulnerability as meaning" },
+          { target: "damiel", belief: "CONNECTION_REQUIRES_BODY", lr: 1.34, token: "falling_risk", why: "care implies embodied stakes" },
+          { target: "marion", belief: "LIFE_LACKS_NARRATIVE", lr: 1.4, token: "financial_ruin", why: "circus closure destabilizes identity continuity" },
+          { target: "marion", belief: "ISOLATION_IS_PERMANENT", lr: 1.22, token: "transience", why: "nomadic labor reinforces solitude" }
+        ]
+      },
+      potsdamer: {
+        name: "Potsdamer Platz Wasteland",
+        pressure: "ruins, no-man's-land, archival dislocation",
+        tokens: ["graffiti_wall", "empty_field", "archival_memory", "ruins"],
+        global: { spatialFragmentation: 0.96, sensoryDuality: 0.41, temporalPressure: 0.7, acousticOverlap: 0.48 },
+        effects: [
+          { target: "homer", belief: "MEMORY_IS_FADING", lr: 1.8, token: "missing_landscape", why: "expected city center replaced by void" },
+          { target: "homer", belief: "PEACE_CAN_BE_SUNG", lr: 0.72, token: "empty_field", why: "audience absence weakens epic transmission" },
+          { target: "cassiel", belief: "HUMANITY_IS_TRAGIC", lr: 1.34, token: "ruins", why: "historical violence remains ambient" },
+          { target: "marion", belief: "LIFE_LACKS_NARRATIVE", lr: 1.18, token: "graffiti_wall", why: "fragmented city maps onto fragmented self" }
+        ]
+      },
+      nick_cave: {
+        name: "Nick Cave Concert",
+        pressure: "deafening rhythm, crowd friction, embodied urgency",
+        tokens: ["deafening_bass", "crowd_friction", "strobe_lighting", "visceral_rhythm"],
+        global: { spatialFragmentation: 0.52, sensoryDuality: 0.93, temporalPressure: 0.9, acousticOverlap: 0.82 },
+        effects: [
+          { target: "damiel", belief: "CONNECTION_REQUIRES_BODY", lr: 1.75, token: "crowd_friction", why: "shared body-field closes distance" },
+          { target: "damiel", belief: "MORTALITY_IS_SUPERIOR", lr: 1.45, token: "visceral_rhythm", why: "finitude amplified by sensation" },
+          { target: "marion", belief: "UNSEEN_PRESENCE_EXISTS", lr: 1.8, token: "direct_eye_contact", why: "dream-presence resolves into person" },
+          { target: "marion", belief: "LIFE_LACKS_NARRATIVE", lr: 0.58, token: "spoken_declaration", why: "self-authored vow restores line of time" },
+          { target: "marion", belief: "ISOLATION_IS_PERMANENT", lr: 0.64, token: "crowd_friction", why: "proximity punctures solitude prior" }
+        ]
+      },
+      bmw: {
+        name: "BMW Showroom",
+        pressure: "reflective surfaces, consumer sheen, alienated spectacle",
+        tokens: ["reflective_surfaces", "fluorescent_lights", "consumer_desire"],
+        global: { spatialFragmentation: 0.58, sensoryDuality: 0.56, temporalPressure: 0.51, acousticOverlap: 0.3 },
+        effects: [
+          { target: "cassiel", belief: "HUMANITY_IS_TRAGIC", lr: 1.2, token: "consumer_desire", why: "spectacle reads as estrangement" },
+          { target: "damiel", belief: "ETERNITY_IS_A_BURDEN", lr: 1.2, token: "reflective_surfaces", why: "infinite observation feels hollow" }
+        ]
+      },
+      bridge: {
+        name: "Langenscheidtbrucke / Dying Man",
+        pressure: "mortality shock, blood-memory invocation, transition edge",
+        tokens: ["blood", "pain", "fear_of_the_void", "invocation_of_memories"],
+        global: { spatialFragmentation: 0.61, sensoryDuality: 0.9, temporalPressure: 0.99, acousticOverlap: 0.74 },
+        effects: [
+          { target: "damiel", belief: "MORTALITY_IS_SUPERIOR", lr: 2.1, token: "invocation_of_memories", why: "dying inventory of life pleasures" },
+          { target: "damiel", belief: "OBSERVATION_IS_ENOUGH", lr: 0.48, token: "pain", why: "witnessing fails intervention test" },
+          { target: "cassiel", belief: "INTERVENTION_IS_POSSIBLE", lr: 0.05, token: "failed_rescue_attempt", why: "direct impotence event" },
+          { target: "cassiel", belief: "HUMANITY_IS_TRAGIC", lr: 2.0, token: "fear_of_the_void", why: "tragic posterior reinforced" }
+        ]
+      },
+      coffee: {
+        name: "Coffee Stand / Falk Beacon",
+        pressure: "cold air, steam, direct address to unseen witness",
+        tokens: ["rubbing_hands", "steam_of_coffee", "direct_address_to_unseen"],
+        global: { spatialFragmentation: 0.44, sensoryDuality: 0.86, temporalPressure: 0.68, acousticOverlap: 0.35 },
+        effects: [
+          { target: "damiel", belief: "CONNECTION_REQUIRES_BODY", lr: 5.2, token: "direct_address_to_unseen", why: "cross-realm contact becomes empirical" },
+          { target: "damiel", belief: "MORTALITY_IS_SUPERIOR", lr: 2.6, token: "steam_of_coffee", why: "sensory joy defeats detached prior" },
+          { target: "falk", belief: "ANGELS_ARE_PRESENT", lr: 1.2, token: "unseen_presence", why: "felt certainty reconfirmed" },
+          { target: "falk", belief: "ART_BRIDGES_REALMS", lr: 1.12, token: "spoken_companero", why: "craft becomes metaphysical bridge" }
+        ]
+      },
+      marion_bar: {
+        name: "Bar Monologue / End of Coincidence",
+        pressure: "declaration under noise, self-authored narrative closure",
+        tokens: ["spoken_declaration", "threshold_choice", "discursive_authority"],
+        global: { spatialFragmentation: 0.49, sensoryDuality: 0.83, temporalPressure: 0.88, acousticOverlap: 0.72 },
+        effects: [
+          { target: "marion", belief: "LIFE_LACKS_NARRATIVE", lr: 0.2, token: "threshold_choice", why: "explicit vow rewrites causal story" },
+          { target: "marion", belief: "ISOLATION_IS_PERMANENT", lr: 0.55, token: "spoken_declaration", why: "connection becomes committed project" },
+          { target: "marion", belief: "LOVE_DEMANDS_SERIOUSNESS", lr: 1.45, token: "discursive_authority", why: "seriousness declared as rule" }
+        ]
+      }
+    };
+
+    const CHARACTER_TEMPLATES = {
+      damiel: {
+        id: "damiel",
+        name: "Damiel",
+        role: "Architecture of the Fallen Angel",
+        plasticity: 0.96,
+        inertia: 0.74,
+        seeds: {
+          wound: "Exhaustion from infinite detachment.",
+          vow: "Conquer linear history: now, and now, and now.",
+          hunger: "Tactile embodiment: coffee heat, blood, paper, cold air.",
+          dread: "Permanent spectatorhood.",
+          mask: "Invisible comforter.",
+          voice: "Abstract lyric drifting toward concrete noun-weight."
+        },
+        traits: { arousal: 0.42, control: 0.58, rumination: 0.49, tenderness: 0.61, shame: 0.32, agency: 0.41, permeability: 0.86, valence: 0.48, coherence: 0.57, sensoryEmbodiment: 0.08 },
+        beliefs: {
+          OBSERVATION_IS_ENOUGH: { p: 0.45, s: 4, polarity: "bad", label: "Observation is enough" },
+          MORTALITY_IS_SUPERIOR: { p: 0.65, s: 6, polarity: "good", label: "Mortality is superior" },
+          CONNECTION_REQUIRES_BODY: { p: 0.70, s: 8, polarity: "good", label: "Connection requires body" },
+          ETERNITY_IS_A_BURDEN: { p: 0.85, s: 9, polarity: "bad", label: "Eternity is a burden" }
+        },
+        couplings: {
+          MORTALITY_IS_SUPERIOR: { arousal: 0.5, agency: 0.8, control: -0.4, sensoryEmbodiment: 0.9 },
+          OBSERVATION_IS_ENOUGH: { rumination: -0.5, shame: -0.2, permeability: 0.6 },
+          CONNECTION_REQUIRES_BODY: { tenderness: 0.7, valence: 0.5, sensoryEmbodiment: 0.6 },
+          ETERNITY_IS_A_BURDEN: { rumination: 0.4, agency: -0.3 }
+        }
+      },
+      cassiel: {
+        id: "cassiel",
+        name: "Cassiel",
+        role: "Architecture of the Tragic Witness",
+        plasticity: 0.58,
+        inertia: 0.92,
+        seeds: {
+          wound: "Agony of impotence despite proximity to suffering.",
+          vow: "Do no more than look, assemble, testify, preserve.",
+          hunger: "Suppressed urge to break the rule and intervene.",
+          dread: "Witnessing does not reduce pain.",
+          mask: "Stoic archivist.",
+          voice: "Clinical inventory: timestamps, lists, objective reporting."
+        },
+        traits: { arousal: 0.28, control: 0.74, rumination: 0.66, tenderness: 0.31, shame: 0.44, agency: 0.26, permeability: 0.63, valence: 0.33, coherence: 0.61, sensoryEmbodiment: 0.06 },
+        beliefs: {
+          OBSERVATION_IS_SACRED: { p: 0.95, s: 15, polarity: "good", label: "Observation is sacred" },
+          INTERVENTION_IS_POSSIBLE: { p: 0.15, s: 5, polarity: "good", label: "Intervention is possible" },
+          HUMANITY_IS_TRAGIC: { p: 0.80, s: 10, polarity: "bad", label: "Humanity is tragic" },
+          DISTANCE_MUST_BE_KEPT: { p: 0.90, s: 12, polarity: "neutral", label: "Distance must be kept" }
+        },
+        couplings: {
+          INTERVENTION_IS_POSSIBLE: { shame: -1.0, agency: 0.8, control: 0.5 },
+          HUMANITY_IS_TRAGIC: { rumination: 0.7, valence: -0.6, coherence: -0.4 },
+          OBSERVATION_IS_SACRED: { control: 0.5, permeability: -0.3 },
+          DISTANCE_MUST_BE_KEPT: { arousal: -0.4, tenderness: -0.5 }
+        }
+      },
+      marion: {
+        id: "marion",
+        name: "Marion",
+        role: "Architecture of the Grounded Dreamer",
+        plasticity: 0.88,
+        inertia: 0.69,
+        seeds: {
+          wound: "Loss of performer identity; disjointed self continuity.",
+          vow: "End coincidence. Choose a serious life.",
+          hunger: "Mutual openness and sovereign connection.",
+          dread: "Life as accident chain; unserious times.",
+          mask: "Isolated aerialist.",
+          voice: "Reflective geometry, then declarative authority."
+        },
+        traits: { arousal: 0.53, control: 0.47, rumination: 0.69, tenderness: 0.58, shame: 0.38, agency: 0.44, permeability: 0.72, valence: 0.41, coherence: 0.46, sensoryEmbodiment: 0.92 },
+        beliefs: {
+          ISOLATION_IS_PERMANENT: { p: 0.75, s: 7, polarity: "bad", label: "Isolation is permanent" },
+          LIFE_LACKS_NARRATIVE: { p: 0.68, s: 6, polarity: "bad", label: "Life lacks narrative" },
+          UNSEEN_PRESENCE_EXISTS: { p: 0.55, s: 5, polarity: "good", label: "Unseen presence exists" },
+          LOVE_DEMANDS_SERIOUSNESS: { p: 0.90, s: 10, polarity: "good", label: "Love demands seriousness" }
+        },
+        couplings: {
+          LIFE_LACKS_NARRATIVE: { agency: -0.9, coherence: -0.8, rumination: 0.6 },
+          ISOLATION_IS_PERMANENT: { valence: -0.7, tenderness: -0.5, permeability: -0.4 },
+          UNSEEN_PRESENCE_EXISTS: { arousal: 0.4, control: -0.2 },
+          LOVE_DEMANDS_SERIOUSNESS: { coherence: 0.5, agency: 0.4 }
+        }
+      },
+      falk: {
+        id: "falk",
+        name: "Peter Falk",
+        role: "Architecture of the Catalyst",
+        plasticity: 0.42,
+        inertia: 0.96,
+        seeds: {
+          wound: "Nostalgia for eternity, metabolized into warmth.",
+          vow: "Beacon for entities still trapped in witness mode.",
+          hunger: "Immediate sensory joy and craft gestures.",
+          dread: "None; stabilized embodied equilibrium.",
+          mask: "Approachable performer persona.",
+          voice: "Colloquial, repetitive, tactile, grounded."
+        },
+        traits: { arousal: 0.52, control: 0.55, rumination: 0.18, tenderness: 0.71, shame: 0.08, agency: 0.72, permeability: 0.49, valence: 0.82, coherence: 0.84, sensoryEmbodiment: 0.98 },
+        beliefs: {
+          MORTALITY_IS_JOYFUL: { p: 0.98, s: 20, polarity: "good", label: "Mortality is joyful" },
+          ANGELS_ARE_PRESENT: { p: 0.95, s: 18, polarity: "neutral", label: "Angels are present" },
+          ART_BRIDGES_REALMS: { p: 0.88, s: 10, polarity: "good", label: "Art bridges realms" }
+        },
+        couplings: {
+          ANGELS_ARE_PRESENT: { tenderness: 0.3, arousal: 0.2 },
+          ART_BRIDGES_REALMS: { coherence: 0.2, valence: 0.2 },
+          MORTALITY_IS_JOYFUL: { valence: 0.1, rumination: -0.1 }
+        }
+      },
+      homer: {
+        id: "homer",
+        name: "Homer",
+        role: "Architecture of the Living Archive",
+        plasticity: 0.61,
+        inertia: 0.86,
+        seeds: {
+          wound: "Loss of listeners and continuity of collective memory.",
+          vow: "Keep seeking memory-spaces and sing peace epic.",
+          hunger: "Audience and shared mythic childhood.",
+          dread: "Historical amnesia becomes irreversible.",
+          mask: "Frail wanderer.",
+          voice: "Mythic invocation and interrogative lament."
+        },
+        traits: { arousal: 0.31, control: 0.52, rumination: 0.78, tenderness: 0.47, shame: 0.26, agency: 0.34, permeability: 0.58, valence: 0.29, coherence: 0.62, sensoryEmbodiment: 0.95 },
+        beliefs: {
+          NARRATIVE_SUSTAINS_LIFE: { p: 0.95, s: 15, polarity: "good", label: "Narrative sustains life" },
+          MEMORY_IS_FADING: { p: 0.85, s: 8, polarity: "bad", label: "Memory is fading" },
+          PEACE_CAN_BE_SUNG: { p: 0.60, s: 6, polarity: "good", label: "Peace can be sung" }
+        },
+        couplings: {
+          MEMORY_IS_FADING: { rumination: 0.6, valence: -0.5, agency: -0.4 },
+          PEACE_CAN_BE_SUNG: { shame: -0.3, coherence: 0.5 },
+          NARRATIVE_SUSTAINS_LIFE: { control: 0.2 }
+        }
+      }
+    };
+
+    const state = {
+      turn: 0,
+      selectedScene: "library",
+      focusChar: "damiel",
+      driftClamp: 0.95,
+      chars: deepClone(CHARACTER_TEMPLATES),
+      baselineTraits: Object.fromEntries(Object.entries(CHARACTER_TEMPLATES).map(([k, v]) => [k, deepClone(v.traits)])),
+      events: []
+    };
+
+    const els = {
+      sceneSelect: document.getElementById("scene-select"),
+      charSelect: document.getElementById("char-select"),
+      runTurn: document.getElementById("run-turn"),
+      runEnsemble: document.getElementById("run-ensemble"),
+      runTriplet: document.getElementById("run-triplet"),
+      reset: document.getElementById("reset"),
+      driftClamp: document.getElementById("drift-clamp"),
+      worldPanel: document.getElementById("world-panel"),
+      charPanel: document.getElementById("character-panel"),
+      turnPanel: document.getElementById("turn-panel"),
+      turnPill: document.getElementById("turn-pill"),
+      scenePill: document.getElementById("scene-pill"),
+      eventPill: document.getElementById("event-pill")
+    };
+
+    function confidenceBand(p) {
+      if (p >= 0.85 || p <= 0.15) return "high";
+      if (p >= 0.7 || p <= 0.3) return "mid";
+      return "low";
+    }
+
+    function settleTraits(charId) {
+      const c = state.chars[charId];
+      const base = state.baselineTraits[charId];
+      Object.keys(c.traits).forEach((t) => {
+        const cur = c.traits[t];
+        const drift = (base[t] - cur) * (0.035 * c.inertia);
+        c.traits[t] = clamp(cur + drift, 0, 1);
+      });
+    }
+
+    function applyBeliefUpdate(charId, effect) {
+      const c = state.chars[charId];
+      const b = c.beliefs[effect.belief];
+      if (!b) return null;
+      const before = b.p;
+      const lnLR = Math.log(Math.max(0.001, effect.lr));
+      const bounded = clamp(lnLR, -state.driftClamp, state.driftClamp);
+      const k = (c.plasticity / Math.max(0.5, c.inertia)) / Math.max(1, b.s);
+      const after = clamp(invLogit(logit(clamp(before, 0.01, 0.99)) + (k * bounded)), 0.01, 0.99);
+      const dp = after - before;
+      b.p = after;
+      const traitDelta = {};
+      const couplings = c.couplings[effect.belief] || {};
+      Object.entries(couplings).forEach(([trait, coef]) => {
+        const raw = coef * dp;
+        if (!Number.isFinite(raw) || !c.traits.hasOwnProperty(trait)) return;
+        c.traits[trait] = clamp(c.traits[trait] + raw, 0, 1);
+        traitDelta[trait] = (traitDelta[trait] || 0) + raw;
+      });
+      return {
+        belief: effect.belief,
+        label: b.label,
+        token: effect.token,
+        why: effect.why,
+        lr: effect.lr,
+        before,
+        after,
+        dp,
+        confidence: confidenceBand(after),
+        traitDelta
+      };
+    }
+
+    function aggregateTraitDelta(updates) {
+      const out = {};
+      updates.forEach((u) => {
+        Object.entries(u.traitDelta || {}).forEach(([k, v]) => {
+          out[k] = (out[k] || 0) + v;
+        });
+      });
+      return out;
+    }
+
+    function runCharacterInScene(charId, sceneId) {
+      const scene = SCENES[sceneId];
+      const effects = (scene.effects || []).filter((e) => e.target === charId || e.target === "all");
+      const updates = effects.map((e) => applyBeliefUpdate(charId, e)).filter(Boolean);
+      settleTraits(charId);
+      return {
+        charId,
+        sceneId,
+        effects: updates,
+        traitDelta: aggregateTraitDelta(updates)
+      };
+    }
+
+    function deriveCinematicLens(charId) {
+      const c = state.chars[charId];
+      const t = c.traits;
+      const mode = t.sensoryEmbodiment < 0.35 ? "ANGELIC MONOCHROME" : "HUMAN COLOR";
+      const camera = t.control > t.agency ? "frictionless glide / overhead witness" : "grounded tracking / street-level stumble";
+      const gaze = t.permeability > 0.7 ? "distributed observer gaze (subject-object merge pressure)" : "located subjective gaze";
+      const voice = t.sensoryEmbodiment < 0.35
+        ? "abstract, list-like, timeless phrasing"
+        : "concrete nouns, tactile verbs, chronological assertions";
+      return { mode, camera, gaze, voice };
+    }
+
+    function pushEvent(mode, sceneId, payload) {
+      state.turn += 1;
+      const eventId = `T${String(state.turn).padStart(3, "0")}`;
+      const ev = {
+        id: eventId,
+        turn: state.turn,
+        mode,
+        sceneId,
+        at: new Date().toLocaleTimeString(),
+        payload
+      };
+      state.events.unshift(ev);
+      state.events = state.events.slice(0, 120);
+      return ev;
+    }
+
+    function runTurn() {
+      const sceneId = state.selectedScene;
+      const charId = state.focusChar;
+      const result = runCharacterInScene(charId, sceneId);
+      const lens = deriveCinematicLens(charId);
+      const ev = pushEvent("single", sceneId, { result, lens });
+      render(ev);
+    }
+
+    function runEnsemble(count = 1) {
+      let last = null;
+      for (let i = 0; i < count; i++) {
+        const sceneId = state.selectedScene;
+        const perChar = Object.keys(state.chars).map((charId) => {
+          const result = runCharacterInScene(charId, sceneId);
+          return { ...result, lens: deriveCinematicLens(charId) };
+        });
+        last = pushEvent(count > 1 ? "batch" : "ensemble", sceneId, { perChar, loops: count });
+      }
+      render(last);
+    }
+
+    function resetState() {
+      state.turn = 0;
+      state.events = [];
+      state.chars = deepClone(CHARACTER_TEMPLATES);
+      render(null);
+    }
+
+    function renderWorldPanel() {
+      const scene = SCENES[state.selectedScene];
+      els.scenePill.textContent = scene.name;
+
+      const metrics = Object.entries(scene.global).map(([k, v]) => `
+        <div class="metric">
+          <div class="k">${k.replace(/([A-Z])/g, " $1")}</div>
+          <div class="v">${pct(v)}</div>
+          <div class="bar"><span style="width:${pct(v)}"></span></div>
+        </div>
+      `).join("");
+
+      const effectRows = (scene.effects || []).slice(0, 6).map((e) => {
+        const who = state.chars[e.target]?.name || e.target;
+        return `<div class="row"><b>${who}</b> · ${e.belief} · LR ${fmt(e.lr, 2)} · ${e.token}</div>`;
+      }).join("");
+
+      els.worldPanel.innerHTML = `
+        <div class="hint">
+          <b>${scene.name}</b><br>
+          ${scene.pressure}<br>
+          tokens: ${scene.tokens.join(" · ")}
+        </div>
+        <div class="metrics">${metrics}</div>
+        <div class="lens">
+          <b>Active Evidence Effects</b>
+          ${effectRows || `<div class="row">No effects listed for this scene.</div>`}
+        </div>
+      `;
+    }
+
+    function renderCharacterPanel() {
+      const cards = Object.values(state.chars).map((c) => {
+        const isFocus = state.focusChar === c.id;
+        const beliefs = Object.entries(c.beliefs).map(([key, b]) => `
+          <div class="belief-row ${b.polarity}">
+            <div class="belief-top">
+              <span class="belief-name">${b.label}</span>
+              <span class="belief-stat">p=${fmt(b.p, 3)} · s=${b.s} · ${b.polarity}</span>
+            </div>
+            <div class="bar"><span style="width:${pct(b.p)}"></span></div>
+            <div class="belief-stat">${key}</div>
+          </div>
+        `).join("");
+
+        const traits = Object.entries(c.traits).map(([k, v]) => `
+          <div class="trait-row">
+            <div class="trait-top">
+              <span class="trait-name">${k}</span>
+              <span class="trait-stat">${fmt(v, 3)}</span>
+            </div>
+            <div class="bar"><span style="width:${pct(v)}"></span></div>
+          </div>
+        `).join("");
+
+        const compactBeliefs = Object.entries(c.beliefs)
+          .slice(0, 2)
+          .map(([, b]) => `${b.label}: ${fmt(b.p, 2)}`)
+          .join(" · ");
+        const compactTraits = `agency ${fmt(c.traits.agency, 2)} · rumination ${fmt(c.traits.rumination, 2)} · embodiment ${fmt(c.traits.sensoryEmbodiment, 2)}`;
+
+        if (!isFocus) {
+          return `
+            <article class="char-card">
+              <div class="char-head">
+                <div class="char-name">${c.name}</div>
+                <div class="char-meta">${c.role}</div>
+              </div>
+              <div class="hint">
+                ${compactBeliefs}<br>
+                ${compactTraits}
+              </div>
+            </article>
+          `;
+        }
+
+        return `
+          <article class="char-card active">
+            <div class="char-head">
+              <div class="char-name">${c.name}</div>
+              <div class="char-meta">${c.role}</div>
+            </div>
+            <div class="seed-grid">
+              <div class="seed"><b>Wound</b><br>${c.seeds.wound}</div>
+              <div class="seed"><b>Vow</b><br>${c.seeds.vow}</div>
+              <div class="seed"><b>Hunger</b><br>${c.seeds.hunger}</div>
+              <div class="seed"><b>Voice</b><br>${c.seeds.voice}</div>
+            </div>
+            <div class="belief-grid">${beliefs}</div>
+            <div class="trait-grid">${traits}</div>
+          </article>
+        `;
+      }).join("");
+
+      els.charPanel.innerHTML = `<div class="cards">${cards}</div>`;
+    }
+
+    function renderTurnPanel(lastEvent) {
+      const activeChar = state.chars[state.focusChar];
+      const lens = deriveCinematicLens(state.focusChar);
+
+      const latest = lastEvent || state.events[0] || null;
+      const eventHtml = state.events.slice(0, 24).map((ev) => {
+        if (ev.mode === "single") {
+          const p = ev.payload.result;
+          const head = state.chars[p.charId]?.name || p.charId;
+          const rows = p.effects.map((u) => {
+            const cls = u.dp >= 0 ? "delta-plus" : "delta-minus";
+            return `<div class="row"><b>${u.label}</b> (${u.token}) · LR ${fmt(u.lr, 2)} · <span class="${cls}">${u.dp >= 0 ? "+" : ""}${fmt(u.dp, 4)}</span> (${fmt(u.before, 3)} → ${fmt(u.after, 3)})</div>`;
+          }).join("") || `<div class="row">No active belief effects for this character in this scene.</div>`;
+          return `<div class="event">
+            <div class="top"><span>${ev.id} · ${SCENES[ev.sceneId].name}</span><span>${ev.at}</span></div>
+            <div class="row"><b>${head}</b> (${ev.mode})</div>
+            ${rows}
+          </div>`;
+        }
+
+        const rows = (ev.payload.perChar || []).map((pc) => {
+          const name = state.chars[pc.charId]?.name || pc.charId;
+          const shifts = pc.effects
+            .slice(0, 2)
+            .map((u) => `${u.label}: ${u.dp >= 0 ? "+" : ""}${fmt(u.dp, 3)}`)
+            .join(" | ") || "no direct effects";
+          return `<div class="row"><b>${name}</b> · ${shifts}</div>`;
+        }).join("");
+
+        return `<div class="event">
+          <div class="top"><span>${ev.id} · ${SCENES[ev.sceneId].name}</span><span>${ev.at}</span></div>
+          <div class="row"><b>Mode:</b> ${ev.mode}</div>
+          ${rows}
+        </div>`;
+      }).join("");
+
+      const summary = latest
+        ? (latest.mode === "single"
+          ? `${latest.id} · ${state.chars[latest.payload.result.charId].name} in ${SCENES[latest.sceneId].name}`
+          : `${latest.id} · ${latest.mode} run in ${SCENES[latest.sceneId].name}`)
+        : "no event";
+
+      els.eventPill.textContent = summary;
+      els.turnPill.textContent = `turn ${state.turn}`;
+
+      els.turnPanel.innerHTML = `
+        <div class="turn-grid">
+          <div class="formula">
+            <b>Bayesian update with bounded drift:</b><br>
+            <code>logit(p_new) = logit(p_old) + ((eta / inertia) / s) * clamp(log(LR), -clampMax, +clampMax)</code><br>
+            Trait deltas are coupled from belief delta: <code>trait += coupling * (p_new - p_old)</code>.
+          </div>
+          <div class="lens">
+            <div><b>Focus:</b> ${activeChar.name}</div>
+            <div><b>Rendering mode:</b> <span class="${lens.mode.includes("MONO") ? "mode-mono" : "mode-color"}">${lens.mode}</span></div>
+            <div><b>Camera dynamics:</b> ${lens.camera}</div>
+            <div><b>Gaze topology:</b> ${lens.gaze}</div>
+            <div><b>Voice synthesis:</b> ${lens.voice}</div>
+          </div>
+          <div class="event-log">${eventHtml || `<div class="hint">No events yet. Run a scene turn to compute posterior drift.</div>`}</div>
+        </div>
+      `;
+    }
+
+    function render(lastEvent = null) {
+      renderWorldPanel();
+      renderCharacterPanel();
+      renderTurnPanel(lastEvent);
+    }
+
+    function wire() {
+      Object.entries(SCENES).forEach(([id, s]) => {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = s.name;
+        els.sceneSelect.appendChild(opt);
+      });
+
+      Object.entries(state.chars).forEach(([id, c]) => {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = c.name;
+        els.charSelect.appendChild(opt);
+      });
+
+      els.sceneSelect.value = state.selectedScene;
+      els.charSelect.value = state.focusChar;
+      els.driftClamp.value = String(state.driftClamp);
+
+      els.sceneSelect.addEventListener("change", (e) => {
+        state.selectedScene = e.target.value;
+        render();
+      });
+
+      els.charSelect.addEventListener("change", (e) => {
+        state.focusChar = e.target.value;
+        render();
+      });
+
+      els.driftClamp.addEventListener("change", (e) => {
+        state.driftClamp = Number(e.target.value || 0.95);
+        render();
+      });
+
+      els.runTurn.addEventListener("click", () => runTurn());
+      els.runEnsemble.addEventListener("click", () => runEnsemble(1));
+      els.runTriplet.addEventListener("click", () => runEnsemble(3));
+      els.reset.addEventListener("click", () => resetState());
+    }
+
+    wire();
+    render();
+  </script>
+</body>
+</html>

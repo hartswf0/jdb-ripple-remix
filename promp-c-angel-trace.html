@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIPPLES // PROMP-C Angel Trace</title>
+  <style>
+    :root {
+      --bg: #050808;
+      --panel: #0a1210;
+      --line: #1e4036;
+      --text: #e0f1ea;
+      --muted: #8fb8ab;
+      --accent: #63e2ff;
+      --good: #4ed89a;
+      --warn: #f0c861;
+      --bad: #ff7d7d;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 16% 8%, rgba(99, 226, 255, 0.14), transparent 43%),
+        radial-gradient(circle at 84% 85%, rgba(78, 216, 154, 0.08), transparent 45%),
+        var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+    }
+
+    body { padding: 16px; }
+
+    .app {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .head {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(11, 21, 18, 0.96), rgba(8, 14, 12, 0.95));
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+      letter-spacing: 0.04em;
+    }
+
+    .head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+      max-width: 90ch;
+    }
+
+    .mobile-view-tabs {
+      display: none;
+      gap: 8px;
+      align-items: center;
+      background: rgba(7, 13, 11, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 6px;
+      position: sticky;
+      top: 8px;
+      z-index: 40;
+    }
+
+    .mobile-view-btn {
+      flex: 1;
+      min-height: 42px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(8, 13, 11, 0.95);
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    .mobile-view-btn.active {
+      color: var(--text);
+      border-color: rgba(99, 226, 255, 0.62);
+      box-shadow: inset 0 0 0 1px rgba(99, 226, 255, 0.24);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(10, 18, 15, 0.96), rgba(7, 13, 11, 0.95));
+      overflow: hidden;
+    }
+
+    .ph {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(30, 64, 54, 0.7);
+      padding: 10px 12px;
+      background: rgba(5, 11, 9, 0.8);
+      font-size: 0.8rem;
+    }
+
+    .controls {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(7, 12, 11, 0.92);
+      color: var(--text);
+      font: inherit;
+      padding: 9px;
+    }
+
+    textarea {
+      min-height: 460px;
+      resize: vertical;
+      line-height: 1.45;
+      font-size: 0.75rem;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(7, 13, 11, 0.92);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 0.76rem;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: border-color 120ms ease, transform 120ms ease;
+    }
+
+    button:hover { border-color: rgba(99, 226, 255, 0.6); transform: translateY(-1px); }
+    .primary { border-color: rgba(78, 216, 154, 0.58); }
+
+    .output-wrap {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      max-height: calc(100vh - 170px);
+      overflow: auto;
+    }
+
+    .out {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(7, 12, 11, 0.92);
+    }
+
+    .out h2 {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+    }
+
+    .out pre,
+    .out .text {
+      margin: 0;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 0.75rem;
+      color: var(--text);
+    }
+
+    .status {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.4;
+    }
+
+    .error { color: var(--bad); }
+    .ok { color: var(--good); }
+
+    .mobile-run-dock {
+      display: none;
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 50;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
+      background: rgba(6, 11, 10, 0.96);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .mobile-run-dock button {
+      width: 100%;
+      min-height: 44px;
+    }
+
+    @media (max-width: 1080px) {
+      body { padding: 10px; }
+      .mobile-view-tabs { display: flex; }
+      .mobile-run-dock { display: block; }
+      .layout { grid-template-columns: 1fr; }
+      .layout [data-view] { display: none; }
+      body[data-mobile-view="input"] .layout [data-view="input"] { display: block; }
+      body[data-mobile-view="output"] .layout [data-view="output"] { display: block; }
+      textarea { min-height: 260px; }
+      .output-wrap { max-height: none; }
+      .app { padding-bottom: 82px; }
+      .head p { font-size: 0.78rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="head">
+      <h1>PROMP-C // ANGEL TRACE RUNNER</h1>
+      <p>Paste an event record and generate the mandatory sections: EVENT_ANCHOR, THEREFORE_CHAIN, FRACTURE_POINT, PERSPECTIVE_WORLDTEXT, OPERATOR_NEXT_MOVES, and MISSING_EVIDENCE.</p>
+    </header>
+
+    <nav class="mobile-view-tabs" aria-label="Mobile view switcher">
+      <button class="mobile-view-btn active" type="button" data-mobile-view="input">Input</button>
+      <button class="mobile-view-btn" type="button" data-mobile-view="output">Output</button>
+    </nav>
+
+    <section class="layout">
+      <section class="panel" data-view="input">
+        <div class="ph">
+          <strong>INPUT</strong>
+          <span>event JSON + style mode</span>
+        </div>
+        <div class="controls">
+          <label>
+            STYLE_MODE
+            <select id="styleMode">
+              <option value="cold_instrument">cold_instrument</option>
+              <option value="panicky_cacophony">panicky_cacophony</option>
+            </select>
+          </label>
+
+          <label>
+            EVENT JSON
+            <textarea id="eventInput" spellcheck="false"></textarea>
+          </label>
+
+          <div class="row">
+            <button id="loadSample" type="button">LOAD SAMPLE</button>
+            <button id="clearInput" type="button">CLEAR</button>
+            <button id="runTrace" class="primary" type="button">RUN ANGEL TRACE</button>
+          </div>
+
+          <p id="status" class="status">Ready.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-view="output">
+        <div class="ph">
+          <strong>OUTPUT</strong>
+          <span>strict PROMP-C sections</span>
+        </div>
+        <div class="output-wrap">
+          <section class="out"><h2>EVENT_ANCHOR</h2><pre id="outAnchor"></pre></section>
+          <section class="out"><h2>THEREFORE_CHAIN</h2><pre id="outChain"></pre></section>
+          <section class="out"><h2>FRACTURE_POINT</h2><pre id="outFracture"></pre></section>
+          <section class="out"><h2>PERSPECTIVE_WORLDTEXT</h2><p id="outWorldtext" class="text"></p></section>
+          <section class="out"><h2>OPERATOR_NEXT_MOVES</h2><pre id="outMoves"></pre></section>
+          <section class="out"><h2>MISSING_EVIDENCE</h2><pre id="outMissing"></pre></section>
+        </div>
+      </section>
+    </section>
+
+    <div class="mobile-run-dock" aria-label="Mobile run action">
+      <button id="runTraceMobile" class="primary" type="button">RUN ANGEL TRACE</button>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const SAMPLE_EVENT = {
+        scenario: "cupboard",
+        selected_entity: { id: "ant", name: "Formicidae Scout", type: "animate" },
+        vector: "GOAL",
+        event_id: "evt-00042",
+        tick: 42,
+        origin: "manual",
+        source_delta: {
+          before: { activity: 0.41, stability: 0.62, exposure: 0.22, resource: 0.35, signal: 0.44 },
+          after: { activity: 0.68, stability: 0.49, exposure: 0.37, resource: 0.61, signal: 0.53 },
+          delta: { activity: 0.27, stability: -0.13, exposure: 0.15, resource: 0.26, signal: 0.09 }
+        },
+        transfers: [
+          {
+            fromId: "ant",
+            targetId: "glass",
+            pathDelayMs: 240,
+            edge: { channel: "residue", coupling: 0.55, resistance: 0.2 },
+            intensity: 0.44,
+            before: { exposure: 0.48, resource: 0.71 },
+            after: { exposure: 0.62, resource: 0.79 },
+            outcome: "amplified"
+          },
+          {
+            fromId: "ant",
+            targetId: "shadow",
+            pathDelayMs: 320,
+            edge: { channel: "shadow", coupling: 0.28, resistance: 0.48 },
+            intensity: 0.12,
+            before: { signal: 0.66, exposure: 0.14 },
+            after: { signal: 0.71, exposure: 0.11 },
+            outcome: "damped"
+          }
+        ],
+        non_effects: [
+          {
+            fromId: "ant",
+            targetId: "plates",
+            pathDelayMs: 320,
+            edge: { channel: "contact", resistance: 0.75 },
+            reason: "transfer decayed below visible threshold"
+          }
+        ],
+        STONE: null
+      };
+
+      const dims = ["activity", "stability", "exposure", "resource", "signal"];
+
+      const elStyleMode = document.getElementById("styleMode");
+      const elEventInput = document.getElementById("eventInput");
+      const elStatus = document.getElementById("status");
+      const elRunTrace = document.getElementById("runTrace");
+      const elRunTraceMobile = document.getElementById("runTraceMobile");
+      const mobileViewButtons = document.querySelectorAll("[data-mobile-view]");
+
+      const outAnchor = document.getElementById("outAnchor");
+      const outChain = document.getElementById("outChain");
+      const outFracture = document.getElementById("outFracture");
+      const outWorldtext = document.getElementById("outWorldtext");
+      const outMoves = document.getElementById("outMoves");
+      const outMissing = document.getElementById("outMissing");
+
+      function setMobileView(view) {
+        document.body.dataset.mobileView = view;
+        mobileViewButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mobileView === view);
+        });
+      }
+
+      function safe(v, fallback) {
+        return v === undefined || v === null ? fallback : v;
+      }
+
+      function fmtDelta(delta) {
+        return dims
+          .filter((d) => typeof delta[d] === "number")
+          .map((d) => `${d}:${delta[d] >= 0 ? "+" : ""}${delta[d].toFixed(2)}`)
+          .join(" | ");
+      }
+
+      function sumAbs(delta) {
+        return dims.reduce((acc, d) => acc + Math.abs(Number(delta[d] || 0)), 0);
+      }
+
+      function chainOutput(event, style) {
+        const sourceName = event.selected_entity?.name || event.selected_entity?.id || "selected entity";
+        const vector = event.vector || "UNKNOWN";
+        const sourceDelta = event.source_delta?.delta || {};
+        const transfers = Array.isArray(event.transfers) ? event.transfers : [];
+        const nonEffects = Array.isArray(event.non_effects) ? event.non_effects : [];
+
+        const strongestTransfer = transfers
+          .slice()
+          .sort((a, b) => Number(b.intensity || 0) - Number(a.intensity || 0))[0];
+
+        const l0 = event.STONE
+          ? `L0 Stone: ${sourceName} receives ${vector}. Declared extra stone: ${event.STONE}. Known: source delta and path records. Inferred: broader field implications.`
+          : `L0 Stone: ${sourceName} receives ${vector}. No extra stone provided; only recorded perturbation is allowed.`;
+
+        const l1 = `L1 Source: ${sourceName} shifts by ${fmtDelta(sourceDelta)}. First observable sign: ${sourceDelta.activity > 0 ? "tempo rises" : "tempo compresses"} while ${sourceDelta.stability < 0 ? "stability is taxed" : "stability holds"}.`;
+
+        const l2Parts = [];
+        if (transfers.length) {
+          transfers.forEach((t) => {
+            l2Parts.push(
+              `${t.fromId || sourceName} -> ${t.targetId} via ${t.edge?.channel || "unknown"}, delay ${t.pathDelayMs || t.edge?.delayMs || "?"}ms, resistance ${Number(t.edge?.resistance || 0).toFixed(2)}, intensity ${Number(t.intensity || 0).toFixed(2)}, outcome ${t.outcome || "unlabeled"}.`
+            );
+          });
+        } else {
+          l2Parts.push("No transfer crossed significance threshold.");
+        }
+        if (nonEffects.length) {
+          l2Parts.push(`Blocked path: ${nonEffects[0].fromId || sourceName} -> ${nonEffects[0].targetId} because ${nonEffects[0].reason || "insufficient pathway"}.`);
+        }
+        const l2 = `L2 Edge: ${l2Parts.join(" ")}`;
+
+        const fieldGain = transfers.reduce((acc, t) => acc + Number(t.intensity || 0), 0);
+        const fieldLoss = nonEffects.length * 0.18;
+        const fieldDirection = fieldGain > fieldLoss ? "local leverage consolidates near the active channel" : "constraint dominates and diffusion fails";
+        const l3 = `L3 Field: Transfer mass ${fieldGain.toFixed(2)} vs blockage pressure ${fieldLoss.toFixed(2)}; therefore ${fieldDirection}. Inference: resource routing now privileges ${strongestTransfer ? strongestTransfer.targetId : sourceName} until a counter-vector is introduced.`;
+
+        const l4 = style === "panicky_cacophony"
+          ? `L4 Mask: From inside ${sourceName}, the scene becomes over-amplified; signals arrive early, collide, and then fray. The body of attention cannot hold every channel at once.`
+          : `L4 Mask: From inside ${sourceName}, the scene feels narrower but more legible: one path strengthens, one path fails, and uncertainty clusters around delayed effects.`;
+
+        return { l0, l1, l2, l3, l4, strongestTransfer, sourceName, vector, sourceDelta, transfers, nonEffects };
+      }
+
+      function fracture(chain) {
+        if (chain.nonEffects.length) {
+          const n = chain.nonEffects[0];
+          return `Fracture Point: system pressure demands propagation, but lived perspective hits resistance at ${n.targetId}. The network says "continue" while the body of the event says "not through this channel." This mismatch creates directional stress and is the most informative point for the next intervention.`;
+        }
+        if (chain.strongestTransfer) {
+          return `Fracture Point: field-level leverage concentrates at ${chain.strongestTransfer.targetId}, while the source perspective remains partially unresolved. The event is effective but not complete: causality traveled, identity has not fully stabilized.`;
+        }
+        return "Fracture Point: no outward path stabilized. The rupture sits between intended perturbation and absent transfer evidence.";
+      }
+
+      function worldtext(chain, style) {
+        const t = chain.strongestTransfer;
+        const sourceDeltaLine = `${chain.sourceName} shifts by ${fmtDelta(chain.sourceDelta)}.`;
+
+        const transferLine = t
+          ? `I can track one definite movement: pressure reaches ${t.targetId} through ${t.edge?.channel || "unknown"} after ${t.pathDelayMs || t.edge?.delayMs || "?"}ms.`
+          : "No channel crosses into a stable neighbor response; the event remains mostly in me.";
+
+        const blockLine = chain.nonEffects.length
+          ? `A route fails in plain sight: ${chain.nonEffects[0].targetId} does not receive the change because ${chain.nonEffects[0].reason}.`
+          : "No blocked path was recorded this cycle.";
+
+        const tone = style === "panicky_cacophony"
+          ? "Everything arrives louder than scale should allow, then drops away in jagged segments. I cannot separate warning from invitation fast enough."
+          : "The field does not close. It keeps one seam open, and that seam is where the next test should begin.";
+
+        return `${sourceDeltaLine} I do not experience this as narrative; I experience it as distribution. ${transferLine} ${blockLine} The record is precise where channels exist and thin where visibility collapses. ${tone} Perhaps the next perturbation confirms whether this structure is durable, or whether it was only a temporary alignment of force and timing.`;
+      }
+
+      function nextMoves(chain) {
+        const moves = [];
+        if (chain.strongestTransfer) {
+          moves.push(`1. Target ${chain.strongestTransfer.targetId} with SHIFT to test whether received pressure becomes a state transition rather than a momentary response.`);
+        } else {
+          moves.push(`1. Re-apply ${chain.vector} on ${chain.sourceName} with a higher coupling path to test if transfer threshold can be crossed.`);
+        }
+        if (chain.nonEffects.length) {
+          const n = chain.nonEffects[0];
+          moves.push(`2. Probe ${n.targetId} with GOAL to test whether blocked path ${n.fromId || chain.sourceName} -> ${n.targetId} fails by resistance or by missing channel.`);
+        } else {
+          moves.push(`2. Apply OBSTACLE on ${chain.sourceName} to map which current strong channels collapse first under pressure.`);
+        }
+        moves.push(`3. Replay this event and compare a single alternative vector on ${chain.sourceName}; accept only outcomes that improve evidence density (more explicit transfer or clearer resistance).`);
+        return moves.join("\n");
+      }
+
+      function missingEvidence(event) {
+        const lines = [];
+        if (!event.prompt_provenance) lines.push("- prompt_provenance IDs for seed, edge, and audit layers");
+        if (!event.transfers || !event.transfers.length) lines.push("- at least one measured transfer with intensity and delay");
+        if (!event.non_effects || !event.non_effects.length) lines.push("- one explicit non-effect or resistance condition");
+        if (!event.source_delta?.before || !event.source_delta?.after) lines.push("- full source before/after vectors for all tracked dimensions");
+        if (!event.origin) lines.push("- event origin (manual/autoplay)");
+        return lines.length ? lines.join("\n") : "- no critical gaps; confidence limited only by model assumptions";
+      }
+
+      function runTrace() {
+        let event;
+        try {
+          event = JSON.parse(elEventInput.value);
+        } catch (err) {
+          elStatus.textContent = `Invalid JSON: ${err.message}`;
+          elStatus.className = "status error";
+          return;
+        }
+
+        if (!event.selected_entity || !event.vector || !event.source_delta) {
+          elStatus.textContent = "Missing required fields: selected_entity, vector, source_delta.";
+          elStatus.className = "status error";
+          return;
+        }
+
+        const style = elStyleMode.value;
+        const chain = chainOutput(event, style);
+
+        outAnchor.textContent = [
+          `event_id: ${safe(event.event_id, "n/a")}`,
+          `tick: ${safe(event.tick, "n/a")}`,
+          `origin: ${safe(event.origin, "n/a")}`,
+          `source: ${chain.sourceName}`,
+          `vector: ${chain.vector}`,
+          `source_delta: ${fmtDelta(chain.sourceDelta)}`
+        ].join("\n");
+
+        outChain.textContent = [chain.l0, chain.l1, chain.l2, chain.l3, chain.l4].join("\n\n");
+        outFracture.textContent = fracture(chain);
+        outWorldtext.textContent = worldtext(chain, style);
+        outMoves.textContent = nextMoves(chain);
+        outMissing.textContent = missingEvidence(event);
+
+        const confidence = sumAbs(chain.sourceDelta) + (chain.transfers.length * 0.15);
+        elStatus.textContent = `ANGEL TRACE complete. Confidence index: ${confidence.toFixed(2)} (higher means denser explicit evidence).`;
+        elStatus.className = "status ok";
+
+        if (window.matchMedia("(max-width: 1080px)").matches) {
+          setMobileView("output");
+        }
+      }
+
+      document.getElementById("loadSample").addEventListener("click", () => {
+        elEventInput.value = JSON.stringify(SAMPLE_EVENT, null, 2);
+        elStatus.textContent = "Sample loaded.";
+        elStatus.className = "status";
+        setMobileView("input");
+      });
+
+      document.getElementById("clearInput").addEventListener("click", () => {
+        elEventInput.value = "";
+        elStatus.textContent = "Input cleared.";
+        elStatus.className = "status";
+        setMobileView("input");
+      });
+
+      elRunTrace.addEventListener("click", runTrace);
+      elRunTraceMobile.addEventListener("click", runTrace);
+
+      mobileViewButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setMobileView(btn.dataset.mobileView);
+        });
+      });
+
+      setMobileView("input");
+      elEventInput.value = JSON.stringify(SAMPLE_EVENT, null, 2);
+      runTrace();
+    })();
+  </script>
+</body>
+</html>

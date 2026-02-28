@@ -330,17 +330,22 @@
           <h1 id="deck-title">RIPPLES // Launch Deck</h1>
           <p class="subtitle">
             Single entry point for all local interfaces, experiments, and prompt/docs files in this repo.
+            Canonical design spine is <code>PROMPT-BETA.MD</code>; all interface variants and tooling should map back to that spec.
             Use this page as the root index for GitHub Pages or local browsing.
           </p>
           <div class="badges" aria-label="Project badges">
             <span class="badge">Primary UI: indexgpt.html</span>
             <span class="badge">Workbench: evo.html</span>
+            <span class="badge">Spec Spine: PROMPT-BETA.MD</span>
+            <span class="badge">Autonomous Field: ripple-engine.html</span>
             <span class="badge">LLM bridge files present</span>
           </div>
         </div>
         <div class="hero-actions" aria-label="Quick launch">
           <a class="btn btn-primary" href="indexgpt.html">Open Main Simulation</a>
+          <a class="btn" href="ripple-engine.html">Open Ripple Engine</a>
           <a class="btn" href="evo.html">Open EVO Workbench</a>
+          <a class="btn" href="PROMPT-BETA.MD">Open Prompt Beta</a>
           <a class="btn btn-warn" href="README.md">Open README</a>
         </div>
       </div>
@@ -353,6 +358,24 @@
           <div class="panel-note">HTML entry points</div>
         </div>
         <div class="cards">
+          <a class="card" href="ripples-integrated.html">
+            <kbd>Integrated</kbd>
+            <h3>RIPPLES Fully Integrated</h3>
+            <p>Unified mobile-first workflow: operate + ANGEL TRACE + audit replay in one interface.</p>
+            <div class="path">ripples-integrated.html</div>
+          </a>
+          <a class="card" href="ripple-engine.html">
+            <kbd>Primary Field</kbd>
+            <h3>Ripple Engine</h3>
+            <p>Autonomous topographic ripple field with atomic stub parsing, import/export canon, and always-visible auto mode.</p>
+            <div class="path">ripple-engine.html</div>
+          </a>
+          <a class="card" href="moss-om-reality-warper.html">
+            <kbd>Lineage OM</kbd>
+            <h3>MOSS × Orchid Reality Warper</h3>
+            <p>Patch-driven causal engine: compile semantic patches, mutate physics, and audit resulting ripple deltas.</p>
+            <div class="path">moss-om-reality-warper.html</div>
+          </a>
           <a class="card" href="indexgpt.html">
             <kbd>Primary</kbd>
             <h3>Simulation Interface</h3>
@@ -365,11 +388,35 @@
             <p>Perspective workbench with embedded/standalone launch hooks into the main simulation.</p>
             <div class="path">evo.html</div>
           </a>
+          <a class="card" href="prompt-beta-causal.html">
+            <kbd>Prompt</kbd>
+            <h3>Prompt Beta Causal</h3>
+            <p>Mobile-friendly causal instrument aligned to <code>PROMPT-BETA.MD</code>.</p>
+            <div class="path">prompt-beta-causal.html</div>
+          </a>
+          <a class="card" href="promp-c-angel-trace.html">
+            <kbd>Prompt</kbd>
+            <h3>PROMP-C Angel Trace</h3>
+            <p>Mobile-friendly event-to-output runner for ANGEL TRACE sections.</p>
+            <div class="path">promp-c-angel-trace.html</div>
+          </a>
+          <a class="card" href="system-core-instrument.html">
+            <kbd>Prompt</kbd>
+            <h3>System Core Instrument</h3>
+            <p>Mobile-friendly full contract implementation aligned to <code>SYSTEM.MD</code>.</p>
+            <div class="path">system-core-instrument.html</div>
+          </a>
           <a class="card" href="blue-orchid-super.html">
             <kbd>LLM</kbd>
             <h3>Blue Orchid Super</h3>
             <p>Super modeler variant wired to the local LLM bridge scripts.</p>
             <div class="path">blue-orchid-super.html</div>
+          </a>
+          <a class="card" href="blue-orchid-cinematic-souls.html">
+            <kbd>LLM</kbd>
+            <h3>Blue Orchid Cinematic Souls</h3>
+            <p>Blue Orchid lineage with Soul_DNA structural analysis mode and inverse-generative compare workflow.</p>
+            <div class="path">blue-orchid-cinematic-souls.html</div>
           </a>
           <a class="card" href="blue-orchid.html">
             <kbd>LLM</kbd>
@@ -388,6 +435,12 @@
             <h3>Moss</h3>
             <p>ORCA moss monitor baseline version.</p>
             <div class="path">moss.html</div>
+          </a>
+          <a class="card" href="moss-wings-bayesian.html">
+            <kbd>Monitor</kbd>
+            <h3>Moss Wings Bayesian</h3>
+            <p>Reimagined MOSS as inverse-generative Wings architecture with soul seeds, scene evidence LRs, and bounded drift.</p>
+            <div class="path">moss-wings-bayesian.html</div>
           </a>
         </div>
       </section>
@@ -422,9 +475,15 @@
       <section class="panel">
         <div class="panel-head">
           <h2 class="panel-title">Docs / Prompt Corpus / API Config</h2>
-          <div class="panel-note">Markdown files in repo root</div>
+          <div class="panel-note">All tracks should resolve to PROMPT-BETA + SYSTEM contracts</div>
         </div>
         <div class="cards">
+          <a class="card" href="PROMPT-BETA.MD">
+            <kbd>Spec Spine</kbd>
+            <h3>Prompt Beta (Canonical)</h3>
+            <p>Primary contract for causal legibility, perspective integrity, and audit-ready ripple outputs.</p>
+            <div class="path">PROMPT-BETA.MD</div>
+          </a>
           <a class="card" href="README.md">
             <kbd>Docs</kbd>
             <h3>README</h3>
@@ -437,17 +496,17 @@
             <p>Worldtext generation system prompt and ontology.</p>
             <div class="path">SYSTEM.MD</div>
           </a>
-          <a class="card" href="PROMPT-BETA.MD">
-            <kbd>Prompt</kbd>
-            <h3>Prompt Beta</h3>
-            <p>Beta prompt architecture and acceptance criteria.</p>
-            <div class="path">PROMPT-BETA.MD</div>
-          </a>
           <a class="card" href="PROMP-C.MD">
             <kbd>Prompt</kbd>
             <h3>PROMP-C</h3>
             <p>Angel perspective ripple orchestrator prompt.</p>
             <div class="path">PROMP-C.MD</div>
+          </a>
+          <a class="card" href="PROMPT-OM-STRUCTURAL.MD">
+            <kbd>Prompt</kbd>
+            <h3>Prompt OM Structural</h3>
+            <p>Strict architecture for structural iGSS analysis and inverse-generative diagnostics.</p>
+            <div class="path">PROMPT-OM-STRUCTURAL.MD</div>
           </a>
           <a class="card" href="api.md">
             <kbd>Config</kbd>

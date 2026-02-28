@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIPPLES // Prompt Beta Causal</title>
+  <style>
+    :root {
+      --bg: #040807;
+      --panel: #08120f;
+      --line: #1b3f35;
+      --text: #d8efe6;
+      --muted: #89b8a8;
+      --goal: #f0c95f;
+      --obstacle: #ff6767;
+      --shift: #68e7ff;
+      --ok: #40d892;
+      --grid: #0b1e1a;
+      --pulse: #7af7bb;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 12% 14%, rgba(64, 216, 146, 0.14), transparent 44%),
+        radial-gradient(circle at 88% 20%, rgba(104, 231, 255, 0.10), transparent 42%),
+        var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+    }
+
+    body { padding: 16px; }
+
+    .app {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .head {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(11, 22, 18, 0.96), rgba(8, 16, 13, 0.94));
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: clamp(1rem, 2.6vw, 1.55rem);
+      letter-spacing: 0.03em;
+    }
+
+    .head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      max-width: 70ch;
+      line-height: 1.4;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.74rem;
+      color: var(--muted);
+      background: rgba(7, 13, 11, 0.85);
+    }
+
+    .mobile-view-tabs {
+      display: none;
+      gap: 8px;
+      align-items: center;
+      background: rgba(7, 13, 11, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 6px;
+      position: sticky;
+      top: 8px;
+      z-index: 40;
+    }
+
+    .mobile-view-btn {
+      flex: 1;
+      min-height: 42px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(8, 14, 12, 0.95);
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.75rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .mobile-view-btn.active {
+      color: var(--text);
+      border-color: rgba(104, 231, 255, 0.62);
+      box-shadow: inset 0 0 0 1px rgba(104, 231, 255, 0.24);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 360px;
+      gap: 14px;
+      min-height: 72vh;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(10, 19, 16, 0.96), rgba(7, 13, 11, 0.95));
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .ph {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(27, 63, 53, 0.74);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: rgba(5, 10, 9, 0.78);
+    }
+
+    .ph strong {
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+    }
+
+    .small { color: var(--muted); font-size: 0.74rem; }
+
+    .body { padding: 12px; min-height: 0; }
+
+    .entity-list {
+      display: grid;
+      gap: 8px;
+      max-height: 42vh;
+      overflow: auto;
+    }
+
+    .entity-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(8, 15, 13, 0.85);
+      color: var(--text);
+      text-align: left;
+      padding: 11px 10px;
+      cursor: pointer;
+      transition: border-color 120ms ease, transform 120ms ease;
+      min-height: 46px;
+    }
+
+    .entity-btn:hover { border-color: rgba(104, 231, 255, 0.5); transform: translateY(-1px); }
+
+    .entity-btn.active {
+      border-color: rgba(64, 216, 146, 0.65);
+      box-shadow: inset 0 0 0 1px rgba(64, 216, 146, 0.25);
+    }
+
+    .entity-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .entity-name { font-size: 0.85rem; }
+    .entity-state { color: var(--muted); font-size: 0.73rem; }
+
+    .center {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 3px;
+      background: var(--grid);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 3px;
+      min-height: 260px;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      border: 1px solid rgba(27, 63, 53, 0.42);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      color: var(--muted);
+      position: relative;
+      background: rgba(6, 11, 10, 0.88);
+      overflow: hidden;
+    }
+
+    .cell.has { color: var(--text); background: rgba(13, 27, 22, 0.95); cursor: pointer; }
+
+    .cell.has.active {
+      border-color: rgba(64, 216, 146, 0.8);
+      box-shadow: 0 0 0 1px rgba(64, 216, 146, 0.5), 0 0 18px rgba(64, 216, 146, 0.2);
+    }
+
+    .cell.flash-goal::after,
+    .cell.flash-obstacle::after,
+    .cell.flash-shift::after {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      animation: ring 850ms ease-out forwards;
+    }
+
+    .cell.flash-goal::after { border: 2px solid var(--goal); }
+    .cell.flash-obstacle::after { border: 2px solid var(--obstacle); }
+    .cell.flash-shift::after { border: 2px solid var(--shift); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .vbtn {
+      min-height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(7, 14, 12, 0.88);
+      color: var(--text);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: transform 120ms ease, border-color 120ms ease;
+    }
+
+    .vbtn:hover { transform: translateY(-1px); }
+    .vbtn:disabled { cursor: not-allowed; opacity: 0.45; transform: none; }
+    .vbtn.goal { border-color: rgba(240, 201, 95, 0.52); color: var(--goal); }
+    .vbtn.obstacle { border-color: rgba(255, 103, 103, 0.58); color: var(--obstacle); }
+    .vbtn.shift { border-color: rgba(104, 231, 255, 0.56); color: var(--shift); }
+
+    .mono {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(6, 11, 10, 0.92);
+      padding: 10px;
+      font-size: 0.79rem;
+      line-height: 1.45;
+      overflow: auto;
+      white-space: pre-wrap;
+      max-height: 220px;
+    }
+
+    .impact-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .impact-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(6, 12, 10, 0.9);
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .audit {
+      display: grid;
+      gap: 8px;
+      max-height: 26vh;
+      overflow: auto;
+    }
+
+    .audit button {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(7, 13, 11, 0.87);
+      color: var(--text);
+      border-radius: 9px;
+      text-align: left;
+      padding: 10px 9px;
+      font-size: 0.74rem;
+      cursor: pointer;
+    }
+
+    .audit button:hover { border-color: rgba(104, 231, 255, 0.5); }
+
+    .mobile-vector-dock {
+      display: none;
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 50;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(6, 11, 10, 0.96);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+
+    .mobile-vector-dock button {
+      min-height: 44px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: rgba(8, 14, 12, 0.94);
+      color: var(--text);
+      font: inherit;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .mobile-vector-dock .goal { color: var(--goal); border-color: rgba(240, 201, 95, 0.56); }
+    .mobile-vector-dock .obstacle { color: var(--obstacle); border-color: rgba(255, 103, 103, 0.56); }
+    .mobile-vector-dock .shift { color: var(--shift); border-color: rgba(104, 231, 255, 0.58); }
+
+    @keyframes ring {
+      0% { transform: scale(0.3); opacity: 1; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+
+    @media (max-width: 1080px) {
+      body { padding: 10px; }
+      .mobile-view-tabs { display: flex; }
+      .mobile-vector-dock { display: grid; }
+      .layout {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+      .layout [data-view] { display: none; }
+      body[data-mobile-view="simulate"] .layout [data-view="simulate"] { display: grid; }
+      body[data-mobile-view="entities"] .layout [data-view="entities"] { display: flex; }
+      body[data-mobile-view="impact"] .layout [data-view="impact"] { display: flex; }
+      .entity-list { max-height: none; }
+      .audit { max-height: none; }
+      .app { padding-bottom: 82px; }
+      .head p { font-size: 0.78rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="head">
+      <div>
+        <h1>PROMPT-BETA // Causal Event Instrument</h1>
+        <p>Event first, prose second. Trigger a vector, inspect source delta, transfers, resistance, and replayable audit evidence.</p>
+      </div>
+      <div class="pill-row">
+        <span class="pill">Scenario: THE CUPBOARD</span>
+        <span class="pill">Tick: <span id="tickPill">0</span></span>
+      </div>
+    </header>
+
+    <nav class="mobile-view-tabs" aria-label="Mobile view switcher">
+      <button class="mobile-view-btn active" type="button" data-mobile-view="simulate">Simulate</button>
+      <button class="mobile-view-btn" type="button" data-mobile-view="entities">Entities</button>
+      <button class="mobile-view-btn" type="button" data-mobile-view="impact">Impact/Audit</button>
+    </nav>
+
+    <section class="layout">
+      <section class="panel" data-view="entities">
+        <div class="ph">
+          <strong>ENTITY POOL</strong>
+          <span class="small">1-6 select</span>
+        </div>
+        <div class="body">
+          <div id="entityList" class="entity-list"></div>
+        </div>
+      </section>
+
+      <section class="center" data-view="simulate">
+        <section class="panel">
+          <div class="ph">
+            <strong>CAUSAL GRID</strong>
+            <span class="small">click any node</span>
+          </div>
+          <div class="body">
+            <div id="grid" class="grid" aria-label="Causal grid"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="ph">
+            <strong>VECTOR CONTROLS</strong>
+            <span class="small">G / O / S</span>
+          </div>
+          <div class="body">
+            <div class="controls">
+              <button id="btnGoal" class="vbtn goal" type="button">GOAL</button>
+              <button id="btnObstacle" class="vbtn obstacle" type="button">OBSTACLE</button>
+              <button id="btnShift" class="vbtn shift" type="button">SHIFT</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="ph">
+            <strong>WORLDTEXT</strong>
+            <span class="small">derived from event record</span>
+          </div>
+          <div class="body">
+            <div id="worldtext" class="mono"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel" data-view="impact">
+        <div class="ph">
+          <strong>IMPACT + AUDIT</strong>
+          <span class="small">evidence first</span>
+        </div>
+        <div class="body">
+          <div id="impact" class="impact-grid"></div>
+          <div class="ph" style="margin-top:12px; border: 1px solid var(--line); border-radius: 10px;">
+            <strong>AUDIT LOG</strong>
+            <span class="small">click to replay</span>
+          </div>
+          <div id="audit" class="audit" style="margin-top:10px;"></div>
+        </div>
+      </section>
+    </section>
+
+    <div class="mobile-vector-dock" aria-label="Quick vector controls">
+      <button type="button" class="goal" data-vector-trigger="GOAL">GOAL</button>
+      <button type="button" class="obstacle" data-vector-trigger="OBSTACLE">OBSTACLE</button>
+      <button type="button" class="shift" data-vector-trigger="SHIFT">SHIFT</button>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const VECTOR_BIAS = {
+        GOAL: { activity: 0.18, stability: -0.06, exposure: 0.07, resource: 0.16, signal: 0.05 },
+        OBSTACLE: { activity: -0.10, stability: -0.15, exposure: 0.08, resource: -0.12, signal: 0.08 },
+        SHIFT: { activity: 0.05, stability: -0.04, exposure: 0.11, resource: 0.01, signal: 0.16 }
+      };
+
+      const CHANNEL_BIAS = {
+        residue: { resource: 0.15, exposure: 0.07, signal: 0.03 },
+        light: { exposure: 0.14, signal: 0.11, stability: -0.02 },
+        shadow: { exposure: -0.11, signal: 0.09, stability: 0.03 },
+        contact: { stability: -0.06, activity: 0.04, exposure: 0.05 },
+        pressure: { stability: -0.08, signal: 0.05, activity: 0.03 }
+      };
+
+      const latent = {
+        ant: {
+          GOAL: "I tighten on a scent that is more map than smell. The cupboard becomes navigable where sweetness is probable.",
+          OBSTACLE: "Ceramic rises where route should continue. Traction fails. The line thins into interruption.",
+          SHIFT: "My pace edits itself. Foraging becomes pause, then listening, then a different kind of motion."
+        },
+        "dust-mote": {
+          GOAL: "I angle toward the beam and briefly become visible enough to count.",
+          OBSTACLE: "Air turns against me. I lose lift and settle where I meant to pass.",
+          SHIFT: "Charge gathers; I stop being singular and become a small weather of fragments."
+        },
+        plates: {
+          GOAL: "Weight reorganizes itself to remain coherent under small disturbances.",
+          OBSTACLE: "A tiny tremor passes through glaze and balance. Stillness has to be re-earned.",
+          SHIFT: "Temperature changes my tension; quiet ceramic sound becomes the new state."
+        },
+        glass: {
+          GOAL: "Residual sweetness holds at the rim and calls attention from the edge network.",
+          OBSTACLE: "Surface dries and signal weakens; attraction collapses into blank transparency.",
+          SHIFT: "Humidity rewrites my boundary. I become receiver, lens, and trap at once."
+        },
+        light: {
+          GOAL: "I cut a sharper lane through dust and edge, clarifying what can move now.",
+          OBSTACLE: "A passing occlusion breaks continuity. My path fragments.",
+          SHIFT: "I stop acting like direction and start acting like pulse."
+        },
+        shadow: {
+          GOAL: "I seek the regions where contrast grants shape and leverage.",
+          OBSTACLE: "Brightness hardens against me; spread narrows to a thin remainder.",
+          SHIFT: "I thicken from absence into pressure; edges gain authority."
+        }
+      };
+
+      const runtime = {
+        tick: 0,
+        selectedId: "ant",
+        viewedEventId: null,
+        entities: {
+          ant: {
+            id: "ant", name: "Formicidae Scout", icon: "🐜", type: "animate", stateLabel: "foraging", position: { x: 1, y: 2 },
+            state: { activity: 0.44, stability: 0.63, exposure: 0.29, resource: 0.35, signal: 0.41 }
+          },
+          "dust-mote": {
+            id: "dust-mote", name: "Dust Mote", icon: "✧", type: "inanimate", stateLabel: "suspended", position: { x: 0, y: 0 },
+            state: { activity: 0.26, stability: 0.52, exposure: 0.61, resource: 0.18, signal: 0.47 }
+          },
+          plates: {
+            id: "plates", name: "Plate Stack", icon: "🍽️", type: "inanimate", stateLabel: "stacked", position: { x: 4, y: 2 },
+            state: { activity: 0.18, stability: 0.86, exposure: 0.16, resource: 0.41, signal: 0.28 }
+          },
+          glass: {
+            id: "glass", name: "Tall Glass", icon: "🥛", type: "inanimate", stateLabel: "film-wet", position: { x: 1, y: 4 },
+            state: { activity: 0.23, stability: 0.68, exposure: 0.44, resource: 0.66, signal: 0.31 }
+          },
+          light: {
+            id: "light", name: "Light Shaft", icon: "🔆", type: "abstract", stateLabel: "slanting", position: { x: 6, y: 0 },
+            state: { activity: 0.52, stability: 0.35, exposure: 0.88, resource: 0.1, signal: 0.84 }
+          },
+          shadow: {
+            id: "shadow", name: "Shadow", icon: "⬛", type: "abstract", stateLabel: "pooled", position: { x: 6, y: 4 },
+            state: { activity: 0.29, stability: 0.51, exposure: 0.12, resource: 0.05, signal: 0.72 }
+          }
+        },
+        edges: [
+          { from: "ant", to: "plates", coupling: 0.26, channel: "contact", delayMs: 280, resistance: 0.63 },
+          { from: "ant", to: "glass", coupling: 0.55, channel: "residue", delayMs: 240, resistance: 0.20 },
+          { from: "ant", to: "shadow", coupling: 0.28, channel: "shadow", delayMs: 320, resistance: 0.48 },
+          { from: "dust-mote", to: "light", coupling: 0.48, channel: "light", delayMs: 180, resistance: 0.22 },
+          { from: "dust-mote", to: "shadow", coupling: 0.35, channel: "shadow", delayMs: 220, resistance: 0.36 },
+          { from: "plates", to: "glass", coupling: 0.4, channel: "contact", delayMs: 260, resistance: 0.37 },
+          { from: "glass", to: "ant", coupling: 0.51, channel: "residue", delayMs: 260, resistance: 0.29 },
+          { from: "light", to: "shadow", coupling: 0.58, channel: "light", delayMs: 210, resistance: 0.19 },
+          { from: "shadow", to: "light", coupling: 0.43, channel: "shadow", delayMs: 210, resistance: 0.24 }
+        ],
+        audit: []
+      };
+
+      const dims = ["activity", "stability", "exposure", "resource", "signal"];
+      const entityOrder = Object.keys(runtime.entities);
+
+      const elEntityList = document.getElementById("entityList");
+      const elGrid = document.getElementById("grid");
+      const elWorldtext = document.getElementById("worldtext");
+      const elImpact = document.getElementById("impact");
+      const elAudit = document.getElementById("audit");
+      const elTickPill = document.getElementById("tickPill");
+      const btnGoal = document.getElementById("btnGoal");
+      const btnObstacle = document.getElementById("btnObstacle");
+      const btnShift = document.getElementById("btnShift");
+      const mobileViewButtons = document.querySelectorAll("[data-mobile-view]");
+      const dockVectorButtons = document.querySelectorAll("[data-vector-trigger]");
+
+      function clamp01(v) {
+        return Math.max(0, Math.min(1, v));
+      }
+
+      function round2(v) {
+        return Math.round(v * 100) / 100;
+      }
+
+      function nudge(base) {
+        return base + (Math.random() - 0.5) * 0.05;
+      }
+
+      function computeDelta(before, vector, scale = 1) {
+        const bias = VECTOR_BIAS[vector];
+        const after = {};
+        const delta = {};
+        dims.forEach((d) => {
+          const moved = clamp01(before[d] + nudge((bias[d] || 0) * scale));
+          after[d] = round2(moved);
+          delta[d] = round2(after[d] - before[d]);
+        });
+        return { before, after, delta };
+      }
+
+      function applyTransfer(targetState, channel, intensity) {
+        const bias = CHANNEL_BIAS[channel] || CHANNEL_BIAS.contact;
+        const before = { ...targetState };
+        const after = { ...targetState };
+        dims.forEach((d) => {
+          const moved = clamp01(after[d] + (bias[d] || 0) * intensity + (Math.random() - 0.5) * 0.02);
+          after[d] = round2(moved);
+        });
+        return { before, after };
+      }
+
+      function deltaSummary(deltaObj) {
+        return dims.map((d) => `${d}:${deltaObj[d] >= 0 ? "+" : ""}${deltaObj[d].toFixed(2)}`).join("  ");
+      }
+
+      function generateWorldtext(event) {
+        const source = runtime.entities[event.source.entityId];
+        const transfer = event.transfers[0];
+        const blocked = event.nonEffects[0];
+        const seed = latent[source.id]?.[event.source.vector] || "State pressure changes and the field answers unevenly.";
+
+        const transferLine = transfer
+          ? `A measurable movement reaches ${runtime.entities[transfer.targetId].name} over ${transfer.edge.channel} after ${transfer.edge.delayMs}ms, with resistance ${transfer.edge.resistance.toFixed(2)} and intensity ${transfer.intensity.toFixed(2)}.`
+          : "No outgoing path crossed visible threshold; the perturbation remains mostly local.";
+
+        const blockedLine = blocked
+          ? `One route fails: ${runtime.entities[blocked.targetId].name} does not resolve into visible change because ${blocked.reason}.`
+          : "No major blocked path was recorded on this pass.";
+
+        const uncertain = "Perhaps the next move should test whether this pressure amplifies across a different channel, or whether it decays before becoming structure.";
+
+        return `${seed}\n\n${transferLine}\n\n${blockedLine}\n\n${uncertain}`;
+      }
+
+      function trigger(vector, options = {}) {
+        const source = runtime.entities[runtime.selectedId];
+        if (!source) return;
+
+        const sourceBefore = { ...source.state };
+        const sourceDelta = computeDelta(sourceBefore, vector);
+        source.state = { ...sourceDelta.after };
+
+        const transfers = [];
+        const nonEffects = [];
+
+        runtime.edges.filter((e) => e.from === source.id).forEach((edge) => {
+          const baseIntensity = Math.abs(sourceDelta.delta.activity) + Math.abs(sourceDelta.delta.signal) + Math.abs(sourceDelta.delta.resource);
+          const intensity = round2(baseIntensity * edge.coupling * (1 - edge.resistance));
+          if (intensity < 0.08) {
+            nonEffects.push({ targetId: edge.to, reason: "transfer decayed below visible threshold", edge });
+            return;
+          }
+
+          const target = runtime.entities[edge.to];
+          const moved = applyTransfer(target.state, edge.channel, intensity);
+          target.state = { ...moved.after };
+          transfers.push({
+            targetId: edge.to,
+            edge,
+            intensity,
+            before: moved.before,
+            after: moved.after,
+            outcome: intensity > 0.22 ? "amplified" : "damped"
+          });
+        });
+
+        runtime.tick += 1;
+
+        const event = {
+          eventId: `evt-${String(runtime.tick).padStart(4, "0")}`,
+          tick: runtime.tick,
+          scenarioId: "cupboard",
+          source: { entityId: source.id, vector },
+          sourceDelta,
+          transfers,
+          nonEffects,
+          worldtext: "",
+          origin: options.origin || "manual"
+        };
+
+        event.worldtext = generateWorldtext(event);
+        runtime.audit.unshift(event);
+        runtime.viewedEventId = event.eventId;
+
+        flashCells(event);
+        renderAll();
+      }
+
+      function flashCells(event) {
+        const srcCell = elGrid.querySelector(`[data-entity-id="${event.source.entityId}"]`);
+        if (srcCell) {
+          const cls = event.source.vector === "GOAL" ? "flash-goal" : event.source.vector === "OBSTACLE" ? "flash-obstacle" : "flash-shift";
+          srcCell.classList.add(cls);
+          setTimeout(() => srcCell.classList.remove(cls), 900);
+        }
+        event.transfers.forEach((t) => {
+          const targetCell = elGrid.querySelector(`[data-entity-id="${t.targetId}"]`);
+          if (!targetCell) return;
+          targetCell.classList.add("flash-shift");
+          setTimeout(() => targetCell.classList.remove("flash-shift"), 720);
+        });
+      }
+
+      function renderEntityList() {
+        elEntityList.innerHTML = "";
+        entityOrder.forEach((id, idx) => {
+          const e = runtime.entities[id];
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `entity-btn${id === runtime.selectedId ? " active" : ""}`;
+          btn.innerHTML = `
+            <div class="entity-row">
+              <span class="entity-name">${idx + 1}. ${e.icon} ${e.name}</span>
+              <span class="entity-state">${e.type}</span>
+            </div>
+            <div class="entity-state">state: ${e.stateLabel}</div>
+          `;
+          btn.addEventListener("click", () => {
+            runtime.selectedId = id;
+            setMobileView("simulate");
+            renderAll();
+          });
+          elEntityList.appendChild(btn);
+        });
+      }
+
+      function renderGrid() {
+        elGrid.innerHTML = "";
+        for (let y = 0; y < 6; y += 1) {
+          for (let x = 0; x < 8; x += 1) {
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "cell";
+            cell.disabled = true;
+            const entity = entityOrder.map((id) => runtime.entities[id]).find((item) => item.position.x === x && item.position.y === y);
+            if (entity) {
+              cell.disabled = false;
+              cell.dataset.entityId = entity.id;
+              cell.classList.add("has");
+              if (entity.id === runtime.selectedId) cell.classList.add("active");
+              cell.textContent = entity.icon;
+              cell.title = entity.name;
+              cell.addEventListener("click", () => {
+                runtime.selectedId = entity.id;
+                setMobileView("simulate");
+                renderAll();
+              });
+            } else {
+              cell.textContent = "·";
+            }
+            elGrid.appendChild(cell);
+          }
+        }
+      }
+
+      function renderImpact() {
+        const event = runtime.audit.find((a) => a.eventId === runtime.viewedEventId) || runtime.audit[0];
+        if (!event) {
+          elImpact.innerHTML = `<div class="impact-card">No events yet. Select an entity and trigger GOAL, OBSTACLE, or SHIFT.</div>`;
+          return;
+        }
+
+        const srcName = runtime.entities[event.source.entityId].name;
+        const src = `<div class="impact-card"><strong>SOURCE DELTA</strong><br>${srcName} -> ${event.source.vector}<br>${deltaSummary(event.sourceDelta.delta)}</div>`;
+        const transferHtml = event.transfers.length
+          ? event.transfers
+              .map((t) => `<div class="impact-card"><strong>TRANSFER</strong><br>${srcName} -> ${runtime.entities[t.targetId].name}<br>channel ${t.edge.channel}, delay ${t.edge.delayMs}ms, resistance ${t.edge.resistance.toFixed(2)}, intensity ${t.intensity.toFixed(2)}</div>`)
+              .join("")
+          : `<div class="impact-card"><strong>TRANSFER</strong><br>No visible transfer crossed threshold.</div>`;
+        const blockedHtml = event.nonEffects.length
+          ? event.nonEffects.map((n) => `<div class="impact-card"><strong>NON-EFFECT</strong><br>${runtime.entities[n.targetId].name}: ${n.reason}</div>`).join("")
+          : `<div class="impact-card"><strong>NON-EFFECT</strong><br>No blocked paths recorded.</div>`;
+
+        elImpact.innerHTML = src + transferHtml + blockedHtml;
+        elWorldtext.textContent = event.worldtext;
+      }
+
+      function renderAudit() {
+        elAudit.innerHTML = "";
+        runtime.audit.slice(0, 20).forEach((event) => {
+          const btn = document.createElement("button");
+          const source = runtime.entities[event.source.entityId];
+          btn.textContent = `[${event.tick}] ${source.name} -> ${event.source.vector} (${event.transfers.length} transfer / ${event.nonEffects.length} blocked)`;
+          btn.addEventListener("click", () => {
+            runtime.viewedEventId = event.eventId;
+            renderImpact();
+          });
+          elAudit.appendChild(btn);
+        });
+      }
+
+      function renderButtons() {
+        const disabled = !runtime.selectedId;
+        [btnGoal, btnObstacle, btnShift].forEach((btn) => {
+          btn.disabled = disabled;
+        });
+        dockVectorButtons.forEach((btn) => {
+          btn.disabled = disabled;
+        });
+      }
+
+      function setMobileView(view) {
+        document.body.dataset.mobileView = view;
+        mobileViewButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mobileView === view);
+        });
+      }
+
+      function fireVector(vector) {
+        trigger(vector);
+      }
+
+      function renderAll() {
+        renderEntityList();
+        renderGrid();
+        renderButtons();
+        renderImpact();
+        renderAudit();
+        elTickPill.textContent = String(runtime.tick);
+      }
+
+      btnGoal.addEventListener("click", () => fireVector("GOAL"));
+      btnObstacle.addEventListener("click", () => fireVector("OBSTACLE"));
+      btnShift.addEventListener("click", () => fireVector("SHIFT"));
+
+      mobileViewButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setMobileView(btn.dataset.mobileView);
+        });
+      });
+
+      dockVectorButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          fireVector(btn.dataset.vectorTrigger);
+        });
+      });
+
+      document.addEventListener("keydown", (ev) => {
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(ev.target.tagName)) return;
+        if (ev.key === "g" || ev.key === "G") fireVector("GOAL");
+        if (ev.key === "o" || ev.key === "O") fireVector("OBSTACLE");
+        if (ev.key === "s" || ev.key === "S") fireVector("SHIFT");
+        const asNum = Number(ev.key);
+        if (asNum >= 1 && asNum <= entityOrder.length) {
+          runtime.selectedId = entityOrder[asNum - 1];
+          setMobileView("entities");
+          renderAll();
+        }
+      });
+
+      setMobileView("simulate");
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
