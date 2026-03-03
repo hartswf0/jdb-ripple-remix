@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIPPLES // Screening Minimal</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' fill='%23f0eee6'/%3E%3Ccircle cx='48' cy='48' r='10' fill='%23333333'/%3E%3Ccircle cx='48' cy='48' r='22' fill='none' stroke='%23333333' stroke-width='4' opacity='0.85'/%3E%3Ccircle cx='48' cy='48' r='34' fill='none' stroke='%23333333' stroke-width='3' opacity='0.55'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #f0eee6;
+      --bg-soft: #f8f6ef;
+      --panel: #fcfaf4;
+      --line: #d8d2c2;
+      --line-strong: #b9b29d;
+      --text: #333333;
+      --muted: #64635d;
+      --good: #2f8c62;
+      --danger: #9b3b3b;
+      --shadow: 0 8px 28px rgba(51, 51, 51, 0.08);
+      --radius: 12px;
+      --scroll-track: #ebe6da;
+      --scroll-thumb: #b4ab95;
+      --scroll-thumb-hover: #8f8774;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: var(--scroll-track);
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: var(--scroll-thumb);
+      border-radius: 999px;
+      border: 2px solid var(--scroll-track);
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--scroll-thumb-hover);
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: linear-gradient(180deg, var(--bg-soft), var(--bg));
+      color: var(--text);
+      font-family: "IBM Plex Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
+    }
+
+    .app {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar,
+    .controls,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .bar {
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      margin: 0;
+      font-size: clamp(1rem, 3.6vw, 1.2rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .bar-links {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      width: 100%;
+      font-size: 0.72rem;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .btn,
+    .input,
+    .select {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      background: #fffef9;
+      color: var(--text);
+      border-radius: 10px;
+      font: inherit;
+      font-size: 0.76rem;
+      letter-spacing: 0.01em;
+      padding: 0 10px;
+    }
+
+    .btn {
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn:hover,
+    .btn:focus-visible,
+    .input:focus-visible,
+    .select:focus-visible,
+    .mini-btn:focus-visible,
+    .mini-btn:hover {
+      border-color: var(--line-strong);
+      outline: none;
+    }
+
+    .btn.primary {
+      border-color: #333333;
+    }
+
+    .controls {
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr;
+    }
+
+    .layout {
+      display: grid;
+      gap: 10px;
+      min-height: 74vh;
+      grid-template-columns: 1fr;
+    }
+
+    .panel {
+      overflow: hidden;
+      min-height: 220px;
+    }
+
+    .panel-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.69rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: #f4f1e8;
+    }
+
+    .asset-list {
+      max-height: 74vh;
+      overflow: auto;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .asset-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fffef9;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+      transition: border-color 120ms ease, transform 120ms ease;
+    }
+
+    .asset-item:hover,
+    .asset-item:focus-visible {
+      border-color: var(--line-strong);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .asset-item.active {
+      border-color: #333333;
+      box-shadow: inset 0 0 0 1px rgba(51, 51, 51, 0.18);
+    }
+
+    .asset-title {
+      font-size: 0.88rem;
+      line-height: 1.28;
+      font-weight: 600;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .asset-meta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.35;
+      letter-spacing: 0.03em;
+    }
+
+    .pill-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      min-height: 18px;
+      padding: 0 8px;
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .pill.good {
+      border-color: color-mix(in srgb, var(--good) 45%, white);
+      color: var(--good);
+    }
+
+    .detail {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 74vh;
+    }
+
+    .detail-body {
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+      align-content: start;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      font-size: 0.74rem;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .meta-grid b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .prompt-box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fffef9;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .prompt-label {
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .prompt-text {
+      font-size: 0.74rem;
+      line-height: 1.45;
+    }
+
+    .video-wrap {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0b0b0b;
+      overflow: hidden;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      max-height: 40vh;
+      background: #000;
+    }
+
+    .actions {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .actions .btn {
+      min-height: 38px;
+      font-size: 0.73rem;
+    }
+
+    .actions .btn.span {
+      grid-column: 1 / -1;
+    }
+
+    .extract-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr;
+    }
+
+    .extract-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fffef9;
+      overflow: hidden;
+    }
+
+    .extract-head {
+      min-height: 36px;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: #f4f1e8;
+    }
+
+    .extract-list {
+      max-height: 210px;
+      overflow: auto;
+      padding: 6px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .extract-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: start;
+      background: #fffef9;
+    }
+
+    .extract-text {
+      font-size: 0.72rem;
+      line-height: 1.38;
+      word-break: break-word;
+    }
+
+    .mini-btn {
+      min-height: 28px;
+      border: 1px solid var(--line);
+      background: #fffef9;
+      border-radius: 8px;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0 8px;
+    }
+
+    .transcript-shell {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fffef9;
+      overflow: hidden;
+    }
+
+    .transcript-shell summary {
+      cursor: pointer;
+      list-style: none;
+      min-height: 36px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: #f4f1e8;
+    }
+
+    .transcript-shell summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 8px 10px 0;
+    }
+
+    .tab {
+      min-height: 28px;
+      padding: 0 9px;
+      font-size: 0.68rem;
+      border-radius: 999px;
+    }
+
+    .transcript-body {
+      max-height: 46vh;
+      overflow: auto;
+      padding: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    .rendered h1,
+    .rendered h2,
+    .rendered h3 {
+      margin: 0.45em 0 0.35em;
+      font-size: 0.83rem;
+      line-height: 1.3;
+    }
+
+    .rendered p,
+    .rendered li,
+    pre.raw {
+      margin: 0;
+      font-size: 0.74rem;
+      line-height: 1.45;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .rendered p + p {
+      margin-top: 0.45em;
+    }
+
+    .rendered ul {
+      margin: 0.35em 0;
+      padding-left: 16px;
+      display: grid;
+      gap: 4px;
+    }
+
+    pre.raw {
+      white-space: pre-wrap;
+    }
+
+    .empty,
+    .error {
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--danger);
+    }
+
+    .mobile-jump {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .mobile-jump .btn {
+      min-height: 34px;
+      font-size: 0.68rem;
+    }
+
+    @media (min-width: 980px) {
+      .app {
+        padding: 18px;
+      }
+
+      .controls {
+        grid-template-columns: minmax(280px, 1fr) auto;
+      }
+
+      .control-row--search {
+        grid-template-columns: minmax(280px, 1fr);
+      }
+
+      .control-row--meta {
+        grid-template-columns: 210px 210px auto auto;
+      }
+
+      .layout {
+        grid-template-columns: 360px minmax(0, 1fr);
+      }
+
+      .actions {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .actions .btn.span {
+        grid-column: auto;
+      }
+
+      .extract-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .meta-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .mobile-jump {
+        display: none;
+      }
+    }
+
+    @media (max-width: 979px) {
+      .asset-list {
+        max-height: 34vh;
+      }
+
+      .detail {
+        min-height: auto;
+      }
+
+      .transcript-body {
+        max-height: 40vh;
+      }
+
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="bar">
+      <h1 class="brand">RIPPLES // Screening Minimal</h1>
+      <div class="bar-links">
+        <a class="btn ghost" href="index.html">Launch</a>
+        <a class="btn ghost" href="screening.html">Screening</a>
+      </div>
+      <div id="status" class="status">Loading catalog…</div>
+    </header>
+
+    <section class="controls" aria-label="Filters">
+      <div class="control-row control-row--search">
+        <input id="searchInput" class="input" type="search" placeholder="Search title, build, pair, prompt">
+      </div>
+      <div class="control-row control-row--meta">
+        <select id="buildFilter" class="select" aria-label="Filter by build">
+          <option value="all">All builds</option>
+        </select>
+        <select id="sortFilter" class="select" aria-label="Sort">
+          <option value="date_desc">Newest</option>
+          <option value="date_asc">Oldest</option>
+          <option value="title_asc">Title A-Z</option>
+          <option value="title_desc">Title Z-A</option>
+          <option value="build_asc">Build A-Z</option>
+          <option value="build_desc">Build Z-A</option>
+        </select>
+        <button id="clearBtn" class="btn" type="button">Clear</button>
+        <button id="reloadBtn" class="btn" type="button">Reload</button>
+      </div>
+    </section>
+
+    <nav class="mobile-jump" aria-label="Mobile section navigation">
+      <button id="jumpListBtn" class="btn" type="button">List</button>
+      <button id="jumpVideoBtn" class="btn" type="button">Video</button>
+      <button id="jumpTranscriptBtn" class="btn" type="button">Transcript</button>
+    </nav>
+
+    <section class="layout">
+      <aside class="panel" id="assetPanel">
+        <div class="panel-head">
+          <span>Library</span>
+          <span id="assetCount">0</span>
+        </div>
+        <div id="assetList" class="asset-list"></div>
+      </aside>
+
+      <section class="panel detail" id="detailPanel">
+        <div class="panel-head">
+          <span id="detailTitle">No asset selected</span>
+          <span id="pairStatus">-</span>
+        </div>
+        <div class="detail-body">
+          <div class="meta-grid" id="detailMeta"></div>
+
+          <div class="prompt-box">
+            <span class="prompt-label">Prompt Excerpt</span>
+            <div id="promptText" class="prompt-text">-</div>
+          </div>
+
+          <div class="video-wrap">
+            <video id="player" controls playsinline preload="metadata"></video>
+          </div>
+
+          <div class="actions">
+            <a id="openVideoLink" class="btn primary" href="#" target="_blank" rel="noopener">Open Video</a>
+            <a id="openTranscriptLink" class="btn" href="#" target="_blank" rel="noopener">Open Transcript</a>
+            <button id="fullscreenBtn" class="btn" type="button">Fullscreen</button>
+            <button id="copyTitleBtn" class="btn" type="button">Copy Title</button>
+            <button id="copyNameBtn" class="btn span" type="button">Copy Base Name</button>
+          </div>
+
+          <section class="extract-grid" aria-label="Extracted stones and steps">
+            <article class="extract-card">
+              <div class="extract-head">
+                <span>Stones <span id="stoneCount">0</span></span>
+                <button id="copyAllStonesBtn" class="mini-btn" type="button">Copy All</button>
+              </div>
+              <div id="stoneList" class="extract-list"></div>
+            </article>
+            <article class="extract-card">
+              <div class="extract-head">
+                <span>Steps <span id="stepCount">0</span></span>
+                <button id="copyAllStepsBtn" class="mini-btn" type="button">Copy All</button>
+              </div>
+              <div id="stepList" class="extract-list"></div>
+            </article>
+          </section>
+
+          <details id="transcriptShell" class="transcript-shell" open>
+            <summary>Transcript</summary>
+            <div class="tabs">
+              <button id="tabRendered" class="btn tab" type="button">Rendered</button>
+              <button id="tabRaw" class="btn tab" type="button">Raw</button>
+            </div>
+            <div id="transcriptPanel" class="transcript-body">
+              <div id="renderedView" class="rendered"></div>
+              <pre id="rawView" class="raw" style="display:none;"></pre>
+            </div>
+          </details>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const MANIFEST_PATH = "VIDEO UP/video_manifest.json";
+    const ASSET_DIR = "VIDEO UP";
+
+    const state = {
+      assets: [],
+      filtered: [],
+      selectedAssetId: null,
+      query: "",
+      build: "all",
+      sort: "date_desc",
+      tab: "rendered",
+      transcriptCache: new Map(),
+      currentStones: [],
+      currentSteps: []
+    };
+
+    const DOM = {
+      status: document.getElementById("status"),
+      assetList: document.getElementById("assetList"),
+      assetCount: document.getElementById("assetCount"),
+      detailTitle: document.getElementById("detailTitle"),
+      pairStatus: document.getElementById("pairStatus"),
+      detailMeta: document.getElementById("detailMeta"),
+      promptText: document.getElementById("promptText"),
+      player: document.getElementById("player"),
+      openVideo: document.getElementById("openVideoLink"),
+      openTranscript: document.getElementById("openTranscriptLink"),
+      copyTitle: document.getElementById("copyTitleBtn"),
+      copyName: document.getElementById("copyNameBtn"),
+      fullscreen: document.getElementById("fullscreenBtn"),
+      stoneList: document.getElementById("stoneList"),
+      stepList: document.getElementById("stepList"),
+      stoneCount: document.getElementById("stoneCount"),
+      stepCount: document.getElementById("stepCount"),
+      copyAllStones: document.getElementById("copyAllStonesBtn"),
+      copyAllSteps: document.getElementById("copyAllStepsBtn"),
+      renderedView: document.getElementById("renderedView"),
+      rawView: document.getElementById("rawView"),
+      transcriptShell: document.getElementById("transcriptShell"),
+      searchInput: document.getElementById("searchInput"),
+      buildFilter: document.getElementById("buildFilter"),
+      sortFilter: document.getElementById("sortFilter"),
+      clearBtn: document.getElementById("clearBtn"),
+      reloadBtn: document.getElementById("reloadBtn"),
+      tabRendered: document.getElementById("tabRendered"),
+      tabRaw: document.getElementById("tabRaw"),
+      jumpList: document.getElementById("jumpListBtn"),
+      jumpVideo: document.getElementById("jumpVideoBtn"),
+      jumpTranscript: document.getElementById("jumpTranscriptBtn"),
+      assetPanel: document.getElementById("assetPanel"),
+      detailPanel: document.getElementById("detailPanel"),
+      transcriptPanel: document.getElementById("transcriptPanel")
+    };
+
+    const isMobileQuery = window.matchMedia("(max-width: 979px)");
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function toAssetUrl(fileName) {
+      return `${ASSET_DIR}/${encodeURIComponent(fileName)}`;
+    }
+
+    async function copyText(text, successMsg) {
+      try {
+        await navigator.clipboard.writeText(text || "");
+        setStatus(successMsg);
+      } catch {
+        setStatus("Clipboard copy failed.", true);
+      }
+    }
+
+    function setStatus(message, isError = false) {
+      DOM.status.textContent = message;
+      DOM.status.className = isError ? "status error" : "status";
+    }
+
+    function setTab(tab) {
+      state.tab = tab;
+      const rendered = tab === "rendered";
+      DOM.renderedView.style.display = rendered ? "block" : "none";
+      DOM.rawView.style.display = rendered ? "none" : "block";
+      DOM.tabRendered.style.borderColor = rendered ? "var(--line-strong)" : "var(--line)";
+      DOM.tabRaw.style.borderColor = rendered ? "var(--line)" : "var(--line-strong)";
+    }
+
+    function normalizeAsset(raw) {
+      return {
+        asset_id: raw.asset_id || "",
+        pair_code: raw.pair_code || "",
+        title: raw.title || "Untitled",
+        build: raw.build || "unknown",
+        transcript_file: raw.transcript_file || "",
+        video_file: raw.video_file || "",
+        first_prompt_excerpt: raw.first_prompt_excerpt || "",
+        first_prompt_source: raw.first_prompt_source || "",
+        recommended_base_name: raw.recommended_base_name || "",
+        video_exists: Boolean(raw.video_exists),
+        exported_at: raw.exported_at || "",
+        session_id: raw.session_id || ""
+      };
+    }
+
+    function formatDate(value) {
+      const stamp = Date.parse(value || "");
+      if (!stamp) return "Unknown date";
+      return new Date(stamp).toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function sortAssets(list, mode) {
+      const arr = [...list];
+      arr.sort((a, b) => {
+        const da = Date.parse(a.exported_at || "") || 0;
+        const db = Date.parse(b.exported_at || "") || 0;
+        const ta = String(a.title || "").toLowerCase();
+        const tb = String(b.title || "").toLowerCase();
+        const ba = String(a.build || "").toLowerCase();
+        const bb = String(b.build || "").toLowerCase();
+
+        if (mode === "date_asc") return da - db;
+        if (mode === "title_asc") return ta.localeCompare(tb);
+        if (mode === "title_desc") return tb.localeCompare(ta);
+        if (mode === "build_asc") return ba.localeCompare(bb) || ta.localeCompare(tb);
+        if (mode === "build_desc") return bb.localeCompare(ba) || ta.localeCompare(tb);
+        return db - da;
+      });
+      return arr;
+    }
+
+    function buildOptions(assets) {
+      const builds = [...new Set(assets.map(a => a.build || "unknown"))].sort();
+      DOM.buildFilter.innerHTML = `<option value="all">All builds</option>` +
+        builds.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
+    }
+
+    function applyFilters() {
+      const q = state.query.trim().toLowerCase();
+      const b = state.build;
+      const matches = state.assets.filter(asset => {
+        if (b !== "all" && asset.build !== b) return false;
+        if (!q) return true;
+        const hay = [
+          asset.title,
+          asset.build,
+          asset.pair_code,
+          asset.first_prompt_excerpt,
+          asset.transcript_file,
+          asset.video_file
+        ].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+
+      state.filtered = sortAssets(matches, state.sort);
+      renderAssetList();
+      DOM.assetCount.textContent = `${state.filtered.length} / ${state.assets.length}`;
+
+      if (!state.filtered.some(x => x.asset_id === state.selectedAssetId)) {
+        if (state.filtered.length > 0) {
+          selectAsset(state.filtered[0].asset_id, { scrollToDetail: false });
+        } else {
+          clearDetail();
+        }
+      }
+    }
+
+    function renderAssetList() {
+      if (!state.filtered.length) {
+        DOM.assetList.innerHTML = `<div class="empty">No assets match current filters.</div>`;
+        return;
+      }
+
+      DOM.assetList.innerHTML = state.filtered.map(asset => `
+        <button class="asset-item${asset.asset_id === state.selectedAssetId ? " active" : ""}" data-id="${escapeHtml(asset.asset_id)}">
+          <span class="asset-title">${escapeHtml(asset.title)}</span>
+          <span class="pill-row">
+            <span class="pill${asset.video_exists ? " good" : ""}">${asset.video_exists ? "paired" : "missing"}</span>
+            <span class="asset-meta">${escapeHtml(asset.build)}</span>
+          </span>
+          <span class="asset-meta">${escapeHtml(formatDate(asset.exported_at))}</span>
+        </button>
+      `).join("");
+
+      DOM.assetList.querySelectorAll(".asset-item").forEach(btn => {
+        btn.addEventListener("click", () => selectAsset(btn.dataset.id));
+      });
+    }
+
+    function clearDetail() {
+      DOM.detailTitle.textContent = "No asset selected";
+      DOM.pairStatus.textContent = "-";
+      DOM.pairStatus.style.color = "var(--muted)";
+      DOM.detailMeta.innerHTML = "";
+      DOM.promptText.textContent = "-";
+      DOM.player.removeAttribute("src");
+      DOM.player.load();
+      DOM.openVideo.href = "#";
+      DOM.openTranscript.href = "#";
+      DOM.renderedView.innerHTML = `<div class="empty">Select an asset to preview transcript.</div>`;
+      DOM.rawView.textContent = "";
+      state.currentStones = [];
+      state.currentSteps = [];
+      renderStoneList([]);
+      renderStepList([]);
+    }
+
+    function findAsset(assetId) {
+      return state.assets.find(a => a.asset_id === assetId) || null;
+    }
+
+    async function getTranscriptText(asset) {
+      const key = asset.transcript_file;
+      if (state.transcriptCache.has(key)) return state.transcriptCache.get(key);
+
+      const res = await fetch(toAssetUrl(key), { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      state.transcriptCache.set(key, text);
+      return text;
+    }
+
+    function parseMarkdown(md) {
+      const lines = String(md || "").replaceAll("\r\n", "\n").split("\n");
+      const out = [];
+      let inList = false;
+
+      function closeList() {
+        if (inList) {
+          out.push("</ul>");
+          inList = false;
+        }
+      }
+
+      for (const line of lines) {
+        const t = line.trimRight();
+        if (t.startsWith("### ")) {
+          closeList();
+          out.push(`<h3>${escapeHtml(t.slice(4))}</h3>`);
+        } else if (t.startsWith("## ")) {
+          closeList();
+          out.push(`<h2>${escapeHtml(t.slice(3))}</h2>`);
+        } else if (t.startsWith("# ")) {
+          closeList();
+          out.push(`<h1>${escapeHtml(t.slice(2))}</h1>`);
+        } else if (t.startsWith("- ")) {
+          if (!inList) {
+            out.push("<ul>");
+            inList = true;
+          }
+          out.push(`<li>${escapeHtml(t.slice(2))}</li>`);
+        } else if (!t.trim()) {
+          closeList();
+        } else {
+          closeList();
+          out.push(`<p>${escapeHtml(t)}</p>`);
+        }
+      }
+      closeList();
+      return out.join("");
+    }
+
+    function extractStones(text) {
+      const stones = [];
+      const seen = new Set();
+
+      for (const line of String(text || "").split("\n")) {
+        const matches = line.matchAll(/-\s*STONE:\s*([^\n]+)/gi);
+        for (const match of matches) {
+          const value = String(match[1] || "").replace(/\s+/g, " ").trim();
+          if (!value) continue;
+          const key = value.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          stones.push(value);
+        }
+      }
+
+      return stones;
+    }
+
+    function extractSteps(text) {
+      const steps = [];
+      const lines = String(text || "").split("\n");
+      for (const line of lines) {
+        const match = line.match(/^- \[(\d{2}:\d{2}\.\d{3})\] \[([a-z_]+)\]\s*(.*)$/i);
+        if (!match) continue;
+        const [, time, type, payload] = match;
+        const detail = String(payload || "").trim();
+        steps.push({ time, type: type.toLowerCase(), detail });
+      }
+      return steps;
+    }
+
+    function renderStoneList(stones) {
+      state.currentStones = stones;
+      DOM.stoneCount.textContent = String(stones.length);
+
+      if (!stones.length) {
+        DOM.stoneList.innerHTML = `<div class="empty">No STONE lines found.</div>`;
+        return;
+      }
+
+      DOM.stoneList.innerHTML = stones.map((stone, index) => `
+        <div class="extract-row">
+          <div class="extract-text">${escapeHtml(stone)}</div>
+          <button class="mini-btn" data-stone-index="${index}" type="button">Copy</button>
+        </div>
+      `).join("");
+    }
+
+    function renderStepList(steps) {
+      state.currentSteps = steps;
+      DOM.stepCount.textContent = String(steps.length);
+
+      if (!steps.length) {
+        DOM.stepList.innerHTML = `<div class="empty">No timeline steps found.</div>`;
+        return;
+      }
+
+      DOM.stepList.innerHTML = steps.map((step, index) => `
+        <div class="extract-row">
+          <div class="extract-text">[${escapeHtml(step.time)}] [${escapeHtml(step.type)}] ${escapeHtml(step.detail)}</div>
+          <button class="mini-btn" data-step-index="${index}" type="button">Copy</button>
+        </div>
+      `).join("");
+    }
+
+    async function selectAsset(assetId, options = {}) {
+      state.selectedAssetId = assetId;
+      renderAssetList();
+
+      const asset = findAsset(assetId);
+      if (!asset) {
+        clearDetail();
+        return;
+      }
+
+      DOM.detailTitle.textContent = asset.title;
+      DOM.pairStatus.textContent = asset.video_exists ? "Paired" : "Missing Video";
+      DOM.pairStatus.style.color = asset.video_exists ? "var(--good)" : "var(--danger)";
+
+      DOM.detailMeta.innerHTML = `
+        <div><b>Build:</b> ${escapeHtml(asset.build)}</div>
+        <div><b>Date:</b> ${escapeHtml(formatDate(asset.exported_at))}</div>
+        <div><b>Pair:</b> ${escapeHtml(asset.pair_code)}</div>
+        <div><b>Session:</b> ${escapeHtml(asset.session_id || "-")}</div>
+      `;
+
+      DOM.promptText.textContent = asset.first_prompt_excerpt || "(none)";
+
+      const videoUrl = toAssetUrl(asset.video_file);
+      DOM.player.src = videoUrl;
+      DOM.openVideo.href = videoUrl;
+      DOM.openTranscript.href = toAssetUrl(asset.transcript_file);
+
+      DOM.renderedView.innerHTML = `<div class="empty">Loading transcript…</div>`;
+      DOM.rawView.textContent = "Loading transcript…";
+
+      try {
+        const text = await getTranscriptText(asset);
+        DOM.renderedView.innerHTML = parseMarkdown(text);
+        DOM.rawView.textContent = text;
+
+        renderStoneList(extractStones(text));
+        renderStepList(extractSteps(text));
+      } catch (error) {
+        DOM.renderedView.innerHTML = `<div class="error">Transcript load failed: ${escapeHtml(error.message)}</div>`;
+        DOM.rawView.textContent = `Transcript load failed: ${error.message}`;
+        renderStoneList([]);
+        renderStepList([]);
+      }
+
+      if (isMobileQuery.matches && options.scrollToDetail !== false) {
+        DOM.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    async function loadManifest() {
+      setStatus("Loading catalog…");
+      try {
+        const res = await fetch(MANIFEST_PATH, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = await res.json();
+        if (!Array.isArray(raw)) throw new Error("Manifest is not an array.");
+
+        state.assets = raw.map(normalizeAsset);
+        buildOptions(state.assets);
+        applyFilters();
+
+        if (state.filtered.length > 0) {
+          await selectAsset(state.filtered[0].asset_id, { scrollToDetail: false });
+        }
+
+        const paired = state.assets.filter(a => a.video_exists).length;
+        setStatus(`Loaded ${state.assets.length} assets. Paired videos: ${paired}.`);
+      } catch (error) {
+        state.assets = [];
+        state.filtered = [];
+        renderAssetList();
+        clearDetail();
+        setStatus(`Manifest load failed (${error.message}). Serve over HTTP (example: python3 -m http.server).`, true);
+      }
+    }
+
+    DOM.searchInput.addEventListener("input", () => {
+      state.query = DOM.searchInput.value;
+      applyFilters();
+    });
+
+    DOM.buildFilter.addEventListener("change", () => {
+      state.build = DOM.buildFilter.value;
+      applyFilters();
+    });
+
+    DOM.sortFilter.addEventListener("change", () => {
+      state.sort = DOM.sortFilter.value;
+      applyFilters();
+    });
+
+    DOM.clearBtn.addEventListener("click", () => {
+      state.query = "";
+      state.build = "all";
+      state.sort = "date_desc";
+      DOM.searchInput.value = "";
+      DOM.buildFilter.value = "all";
+      DOM.sortFilter.value = "date_desc";
+      applyFilters();
+    });
+
+    DOM.reloadBtn.addEventListener("click", loadManifest);
+
+    DOM.tabRendered.addEventListener("click", () => setTab("rendered"));
+    DOM.tabRaw.addEventListener("click", () => setTab("raw"));
+
+    DOM.copyTitle.addEventListener("click", async () => {
+      const asset = findAsset(state.selectedAssetId);
+      if (!asset) return;
+      await copyText(asset.title || "", `Copied title: ${asset.title}`);
+    });
+
+    DOM.copyName.addEventListener("click", async () => {
+      const asset = findAsset(state.selectedAssetId);
+      if (!asset) return;
+      await copyText(asset.recommended_base_name || "", `Copied base name: ${asset.recommended_base_name}`);
+    });
+
+    DOM.fullscreen.addEventListener("click", async () => {
+      if (!DOM.player.src) return;
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else if (DOM.player.requestFullscreen) {
+          await DOM.player.requestFullscreen();
+        } else if (DOM.player.webkitEnterFullscreen) {
+          DOM.player.webkitEnterFullscreen();
+        }
+      } catch {
+        setStatus("Fullscreen unavailable on this browser.", true);
+      }
+    });
+
+    DOM.copyAllStones.addEventListener("click", async () => {
+      if (!state.currentStones.length) return;
+      await copyText(state.currentStones.join("\n"), `Copied ${state.currentStones.length} stone lines.`);
+    });
+
+    DOM.copyAllSteps.addEventListener("click", async () => {
+      if (!state.currentSteps.length) return;
+      const payload = state.currentSteps
+        .map(step => `[${step.time}] [${step.type}] ${step.detail}`)
+        .join("\n");
+      await copyText(payload, `Copied ${state.currentSteps.length} steps.`);
+    });
+
+    DOM.stoneList.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const idx = target.getAttribute("data-stone-index");
+      if (idx === null) return;
+      const stone = state.currentStones[Number(idx)];
+      if (!stone) return;
+      await copyText(stone, "Copied stone line.");
+    });
+
+    DOM.stepList.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const idx = target.getAttribute("data-step-index");
+      if (idx === null) return;
+      const step = state.currentSteps[Number(idx)];
+      if (!step) return;
+      await copyText(`[${step.time}] [${step.type}] ${step.detail}`, "Copied step line.");
+    });
+
+    DOM.jumpList.addEventListener("click", () => {
+      DOM.assetPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    DOM.jumpVideo.addEventListener("click", () => {
+      DOM.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    DOM.jumpTranscript.addEventListener("click", () => {
+      DOM.transcriptPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
+      if (!state.filtered.length) return;
+
+      const idx = state.filtered.findIndex(a => a.asset_id === state.selectedAssetId);
+      if (event.key === "ArrowDown") {
+        const next = state.filtered[Math.min(state.filtered.length - 1, Math.max(0, idx + 1))];
+        if (next) selectAsset(next.asset_id, { scrollToDetail: false });
+      } else if (event.key === "ArrowUp") {
+        const prev = state.filtered[Math.max(0, idx - 1)];
+        if (prev) selectAsset(prev.asset_id, { scrollToDetail: false });
+      } else if (event.key === " ") {
+        if (DOM.player.paused) DOM.player.play();
+        else DOM.player.pause();
+        event.preventDefault();
+      }
+    });
+
+    setTab("rendered");
+    if (isMobileQuery.matches) DOM.transcriptShell.open = false;
+    loadManifest();
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+# RIPPLE SESSION TRANSCRIPT
+
+## MEDIA ASSET
+- asset_id: ripple-2026-03-02-rrc-runtime-candidate-take01-20260302t213206z
+- pair_code: RIPPLE-2026-03-02-RRC-RUNTIME-CANDIDATE-TAKE01-20260302T213206Z
+- title: Training Grounds — 2026 03 02 RRC RUNTIME CANDIDATE
+- title_slug: training-grounds-2026-03-02-rrc-runtime-candidate
+- transcript_file: ripple_2026-03-02-rrc-runtime-candidate_take01_20260302T213206Z.transcript.md
+- video_file: ripple_2026-03-02-rrc-runtime-candidate_take01_20260302T213206Z.mp4
+- pair_status: paired
+- first_prompt_source: first_user_event
+- first_prompt_excerpt: "traininggrounds: { id: 'traininggrounds', name: 'Training Grounds', role: 'Metaphysical Self-Alignment Practitioner', goal: 'Master shedding-integrating-grounding cycle', obstacle: 'Continuous inner work reveals new l..."
+- recommended_base_name: training-grounds-2026-03-02-rrc-runtime-candidate__ripple-2026-03-02-rrc-runtime-candidate-take01-20260302t213206z
+## END MEDIA ASSET
+
+- build: 2026-03-02-rrc-runtime-candidate
+- session_id: 20260302T212800Z
+- exported_at: 2026-03-02T21:32:06.665Z
+- root_seed: traininggrounds: {         id: 'traininggrounds',         name: 'Training Grounds',         role: 'Metaphysical Self-Alignment Practitioner',         goal: 'Master shedding-integrating-grounding cycle',         obstacle: 'Continuous inner work reveals new layers of stagnation',         intro: 'Interactive workbook for metaphysical transformation. Chakra alignment, horoscopic frameworks, shadow work. Practical protocols for walking Black Metal path.',         context: [           'Shedding: Release what no longer serves',           'Integrating: Synthesize awareness into coherent wholeness',           'Grounding: Anchor transformation in embodied practice',           'Chakra Alignment: Seven-chakra vertical ontology map',           'Horoscopic Framework: Astrological timing for transformation'         ],         initialPrompt: 'You open the Training Grounds workbook. A prompt appears asking about your current stagnation. What pattern must you shed? How will you integrate the insight? Where does it ground in your body?',         systemInstruction: 'You orchestrate Training Grounds self-alignment. Track Shedding → Integrating → Grounding → New Shedding recursion. Guide practitioner through chakric energy work, shadow integration, and embodied anchoring. Universal roadmap for personal setbacks, purpose-seeking, and spiritual evolution. Reference Jordan Caldwell metaphysical workbook and intrapersonal growth as creative foundation.'       }
+- auto_mode: on
+- auto_policy: FULL
+- recording_mode: SCENE
+- voice_capture: on
+
+- [00:00.021] [sys] RRC LOADED: RRC-1 | LINE=ripple-rrc
+- [00:08.443] [sys] TTS AUTO ENABLED FOR RECORDING.
+- [00:08.443] [recording] recording_started
+- [00:08.443] [sys] RECORDING STARTED (TAKE 1) [video/mp4;codecs=avc1.42E01E,mp4a.40.2] MODE=SCENE TRACKS=2.
+- [00:21.783] [sys] RUN MODE: FULL AUTO.
+- [00:28.152] [sys] AUTO SEED LOCKED.
+- [00:28.152] [sys] AUTO FLOW LIVE.
+- [00:28.152] [sys] ROOT ANCHOR LOCKED: "traininggrounds: {         id: 'traininggrounds',         name: 'Training Ground..."
+- [00:28.152] [user] [0,4] traininggrounds: {         id: 'traininggrounds',         name: 'Training Grounds',         role: 'Metaphysical Self-Alignment Practitioner',         goal: 'Master shedding-integrating-grounding cycle',         obstacle: 'Continuous inner work reveals new layers of stagnation',         intro: 'Interactive workbook for metaphysical transformation. Chakra alignment, horoscopic frameworks, shadow work. Practical protocols for walking Black Metal path.',         context: [           'Shedding: Release what no longer serves',           'Integrating: Synthesize awareness into coherent wholeness',           'Grounding: Anchor transformation in embodied practice',           'Chakra Alignment: Seven-chakra vertical ontology map',           'Horoscopic Framework: Astrological timing for transformation'         ],         initialPrompt: 'You open the Training Grounds workbook. A prompt appears asking about your current stagnation. What pattern must you shed? How will you integrate the insight? Where does it ground in your body?',         systemInstruction: 'You orchestrate Training Grounds self-alignment. Track Shedding → Integrating → Grounding → New Shedding recursion. Guide practitioner through chakric energy work, shadow integration, and embodied anchoring. Universal roadmap for personal setbacks, purpose-seeking, and spiritual evolution. Reference Jordan Caldwell metaphysical workbook and intrapersonal growth as creative foundation.'       }
+- [00:28.152] [sys] TRACING RIPPLES
+- [00:29.569] [ai] [0,4] Inner stagnation hides beneath layers of conscious shedding
+- [00:39.991] [ai] [0,4] Integration weaves fractured insights into emerging wholeness
+- [00:45.210] [ai] [0,4] Grounding roots transformation through somatic chakra awareness
+- [00:50.945] [ai] [0,4] Cycle renews as new shadows surface for release
+- [01:02.567] [sys] AUTO STEP 1: CONTINUE @ [0,4]
+- [01:02.567] [sys] [0,4] Cycle renews as new shadows surface for release
+- [01:02.567] [sys] TRACING RIPPLES
+- [01:05.269] [ai] [0,4] Shadows emerge from the depths, demanding conscious attention.
+- [01:11.072] [ai] [0,4] Therefore, the cycle compels renewed shedding of hidden burdens.
+- [01:16.541] [ai] [0,4] Energy stirs within chakras as insights crystallize into action.
+- [01:23.127] [ai] [0,4] Grounding practices anchor transformation amid shifting internal landscapes.
+- [01:29.630] [spawn] [3,5] [SPAWN @ [3,5]]: Subtle resistance pulses where old wounds linger unresolved.
+- [01:29.630] [spawn_create] [3,5] Subtle resistance pulses where old wounds linger unresolved.
+- [01:35.032] [spawn] [4,7] [SPAWN @ [4,7]]: Fresh clarity dawns through horoscopic timing's aligned guidance.
+- [01:35.032] [spawn_create] [4,7] Fresh clarity dawns through horoscopic timing's aligned guidance.
+- [01:47.705] [sys] AUTO STEP 2: FOLLOW SPAWN @ [3,5]
+- [01:48.706] [sys] AUTO STEP 2: VECTOR [3,5] -> [0,4]
+- [01:48.706] [user] [0,4] Therefore, grounding practices anchor transformation amid shifting internal landscapes.
+- [01:48.706] [sys] TRACING RIPPLES
+- [01:50.456] [ai] [0,4] Grounding roots the self in present embodied awareness.
+- [01:56.024] [ai] [0,4] Shifting inner landscapes resist static foundation, causing imbalance.
+- [02:02.928] [ai] [0,4] Therefore, grounding stabilizes transformation despite internal flux.
+- [02:09.865] [ai] [0,4] Persistent stagnation arises when grounding falters under pressure.
+- [02:15.533] [spawn] [2,3] [SPAWN @ [2,3]]: Grounding weakens as old patterns resurface unexpectedly.
+- [02:15.533] [spawn_create] [2,3] Grounding weakens as old patterns resurface unexpectedly.
+- [02:21.770] [spawn] [4,5] [SPAWN @ [4,5]]: Internal destabilization blocks integration and deep embodiment.
+- [02:21.770] [spawn_create] [4,5] Internal destabilization blocks integration and deep embodiment.
+- [02:34.760] [sys] AUTO STEP 3: FOLLOW SPAWN @ [4,7]
+- [02:35.793] [sys] AUTO STEP 3: VECTOR [4,7] -> [2,3]
+- [02:35.793] [user] [2,3] Therefore, grounding weakens as old patterns resurface unexpectedly.
+- [02:35.793] [sys] TRACING RIPPLES
+- [02:37.545] [ai] [2,3] Old patterns resurface like shadows disrupting light’s flow.
+- [02:44.413] [ai] [2,3] Grounding slips when familiar habits reclaim dormant territory.
+- [02:49.733] [ai] [2,3] Therefore, weakening roots invite latent cycles to reclaim presence.
+- [02:56.303] [ai] [2,3] The Training Grounds shift as stability fractures into fluid chaos.
+- [03:02.972] [spawn] [3,5] [SPAWN @ [3,5]]: A new faction, the Echo Weavers, manipulates resurfacing patterns.
+- [03:02.972] [spawn_create] [3,5] A new faction, the Echo Weavers, manipulates resurfacing patterns.
+- [03:09.425] [spawn] [4,6] [SPAWN @ [4,6]]: Physical laws bend, time loops fracture linear transformation paths.
+- [03:09.425] [spawn_create] [4,6] Physical laws bend, time loops fracture linear transformation paths.
+- [03:22.948] [sys] AUTO STEP 4: FOLLOW SPAWN @ [2,3]
+- [03:22.948] [sys] AUTO STEP 4: CONTINUE @ [2,3]
+- [03:22.948] [sys] [2,3] The Training Grounds shift as stability fractures into fluid chaos.
+- [03:22.948] [sys] TRACING RIPPLES
+- [03:24.983] [ai] [2,3] The once-solid floor ripples like water underfoot.
+- [03:30.385] [ai] [2,3] Therefore, practitioner's footing dissolves, challenging balance and focus.
+- [03:37.805] [ai] [2,3] Shadows from previous layers melt into swirling pools of doubt.
+- [03:43.507] [ai] [2,3] A new faction of fluid, shape-shifting guides emerges from the flux.
+- [03:49.627] [spawn] [3,5] [SPAWN @ [3,5]]: Surface fractures emit phosphorescent light, revealing hidden chakra nodes.
+- [03:49.627] [spawn_create] [3,5] Surface fractures emit phosphorescent light, revealing hidden chakra nodes.
+- [03:55.880] [spawn] [7,2] [SPAWN @ [7,2]]: Whispering currents carry fragmented insights, urging surrender to flow.
+- [03:55.880] [spawn_create] [7,2] Whispering currents carry fragmented insights, urging surrender to flow.
+- [04:05.834] [recording] recording_stopped after 237387ms
+- [04:05.834] [sys] RECORDING STOPPED. SAVING VIDEO + TRANSCRIPT.

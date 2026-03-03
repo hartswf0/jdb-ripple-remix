@@ -405,7 +405,7 @@
         #control-primary {
             border-bottom: 1px solid rgba(0, 229, 255, 0.12);
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             overflow: hidden;
         }
         #control-secondary {
@@ -752,6 +752,9 @@
                     </button>
                     <button id="btn-fullscreen" class="control-btn" onclick="toggleFullscreen()" title="Toggle View">
                         <span id="full-lbl">VIEW</span>
+                    </button>
+                    <button id="btn-focus-main" class="control-btn" onclick="recenterView()" title="Focus Active Node">
+                        <span>FOCUS</span>
                     </button>
                     <button id="btn-rec-open" class="control-btn" onclick="toggleRecordingModal()" title="Open Recording Panel">
                         <span id="rec-open-lbl">RECORD</span>

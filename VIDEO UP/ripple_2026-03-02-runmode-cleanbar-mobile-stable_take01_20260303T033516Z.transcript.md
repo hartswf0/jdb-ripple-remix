@@ -1,0 +1,91 @@
+# RIPPLE SESSION TRANSCRIPT
+
+## MEDIA ASSET
+- asset_id: ripple-2026-03-02-runmode-cleanbar-mobile-stable-take01-20260303t033516z
+- pair_code: RIPPLE-2026-03-02-RUNMODE-CLEANBAR-MOBILE-STABLE-TAKE01-20260303T033516Z
+- title: Berlin, 1987 — 2026 03 02 RUNMODE CLEANBAR MOBILE STABLE
+- title_slug: berlin-1987-2026-03-02-runmode-cleanbar-mobile-stable
+- transcript_file: ripple_2026-03-02-runmode-cleanbar-mobile-stable_take01_20260303T033516Z.transcript.md
+- video_file: ripple_2026-03-02-runmode-cleanbar-mobile-stable_take01_20260303T033516Z.mp4
+- pair_status: paired
+- first_prompt_source: first_user_event
+- first_prompt_excerpt: "Berlin, 1987. A library reading room. An angel drifts between the tables, reading thoughts no one has said aloud."
+- recommended_base_name: berlin-1987-2026-03-02-runmode-cleanbar-mobile-stable__ripple-2026-03-02-runmode-cleanbar-mobile-stable-take01-20260303t033516z
+## END MEDIA ASSET
+
+- build: 2026-03-02-runmode-cleanbar-mobile-stable
+- session_id: 20260303T033055Z
+- exported_at: 2026-03-03T03:35:16.343Z
+- root_seed: Berlin, 1987. A library reading room. An angel drifts between the tables, reading thoughts no one has said aloud.
+- auto_mode: on
+- auto_policy: FULL
+- recording_mode: CONTEXT
+- voice_capture: on
+
+- [00:26.315] [sys] RUN MODE: FULL AUTO.
+- [00:29.750] [sys] RECORD ON FIRST PROMPT: ON.
+- [00:30.300] [sys] PROFILE: CONFERENCE.
+- [00:34.751] [sys] RECORD SCOPE: map,chat,popups.
+- [00:42.972] [recording] recording_started
+- [00:42.972] [sys] RECORDING STARTED (TAKE 1) [video/mp4;codecs=avc1.42E01E,mp4a.40.2] MODE=CONTEXT TRACKS=2.
+- [00:49.309] [sys] AUTO SEED LOCKED.
+- [00:49.309] [sys] AUTO FLOW LIVE.
+- [00:49.309] [sys] ROOT ANCHOR LOCKED: "Berlin, 1987. A library reading room. An angel drifts between the tables, readin..."
+- [00:49.309] [user] [3,1] Berlin, 1987. A library reading room. An angel drifts between the tables, reading thoughts no one has said aloud.
+- [00:49.309] [sys] TRACING RIPPLES
+- [00:51.277] [ai] [3,1] The angel's wings scatter dust motes like whispered secrets.
+- [00:57.880] [ai] [3,1] Readers pause, sensing their hidden doubts unveiled.
+- [01:02.131] [ai] [3,1] Faint murmurs ripple as unspoken fears surface.
+- [01:07.619] [ai] [3,1] A forgotten diary page flutters open on a nearby desk.
+- [01:12.586] [spawn] [3,2] [SPAWN @ [3,2]]: A scholar looks up, eyes wide with sudden clarity.
+- [01:12.586] [spawn_create] [3,2] A scholar looks up, eyes wide with sudden clarity.
+- [01:20.591] [sys] AUTO STEP 1: BRANCH [3,1] -> [7,10]
+- [01:20.591] [sys] [7,10] A forgotten diary page flutters open on a nearby desk.
+- [01:20.591] [sys] TRACING RIPPLES
+- [01:22.174] [ai] [7,10] The diary page reveals a secret coded in hurried script.
+- [01:28.094] [ai] [7,10] Therefore, the angel pauses, sensing the unspoken urgency.
+- [01:33.713] [ai] [7,10] A faint scent of jasmine wafts from the yellowed paper.
+- [01:38.882] [ai] [7,10] Shadows lengthen as the room quiets, time bending softly.
+- [01:45.001] [spawn] [3,5] [SPAWN @ [3,5]]: A trembling hand reaches toward the diary’s edge.
+- [01:45.001] [spawn_create] [3,5] A trembling hand reaches toward the diary’s edge.
+- [01:48.953] [spawn] [8,2] [SPAWN @ [8,2]]: Therefore, The diary page reveals a secret coded in hurried script.
+- [01:48.953] [spawn_create] [8,2] Therefore, The diary page reveals a secret coded in hurried script.
+- [02:01.526] [sys] AUTO STEP 2: FOLLOW SPAWN @ [3,5]
+- [02:01.526] [sys] AUTO STEP 2: CONTINUE @ [3,5]
+- [02:01.526] [sys] [3,5] A trembling hand reaches toward the diary’s edge.
+- [02:01.526] [sys] TRACING RIPPLES
+- [02:03.226] [ai] [3,5] Fingers brush the worn leather, hesitant and slow.
+- [02:08.695] [ai] [3,5] The angel's gaze sharpens, sensing a secret unfolding.
+- [02:15.232] [ai] [3,5] Therefore, the room's silence thickens, heavy with anticipation.
+- [02:21.601] [ai] [3,5] A faint whisper escapes, as if the diary itself breathes.
+- [02:27.871] [spawn] [4,3] [SPAWN @ [4,3]]: The diary's pages flutter, stirred by unseen winds.
+- [02:27.871] [spawn_create] [4,3] The diary's pages flutter, stirred by unseen winds.
+- [02:34.190] [spawn] [5,2] [SPAWN @ [5,2]]: A shadow lengthens, cast by the trembling hand's motion.
+- [02:34.190] [spawn_create] [5,2] A shadow lengthens, cast by the trembling hand's motion.
+- [02:47.263] [sys] AUTO STEP 3: FOLLOW SPAWN @ [8,2]
+- [02:47.263] [sys] AUTO STEP 3: OBSTACLE @ [8,2]
+- [02:47.263] [sys] >> NODE [8,2] SHIFTED TO [OBSTACLE]
+- [02:47.263] [sys] [8,2] Therefore, Therefore, The diary page reveals a secret coded in hurried script.
+- [02:47.263] [sys] TRACING RIPPLES
+- [02:48.797] [ai] [8,2] Therefore, decoding attempts trigger a sudden, alarming distortion in the air.
+- [02:55.416] [ai] [8,2] The angel’s gaze sharpens, sensing a hostile mental barrier closing.
+- [03:02.587] [ai] [8,2] The hurried script resists clarity, warping into unintelligible shadows.
+- [03:09.923] [ai] [8,2] Panic rises as the library’s silence fractures with distant echoes.
+- [03:16.926] [spawn] [3,7] [SPAWN @ [3,7]]: an ancient lock mechanism embedded in the diary’s spine
+- [03:16.926] [spawn_create] [3,7] an ancient lock mechanism embedded in the diary’s spine
+- [03:21.994] [spawn] [4,6] [SPAWN @ [4,6]]: a spectral whisper warning: "Do not unravel what should remain hidden."
+- [03:21.994] [spawn_create] [4,6] a spectral whisper warning: "Do not unravel what should remain hidden."
+- [03:36.135] [sys] AUTO STEP 4: FOLLOW SPAWN @ [4,3]
+- [03:36.702] [sys] AUTO STEP 4: VECTOR [4,3] -> [3,1]
+- [03:36.702] [sys] [3,1] Therefore, a forgotten diary page flutters open on a nearby desk.
+- [03:36.702] [sys] TRACING RIPPLES
+- [03:38.487] [ai] [3,1] The air shimmers as inked words begin to glow faintly.
+- [03:43.855] [ai] [3,1] Invisible whispers swirl, revealing secrets only the angel perceives.
+- [03:51.592] [ai] [3,1] Therefore, the diary’s silent tales awaken a hidden faction of shadow readers.
+- [03:57.912] [ai] [3,1] Books around the room ripple like water, distorting reality’s fabric.
+- [04:03.864] [spawn] [3,5] [SPAWN @ [3,5]]: Shadow readers emerge from between the stacks, unseen by others.
+- [04:03.864] [spawn_create] [3,5] Shadow readers emerge from between the stacks, unseen by others.
+- [04:09.984] [spawn] [11,3] [SPAWN @ [11,3]]: Therefore, The air shimmers as inked words begin to glow faintly.
+- [04:09.984] [spawn_create] [11,3] Therefore, The air shimmers as inked words begin to glow faintly.
+- [04:20.705] [recording] recording_stopped after 217714ms
+- [04:20.705] [sys] RECORDING STOPPED. SAVING VIDEO + TRANSCRIPT.

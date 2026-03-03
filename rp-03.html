@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en" data-profile="DESKTOP">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Mobile-safe viewport (allows zoom, supports iPhone safe areas) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ORCA // RIPPLE</title>
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23030508'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%2300e5ff'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%2300e5ff' stroke-width='3' opacity='0.85'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%2300e5ff' stroke-width='2' opacity='0.6'/%3E%3C/svg%3E" />
+
+  <style>
+    :root{
+      --bg-deep:#030508;
+      --panel-bg:rgba(6,10,18,0.95);
+      --border-dim:rgba(0,229,255,0.2);
+      --text-main:#a0b0c0;
+      --cyan:#00e5ff;
+      --orange:#ff6a00;
+      --alert:#ff4d4d;
+      --goal:#00ff88;
+      --shift:#bd00ff;
+      --font-mono:'Courier New', Courier, monospace;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html,body{
+      margin:0; padding:0; width:100%; height:100%;
+      background:var(--bg-deep);
+      font-family:var(--font-mono);
+      color:var(--text-main);
+      overflow:hidden;
+      overscroll-behavior:none;
+      /* Do NOT globally block touch. */
+      touch-action:manipulation;
+    }
+
+    /* Allow selection where it matters */
+    #cmd-input, #boot-api-key, #chat-log, .msg { user-select:text; }
+    /* Keep canvas gestures controlled */
+    canvas{ touch-action:none; }
+
+    .scanlines{
+      position:fixed; inset:0; z-index:40; pointer-events:none;
+      background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.12));
+      background-size:100% 4px;
+      opacity:0.45;
+      mix-blend-mode:overlay;
+    }
+
+    #canvas-container{
+      position:fixed; inset:0; z-index:1;
+      background:radial-gradient(circle at center, #0a1118 0%, #020305 100%);
+    }
+
+    /* ===== Boot ===== */
+    #boot-screen{
+      position:fixed; inset:0; z-index:3000;
+      background:#000;
+      display:flex; align-items:center; justify-content:center;
+      color:var(--cyan);
+      transition:opacity 0.4s ease;
+      padding:18px;
+    }
+    .boot-panel{
+      width:min(520px, 100%);
+      border:1px solid var(--border-dim);
+      background:rgba(6,10,18,0.95);
+      box-shadow:0 0 30px rgba(0,0,0,0.8);
+      padding:18px;
+      display:grid;
+      gap:12px;
+      text-align:center;
+    }
+    .pulse-text{ font-weight:bold; letter-spacing:4px; text-transform:uppercase; animation:textPulse 1.8s infinite alternate; }
+    @keyframes textPulse{ from{ opacity:0.55; } to{ opacity:1; text-shadow:0 0 15px var(--cyan);} }
+
+    #boot-api-key{
+      width:100%;
+      background:#02060d;
+      border:1px solid var(--border-dim);
+      color:var(--cyan);
+      font-family:var(--font-mono);
+      font-size:16px;
+      padding:10px 12px;
+      outline:none;
+    }
+    #boot-api-key::placeholder{ color:#6e8fa8; }
+    .boot-options{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center;
+      align-items:center;
+      color:#9fb6c9;
+      font-size:0.75rem;
+    }
+    .boot-opt{ display:flex; align-items:center; gap:6px; }
+    .boot-select{
+      background:#02060d;
+      border:1px solid var(--border-dim);
+      color:var(--cyan);
+      font-family:var(--font-mono);
+      font-size:0.75rem;
+      padding:6px 8px;
+      outline:none;
+    }
+    #boot-start{
+      border:1px solid var(--cyan);
+      background:transparent;
+      color:var(--cyan);
+      font-family:var(--font-mono);
+      font-weight:bold;
+      letter-spacing:1.2px;
+      text-transform:uppercase;
+      padding:10px 12px;
+      cursor:pointer;
+      transition:all 0.2s;
+    }
+    #boot-start:hover{ background:var(--cyan); color:#000; }
+    #boot-msg{
+      min-height:18px;
+      color:#9fb6c9;
+      font-size:0.75rem;
+      letter-spacing:0.3px;
+    }
+
+    /* ===== Onboarding (interactive, skippable, replayable) ===== */
+    #onboarding{
+      position:fixed; inset:0; z-index:2500;
+      display:none;
+      align-items:center; justify-content:center;
+      background:rgba(3,5,8,0.92);
+      padding:18px;
+    }
+    #onboarding .ob-card{
+      width:min(560px, 100%);
+      border:1px solid rgba(0,229,255,0.25);
+      background:rgba(6,10,18,0.96);
+      box-shadow:0 14px 60px rgba(0,0,0,0.85);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .ob-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(0,229,255,0.14);
+    }
+    .ob-title{
+      color:var(--cyan);
+      font-weight:bold;
+      letter-spacing:1px;
+      text-transform:uppercase;
+      font-size:0.9rem;
+    }
+    .ob-skip{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.25);
+      color:#fff;
+      border-radius:8px;
+      padding:6px 10px;
+      cursor:pointer;
+    }
+    .ob-body{
+      padding:14px;
+      color:#fff;
+      line-height:1.45;
+      font-size:0.95rem;
+    }
+    .ob-body .muted{ color:#9fb6c9; font-size:0.85rem; margin-top:8px; }
+    .ob-actions{
+      display:flex; gap:10px; justify-content:flex-end;
+      padding:12px 14px;
+      border-top:1px solid rgba(255,255,255,0.06);
+    }
+    .ob-btn{
+      background:transparent;
+      border:1px solid rgba(0,229,255,0.35);
+      color:var(--cyan);
+      border-radius:10px;
+      padding:9px 12px;
+      cursor:pointer;
+      font-family:var(--font-mono);
+      font-weight:bold;
+      letter-spacing:0.5px;
+    }
+    .ob-btn.primary{
+      border-color:var(--cyan);
+    }
+    .ob-btn.primary:hover{ background:var(--cyan); color:#000; }
+
+    /* Highlight targets (subtle glow) */
+    .coach-glow{
+      outline:2px solid rgba(0,229,255,0.55);
+      box-shadow:0 0 0 6px rgba(0,229,255,0.12), 0 0 24px rgba(0,229,255,0.18);
+      border-radius:12px;
+      transition:box-shadow 0.2s, outline 0.2s;
+    }
+
+    /* ===== HUD ===== */
+    #minimap-container{
+      position:fixed;
+      top:16px;
+      right:16px;
+      z-index:120;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      opacity:0;
+      animation:fadeInUI 0.8s 0.3s forwards;
+    }
+    @keyframes fadeInUI{ to{ opacity:1; } }
+
+    #minimap{
+      display:grid;
+      grid-template-columns:repeat(12, 10px);
+      grid-template-rows:repeat(12, 10px);
+      gap:4px;
+      padding:6px;
+      border:1px solid rgba(0,229,255,0.12);
+      background:rgba(6,10,18,0.6);
+      backdrop-filter:blur(8px);
+      border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.6);
+    }
+    .mini-cell{
+      width:10px; height:10px;
+      border-radius:50%;
+      background:rgba(255,255,255,0.12);
+      cursor:pointer;
+      transition:transform 0.12s, background-color 0.2s, box-shadow 0.2s;
+    }
+    .mini-active{ background:var(--cyan); }
+    .mini-selected{
+      background:var(--orange) !important;
+      box-shadow:0 0 10px rgba(255,106,0,0.85) !important;
+      transform:scale(1.08);
+    }
+
+    /* status chip (top-left) */
+    #status-chip{
+      position:fixed;
+      top:16px;
+      left:16px;
+      z-index:120;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:8px 10px;
+      border:1px solid rgba(0,229,255,0.18);
+      background:rgba(6,10,18,0.78);
+      backdrop-filter:blur(8px);
+      border-radius:12px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.6);
+      opacity:0;
+      animation:fadeInUI 0.8s 0.3s forwards;
+    }
+    .chip-label{ color:#9fb6c9; font-size:0.75rem; }
+    .chip-value{ color:var(--cyan); font-weight:bold; font-size:0.75rem; letter-spacing:0.4px; }
+    .chip-sep{ width:1px; height:14px; background:rgba(255,255,255,0.12); }
+
+    /* ===== Right-side vectors panel (only when node selected) ===== */
+    #vectors-panel{
+      position:fixed;
+      top:92px;
+      right:16px;
+      z-index:130;
+      width:min(420px, calc(100vw - 32px));
+      display:none;
+      flex-direction:column;
+      gap:10px;
+      pointer-events:auto;
+    }
+    #vectors-panel .v-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 12px;
+      border:1px solid rgba(0,229,255,0.18);
+      background:rgba(6,10,18,0.88);
+      border-radius:12px;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 30px rgba(0,0,0,0.75);
+    }
+    #vectors-title{
+      color:var(--cyan);
+      font-weight:bold;
+      letter-spacing:1px;
+      font-size:0.75rem;
+      text-transform:uppercase;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width:70%;
+    }
+    .v-head button{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.22);
+      color:#fff;
+      border-radius:10px;
+      padding:6px 10px;
+      cursor:pointer;
+      font-family:var(--font-mono);
+      font-size:0.75rem;
+    }
+
+    #vector-list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      max-height:50vh;
+      overflow:auto;
+      padding-right:2px;
+      scrollbar-width:thin;
+      scrollbar-color:var(--cyan) transparent;
+    }
+    #vector-list::-webkit-scrollbar{ width:8px; }
+    #vector-list::-webkit-scrollbar-thumb{ background:rgba(0,229,255,0.35); border-radius:10px; }
+
+    .vector-card{
+      display:flex;
+      overflow:hidden;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(6,10,18,0.88);
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 26px rgba(0,0,0,0.72);
+    }
+    .vector-main{
+      flex:1;
+      padding:12px;
+      cursor:pointer;
+      border:none;
+      background:transparent;
+      color:#fff;
+      text-align:left;
+      font-family:var(--font-mono);
+      line-height:1.4;
+    }
+    .vector-kicker{
+      display:block;
+      text-transform:uppercase;
+      letter-spacing:1px;
+      font-size:0.72rem;
+      font-weight:bold;
+      margin-bottom:6px;
+      color:var(--cyan);
+    }
+    .vector-side{
+      display:flex;
+      flex-direction:column;
+      width:44px;
+      border-left:1px solid rgba(255,255,255,0.06);
+    }
+    .vector-side button{
+      flex:1;
+      background:rgba(0,0,0,0.18);
+      border:none;
+      color:#fff;
+      cursor:pointer;
+      font-weight:bold;
+    }
+    .vector-side button:hover{ background:rgba(0,0,0,0.5); }
+
+    /* ===== Bottom HUD (simplified) ===== */
+    #bottom-panel{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      height:280px;
+      z-index:200;
+      background:rgba(6,10,18,0.92);
+      border-top:1px solid rgba(0,229,255,0.16);
+      backdrop-filter:blur(12px);
+      box-shadow:0 -14px 50px rgba(0,0,0,0.9);
+      display:flex;
+      flex-direction:column;
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    #resizer{
+      height:16px;
+      cursor:ns-resize;
+      background:rgba(0,229,255,0.05);
+      border-top:2px solid var(--cyan);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+    }
+    #resizer::before{
+      content:"|||";
+      color:var(--cyan);
+      font-size:10px;
+      letter-spacing:4px;
+      opacity:0.55;
+      font-family:sans-serif;
+    }
+
+    #chat-wrapper{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    #chat-log{
+      flex:1;
+      padding:10px 14px;
+      overflow:auto;
+      font-size:0.9rem;
+      line-height:1.45;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
+      scrollbar-width:thin;
+      scrollbar-color:var(--cyan) transparent;
+    }
+    .msg{
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:rgba(0,0,0,0.24);
+    }
+    .msg.msg-sys{ color:#8aa2b8; border-color:rgba(255,255,255,0.06); }
+    .msg.msg-user{ color:#fff; border-color:rgba(0,229,255,0.24); background:rgba(0,229,255,0.06); font-weight:bold; }
+    .msg.msg-ai{ color:var(--goal); border-color:rgba(0,255,136,0.22); background:rgba(0,255,136,0.06); }
+    .msg.msg-spawn{ color:var(--shift); border-color:rgba(189,0,255,0.22); background:rgba(189,0,255,0.06); }
+    .msg[data-col-id]{ cursor:pointer; }
+    .msg[data-col-id]:hover{ outline:1px solid rgba(0,229,255,0.25); }
+    .msg-selected{
+      border-color:rgba(255,106,0,0.6) !important;
+      box-shadow:0 0 0 3px rgba(255,106,0,0.12);
+    }
+    .msg-dimmed{ opacity:0.35; filter:grayscale(70%); }
+
+    #guidance-bar{
+      padding:8px 14px;
+      border-top:1px solid rgba(0,229,255,0.12);
+      background:rgba(3,8,14,0.55);
+      color:#8fc5de;
+      font-size:0.78rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* Base bar: Mode + Auto + Tools + Input + Drop */
+    #input-area{
+      display:flex;
+      align-items:stretch;
+      height:60px;
+      border-top:1px solid rgba(0,229,255,0.14);
+      background:#000;
+      gap:0;
+    }
+    .control-btn{
+      min-width:56px;
+      padding:0 12px;
+      border:none;
+      border-right:1px solid rgba(0,229,255,0.16);
+      background:transparent;
+      color:var(--text-main);
+      font-family:var(--font-mono);
+      font-weight:bold;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+    .control-btn:hover{ background:rgba(255,255,255,0.04); color:#fff; }
+    .control-btn.ctrl-active{ color:var(--goal); text-shadow:0 0 8px rgba(0,255,136,0.35); }
+
+    #cmd-input{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      color:var(--cyan);
+      padding:0 14px;
+      font-family:var(--font-mono);
+      font-size:16px; /* prevents iOS zoom-on-focus */
+      font-weight:bold;
+      min-width:80px;
+    }
+    #cmd-submit{
+      min-width:72px;
+      border:none;
+      border-left:1px solid rgba(0,229,255,0.16);
+      background:transparent;
+      color:var(--cyan);
+      font-family:var(--font-mono);
+      font-weight:bold;
+      cursor:pointer;
+      padding:0 14px;
+    }
+    #cmd-submit:hover{ background:var(--cyan); color:#000; }
+
+    /* Mode coloring */
+    .mode-default{ color:var(--text-main); }
+    .mode-obstacle{ color:var(--alert); text-shadow:0 0 8px rgba(255,77,77,0.35); }
+    .mode-goal{ color:var(--goal); text-shadow:0 0 8px rgba(0,255,136,0.35); }
+    .mode-shift{ color:var(--shift); text-shadow:0 0 8px rgba(189,0,255,0.35); }
+
+    /* ===== Tools sheet ===== */
+    #tools-overlay{
+      position:fixed; inset:0; z-index:3200;
+      background:rgba(0,0,0,0.55);
+      display:none;
+      justify-content:center;
+      align-items:flex-end;
+      padding:16px;
+      padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    }
+    #tools-sheet{
+      width:min(560px, 100%);
+      background:rgba(6,10,18,0.98);
+      border:1px solid rgba(0,229,255,0.22);
+      box-shadow:0 14px 60px rgba(0,0,0,0.85);
+      border-radius:14px;
+      overflow:hidden;
+    }
+    .sheet-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(0,229,255,0.14);
+    }
+    .sheet-title{
+      color:var(--cyan);
+      font-weight:bold;
+      letter-spacing:1px;
+      text-transform:uppercase;
+    }
+    .sheet-close{
+      width:40px;
+      height:34px;
+      border-radius:10px;
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.22);
+      color:#fff;
+      cursor:pointer;
+    }
+    .sheet-body{ display:grid; }
+    .sheet-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:14px 14px;
+      border:none;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+      background:transparent;
+      color:#fff;
+      font-family:var(--font-mono);
+      font-size:0.95rem;
+      cursor:pointer;
+      text-align:left;
+    }
+    .sheet-row:active{ background:rgba(0,229,255,0.08); }
+    .sheet-state{
+      color:#9fb6c9;
+      font-weight:bold;
+      font-size:0.85rem;
+    }
+    .sheet-divider{ height:10px; background:rgba(255,255,255,0.04); }
+
+    /* ===== Mobile density rules ===== */
+    @media (max-width:520px){
+      #minimap{ grid-template-columns:repeat(12, 9px); grid-template-rows:repeat(12, 9px); gap:3px; }
+      .mini-cell{ width:9px; height:9px; }
+      #vectors-panel{ top:84px; }
+      #bottom-panel{ height:300px; }
+      .control-btn{ min-width:54px; padding:0 10px; }
+      #cmd-submit{ min-width:66px; }
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+
+<body>
+  <div class="scanlines"></div>
+  <div id="canvas-container"></div>
+
+  <!-- Boot -->
+  <div id="boot-screen" role="dialog" aria-modal="true" aria-label="Awaken">
+    <div class="boot-panel">
+      <div class="pulse-text">[ AWAKEN TOPOGRAPHY ]</div>
+      <input id="boot-api-key" type="password" placeholder="Enter OpenAI API key (sk-...)" autocomplete="off" />
+      <div class="boot-options">
+        <label class="boot-opt">Profile
+          <select id="boot-profile" class="boot-select">
+            <option value="MOBILE">Mobile</option>
+            <option value="DESKTOP" selected>Desktop</option>
+            <option value="CONFERENCE">Conference</option>
+          </select>
+        </label>
+        <label class="boot-opt"><input id="boot-skip-tutorial" type="checkbox" />Skip tutorial</label>
+      </div>
+      <button id="boot-start" type="button">Enter Experience</button>
+      <div id="boot-msg">OpenAI key required. Stored in memory for this session only.</div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div id="onboarding" aria-hidden="true">
+    <div class="ob-card">
+      <div class="ob-head">
+        <div class="ob-title">RIPPLE / QUICK START</div>
+        <button class="ob-skip" type="button" id="ob-skip">SKIP</button>
+      </div>
+      <div class="ob-body" id="ob-body"></div>
+      <div class="ob-actions">
+        <button class="ob-btn" type="button" id="ob-back">BACK</button>
+        <button class="ob-btn primary" type="button" id="ob-next">NEXT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="status-chip" aria-label="Status">
+    <span class="chip-label">MODE</span><span class="chip-value" id="chip-mode">NEUTRAL</span>
+    <span class="chip-sep"></span>
+    <span class="chip-label">AUTO</span><span class="chip-value" id="chip-auto">OFF</span>
+  </div>
+
+  <div id="minimap-container" aria-label="Minimap">
+    <div id="minimap"></div>
+  </div>
+
+  <!-- Vectors -->
+  <div id="vectors-panel" aria-label="Vectors">
+    <div class="v-head">
+      <div id="vectors-title">VECTORS</div>
+      <button id="vectors-close" type="button" title="Close">✕</button>
+    </div>
+    <div id="vector-list"></div>
+  </div>
+
+  <!-- Bottom panel -->
+  <div id="bottom-panel">
+    <div id="resizer" title="Drag to resize"></div>
+    <div id="chat-wrapper">
+      <div id="chat-log">
+        <div class="msg msg-sys" id="build-line">>>> RIPPLE ENGINE ONLINE.</div>
+      </div>
+      <div id="guidance-bar">Tap a node, then drop a stone. Tools are in ⋯.</div>
+      <div id="input-area">
+        <button id="btn-mode" class="control-btn mode-default" title="Cycle lens">■ MODE</button>
+        <button id="btn-auto" class="control-btn" title="Toggle auto">⟳ AUTO</button>
+        <button id="btn-tools" class="control-btn" title="Tools">⋯ TOOLS</button>
+        <input id="cmd-input" type="text" placeholder="Drop a stone..." autocomplete="off" />
+        <button id="cmd-submit" title="Drop">↵ DROP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tools sheet -->
+  <div id="tools-overlay" aria-hidden="true">
+    <div id="tools-sheet" role="dialog" aria-modal="true" aria-label="Tools">
+      <div class="sheet-header">
+        <div class="sheet-title">TOOLS</div>
+        <button class="sheet-close" type="button" id="tools-close">✕</button>
+      </div>
+      <div class="sheet-body">
+        <button class="sheet-row" type="button" id="tools-audio">
+          <span>Audio</span><span class="sheet-state" id="tools-audio-state">MUTE</span>
+        </button>
+        <button class="sheet-row" type="button" id="tools-tts">
+          <span>TTS</span><span class="sheet-state" id="tools-tts-state">OFF</span>
+        </button>
+        <button class="sheet-row" type="button" id="tools-auto">
+          <span>Auto Ripple</span><span class="sheet-state" id="tools-auto-state">OFF</span>
+        </button>
+        <button class="sheet-row" type="button" id="tools-profile">
+          <span>UI Profile</span><span class="sheet-state" id="tools-profile-state">DESKTOP</span>
+        </button>
+        <div class="sheet-divider"></div>
+        <button class="sheet-row" type="button" id="tools-tutorial">
+          <span>Replay Tutorial</span><span class="sheet-state">▶</span>
+        </button>
+        <button class="sheet-row" type="button" id="tools-clear">
+          <span>Clear Selection</span><span class="sheet-state">✕</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /************************************************************
+     * CONFIG / STATE
+     ************************************************************/
+    const ENGINE_BUILD = "2026-03-02-ux-rebuild-mobile-first";
+
+    const LLM_CONFIG = {
+      provider: "openai",
+      apiKey: "",
+      model: "gpt-4.1-mini",
+      baseUrl: "https://api.openai.com/v1"
+    };
+
+    const STATE = {
+      uiProfile: "DESKTOP",
+      inputMode: "DEFAULT", // DEFAULT/OBSTACLE/GOAL/SHIFT
+      autoRippleEnabled: false,
+      selectedColId: -1,
+      selectedLayerIdx: -1,
+      readingColId: -1,
+      readingLayerIdx: -1,
+      isAITyping: false,
+      tension: 1.6,
+      autoPan: true,
+      onboardingStep: 0,
+      ttsAutoEnabled: false,
+      ttsSupported: typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window
+    };
+
+    const MODES = ["DEFAULT","OBSTACLE","GOAL","SHIFT"];
+    const MODE_SYMBOL = { DEFAULT:"■", OBSTACLE:"⨂", GOAL:"◎", SHIFT:"↯" };
+    const MODE_LABEL  = { DEFAULT:"NEUTRAL", OBSTACLE:"OBSTACLE", GOAL:"GOAL", SHIFT:"SHIFT" };
+    const MODE_CLASS  = { DEFAULT:"mode-default", OBSTACLE:"mode-obstacle", GOAL:"mode-goal", SHIFT:"mode-shift" };
+
+    const TAG_COLORS = {
+      DEFAULT: 0x00e5ff,
+      OBSTACLE: 0xff4d4d,
+      GOAL: 0x00ff88,
+      SHIFT: 0xbd00ff
+    };
+
+    function detectDefaultUIProfile(){
+      return window.innerWidth < 900 ? "MOBILE" : "DESKTOP";
+    }
+
+    function setProfile(profile){
+      const next = ["MOBILE","DESKTOP","CONFERENCE"].includes(String(profile).toUpperCase())
+        ? String(profile).toUpperCase()
+        : "DESKTOP";
+      STATE.uiProfile = next;
+      document.documentElement.dataset.profile = next;
+      document.getElementById("tools-profile-state").textContent = next;
+      appendSys(`UI PROFILE: ${next}.`);
+    }
+
+    /************************************************************
+     * BASIC UI HELPERS
+     ************************************************************/
+    function triggerHaptic(pattern){
+      try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(e){}
+    }
+
+    const chatLog = document.getElementById("chat-log");
+
+    function appendMsg(text, type="sys", meta={}){
+      const div = document.createElement("div");
+      div.className = `msg msg-${type}`;
+      if (meta.colId != null && meta.colId !== -1 && meta.layerIdx != null && meta.layerIdx !== -1){
+        div.dataset.colId = String(meta.colId);
+        div.dataset.layerIdx = String(meta.layerIdx);
+        div.onclick = (e) => {
+          e.stopPropagation();
+          triggerHaptic(10);
+          expandStack(meta.colId, meta.layerIdx);
+        };
+      }
+      div.textContent = text;
+      chatLog.appendChild(div);
+      chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: "smooth" });
+      return div;
+    }
+    function appendSys(text){ return appendMsg(`>>> ${text}`, "sys"); }
+    function appendUser(text, meta){ return appendMsg(`> ${text}`, "user", meta||{}); }
+    function appendAI(text, meta){ return appendMsg(text, "ai", meta||{}); }
+    function appendSpawn(text, meta){ return appendMsg(text, "spawn", meta||{}); }
+
+    function updateChip(){
+      document.getElementById("chip-mode").textContent = MODE_LABEL[STATE.inputMode] || "NEUTRAL";
+      document.getElementById("chip-auto").textContent = STATE.autoRippleEnabled ? "ON" : "OFF";
+    }
+
+    function setMode(mode){
+      STATE.inputMode = mode;
+      const btn = document.getElementById("btn-mode");
+      btn.className = `control-btn ${MODE_CLASS[mode] || "mode-default"}`;
+      btn.textContent = `${MODE_SYMBOL[mode] || "■"} MODE`;
+      updateChip();
+    }
+
+    function guidance(text){
+      const el = document.getElementById("guidance-bar");
+      el.textContent = text;
+    }
+
+    /************************************************************
+     * TOOLS SHEET
+     ************************************************************/
+    const toolsOverlay = document.getElementById("tools-overlay");
+    const toolsClose = document.getElementById("tools-close");
+
+    function openTools(){
+      toolsOverlay.style.display = "flex";
+      toolsOverlay.setAttribute("aria-hidden","false");
+      syncToolsStates();
+      triggerHaptic(8);
+    }
+    function closeTools(){
+      toolsOverlay.style.display = "none";
+      toolsOverlay.setAttribute("aria-hidden","true");
+      triggerHaptic(6);
+    }
+    toolsOverlay.addEventListener("click", (e)=>{ if (e.target === toolsOverlay) closeTools(); });
+    toolsClose.addEventListener("click", closeTools);
+    document.getElementById("btn-tools").addEventListener("click", openTools);
+
+    /************************************************************
+     * AUDIO + TTS (lightweight)
+     ************************************************************/
+    let audioCtx = null;
+    let masterGain = null;
+    let audioEnabled = false;
+
+    function initAudio(){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.25;
+      masterGain.connect(audioCtx.destination);
+    }
+
+    function beep(freq=220, dur=0.08){
+      if (!audioEnabled) return;
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      g.gain.value = 0.001;
+      osc.connect(g);
+      g.connect(masterGain);
+      const t = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+
+    function toggleAudio(){
+      audioEnabled = !audioEnabled;
+      if (audioEnabled){
+        if (!audioCtx) initAudio();
+        audioCtx.resume().catch(()=>{});
+        beep(196, 0.09);
+      }
+      syncToolsStates();
+      appendSys(`AUDIO: ${audioEnabled ? "LIVE" : "MUTE"}.`);
+    }
+
+    function speak(text){
+      if (!STATE.ttsSupported || !STATE.ttsAutoEnabled) return;
+      try{
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(text||"").slice(0,180));
+        u.rate = 0.92; u.pitch = 0.98;
+        window.speechSynthesis.speak(u);
+      }catch(e){}
+    }
+
+    function toggleTTS(){
+      if (!STATE.ttsSupported){
+        appendSys("TTS NOT AVAILABLE IN THIS BROWSER.");
+        return;
+      }
+      STATE.ttsAutoEnabled = !STATE.ttsAutoEnabled;
+      syncToolsStates();
+      appendSys(`TTS: ${STATE.ttsAutoEnabled ? "ON" : "OFF"}.`);
+    }
+
+    function syncToolsStates(){
+      document.getElementById("tools-audio-state").textContent = audioEnabled ? "LIVE" : "MUTE";
+      document.getElementById("tools-tts-state").textContent = STATE.ttsSupported ? (STATE.ttsAutoEnabled ? "ON" : "OFF") : "N/A";
+      document.getElementById("tools-auto-state").textContent = STATE.autoRippleEnabled ? "ON" : "OFF";
+      document.getElementById("tools-profile-state").textContent = STATE.uiProfile;
+      updateChip();
+    }
+
+    document.getElementById("tools-audio").addEventListener("click", toggleAudio);
+    document.getElementById("tools-tts").addEventListener("click", toggleTTS);
+    document.getElementById("tools-auto").addEventListener("click", ()=>toggleAutoRipple(true));
+    document.getElementById("tools-profile").addEventListener("click", ()=>{
+      const order = ["MOBILE","DESKTOP","CONFERENCE"];
+      const idx = order.indexOf(STATE.uiProfile);
+      setProfile(order[(idx+1)%order.length]);
+      syncToolsStates();
+    });
+    document.getElementById("tools-clear").addEventListener("click", ()=>{
+      collapseStack();
+      closeTools();
+    });
+
+    /************************************************************
+     * OPENAI CALLS (kept minimal + robust)
+     ************************************************************/
+    async function callOpenAI(userPrompt, systemPrompt, opts = {}){
+      const key = String(LLM_CONFIG.apiKey || "").trim();
+      if (!key) throw new Error("OPENAI key missing");
+
+      const base = String(LLM_CONFIG.baseUrl || "https://api.openai.com/v1").replace(/\/+$/,"");
+      const res = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: opts.model || LLM_CONFIG.model,
+          messages: [
+            ...(systemPrompt ? [{ role:"system", content:systemPrompt }] : []),
+            { role:"user", content:String(userPrompt||"") }
+          ],
+          temperature: typeof opts.temperature === "number" ? opts.temperature : 0.6,
+          max_tokens: opts.maxTokens || 420
+        })
+      });
+
+      if (!res.ok){
+        const detail = await res.text().catch(()=> "");
+        throw new Error(`OpenAI ${res.status}${detail ? `: ${detail.slice(0,140)}` : ""}`);
+      }
+      const data = await res.json();
+      return String(data?.choices?.[0]?.message?.content || "").trim();
+    }
+
+    function normalizeLines(raw){
+      return String(raw||"")
+        .replace(/<br\s*\/?>/gi,"\n")
+        .replace(/\r\n?/g,"\n")
+        .split("\n")
+        .map(s=>s.trim())
+        .filter(Boolean);
+    }
+
+    function parseFragments(raw){
+      // Accept either [FRAGMENT: ...] or plain lines. Keep up to 4.
+      const lines = normalizeLines(raw);
+      const frags = [];
+      for (const line of lines){
+        const m = line.match(/\[\s*FRAGMENT\s*:\s*(.+?)\s*\]/i);
+        const val = (m ? m[1] : line).trim();
+        if (!val) continue;
+        if (/^\[?\s*VECTOR/i.test(val)) continue;
+        if (/^\[?\s*SPAWN/i.test(val)) continue;
+        frags.push(val);
+      }
+      // If model returned one big paragraph, split on sentences
+      if (frags.length <= 1){
+        const para = String(raw||"").replace(/\[.*?\]/g," ").replace(/\s+/g," ").trim();
+        const bySentence = para.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+        return bySentence.slice(0,4);
+      }
+      return frags.slice(0,4);
+    }
+
+    function parseVectors(raw){
+      // Format: [VECTOR: [x,y] | Therefore, ...]
+      const text = String(raw||"");
+      const re = /\[\s*VECTOR\s*:?\s*(\[\s*\d+\s*,\s*\d+\s*\])\s*\|\s*([^\]]+?)\s*\]/gi;
+      const out = [];
+      let m;
+      while((m = re.exec(text)) !== null){
+        const coord = m[1].replace(/\s+/g,"");
+        const reason = String(m[2]||"").trim();
+        if (coord && reason) out.push({ coord, reason: reason.startsWith("Therefore") ? reason : `Therefore, ${reason}` });
+      }
+      return out.slice(0,2);
+    }
+
+    /************************************************************
+     * THREE.JS WORLD + NODE DATA
+     ************************************************************/
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x020305, 0.008);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+    camera.position.set(40, 52, 84);
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:"high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x020305);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.enableRotate = false;
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.panSpeed = 0.95;
+    controls.zoomSpeed = 0.8;
+    controls.maxDistance = 320;
+    controls.minDistance = 10;
+    controls.maxPolarAngle = Math.PI / 1.8;
+    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    controls.touches.ONE = THREE.TOUCH.PAN;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const clickableMeshes = [];
+
+    const colRegistry = [];
+    const miniCells = [];
+
+    function getGeometryForTag(tag, isEmpty=false){
+      if (isEmpty) return new THREE.CircleGeometry(0.6, 18);
+      switch(tag){
+        case "OBSTACLE": return new THREE.PlaneGeometry(5,5);
+        case "GOAL": return new THREE.RingGeometry(1,3.6,32);
+        case "SHIFT": return new THREE.CircleGeometry(3.6, 4);
+        default: return new THREE.RingGeometry(2.0, 2.6, 24);
+      }
+    }
+
+    function createTextSprite(text, isTitle=false){
+      const canvas = document.createElement("canvas");
+      canvas.width = 1024;
+      canvas.height = isTitle ? 84 : 132;
+      const ctx = canvas.getContext("2d");
+
+      // backdrop
+      ctx.fillStyle = isTitle ? "rgba(0,0,0,0)" : "rgba(2,5,8,0.98)";
+      ctx.fillRect(0,0,canvas.width, canvas.height);
+
+      if (!isTitle){
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.lineWidth = 6;
+        ctx.strokeRect(3,3,canvas.width-6, canvas.height-6);
+      }
+
+      let fontSize = isTitle ? 40 : 52;
+      const t = String(text||"");
+      if (!isTitle){
+        if (t.length > 35) fontSize = 42;
+        if (t.length > 55) fontSize = 32;
+        if (t.length > 75) fontSize = 24;
+      }
+
+      ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = isTitle ? "#00e5ff" : "#ffffff";
+      if (isTitle){
+        ctx.shadowColor = "#00e5ff";
+        ctx.shadowBlur = 10;
+      }
+      ctx.fillText(String(text||"").toUpperCase(), canvas.width/2, canvas.height/2, canvas.width-40);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthTest: !isTitle, depthWrite: !isTitle });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(15, isTitle ? 1.15 : 1.8, 1);
+      return sprite;
+    }
+
+    function applyColumnTag(col, tag){
+      const safeTag = TAG_COLORS[tag] ? tag : "DEFAULT";
+      col.tag = safeTag;
+
+      if (col.baseMesh){
+        col.baseMesh.geometry.dispose();
+        col.baseMesh.geometry = getGeometryForTag(safeTag, col.layers === 0);
+        col.baseMesh.material.color.setHex(TAG_COLORS[safeTag]);
+      }
+      if (col.titleSprite){
+        col.titleSprite.material.color.setHex(TAG_COLORS[safeTag]);
+      }
+      col.sprites.forEach(s => s.material.color.setHex(TAG_COLORS[safeTag]));
+      updateMinimap();
+    }
+
+    function addLayerToColumn(col, text){
+      const finalText = String(text||"").trim();
+      if (!finalText) return -1;
+
+      col.messages.push(finalText);
+      col.vectors.push([]); // vectors per layer
+      const layerIdx = col.messages.length - 1;
+      col.layers = col.messages.length;
+
+      if (col.layers === 1){
+        col.baseMesh.geometry.dispose();
+        col.baseMesh.geometry = getGeometryForTag(col.tag, false);
+
+        const titleStr = finalText.length > 26 ? finalText.slice(0,26) + "…" : finalText;
+        col.title = titleStr;
+        col.titleSprite = createTextSprite(`[${col.coord}] ${titleStr}`, true);
+        col.titleSprite.material.color.setHex(TAG_COLORS[col.tag] || TAG_COLORS.DEFAULT);
+        scene.add(col.titleSprite);
+      }
+
+      const sprite = createTextSprite(finalText, false);
+      sprite.material.color.setHex(TAG_COLORS[col.tag] || TAG_COLORS.DEFAULT);
+      sprite.position.set(col.x, layerIdx * STATE.tension, col.z);
+      sprite.userData = { colId: col.id, layer: layerIdx };
+      scene.add(sprite);
+      col.sprites.push(sprite);
+      clickableMeshes.push(sprite);
+
+      updateMinimap();
+      return layerIdx;
+    }
+
+    function buildPath(originCol, originLayerIdx, destCol, tag){
+      const startY = originLayerIdx >= 0 && originCol.sprites[originLayerIdx] ? originCol.sprites[originLayerIdx].position.y : 0;
+      const start = new THREE.Vector3(originCol.x, startY + 0.2, originCol.z);
+      const end = new THREE.Vector3(destCol.x, (destCol.layers * STATE.tension) + 2, destCol.z);
+      const mid = new THREE.Vector3((start.x+end.x)/2, Math.max(start.y,end.y)+24, (start.z+end.z)/2);
+      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+      const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.2, 8, false);
+      const color = TAG_COLORS[tag] || TAG_COLORS.DEFAULT;
+      const tubeMat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false });
+      const mesh = new THREE.Mesh(tubeGeo, tubeMat);
+      scene.add(mesh);
+
+      const t0 = performance.now();
+      function fade(){
+        const dt = performance.now() - t0;
+        if (dt < 5200){
+          tubeMat.opacity = 0.85 * (1 - dt/5200);
+          requestAnimationFrame(fade);
+        }else{
+          scene.remove(mesh);
+          tubeGeo.dispose(); tubeMat.dispose();
+        }
+      }
+      fade();
+    }
+
+    /************************************************************
+     * MINIMAP + GRID
+     ************************************************************/
+    const minimapEl = document.getElementById("minimap");
+
+    const GRID_SIZE = 12;
+    const RADIUS_MAX = 6.5;
+    const SPACING = 10.0;
+    const centerPos = GRID_SIZE / 2;
+
+    for (let y=0; y<GRID_SIZE; y++){
+      for (let x=0; x<GRID_SIZE; x++){
+        const dx = x - centerPos + 0.5;
+        const dy = y - centerPos + 0.5;
+        const r = Math.sqrt(dx*dx + dy*dy);
+
+        const cell = document.createElement("div");
+        cell.className = "mini-cell";
+        minimapEl.appendChild(cell);
+
+        if (r <= RADIUS_MAX){
+          const col = {
+            id: colRegistry.length,
+            coord: `[${x},${y}]`,
+            x: dx * SPACING,
+            z: dy * SPACING,
+            tag: "DEFAULT",
+            title: "VOID",
+            layers: 0,
+            messages: [],
+            sprites: [],
+            vectors: [],
+            titleSprite: null,
+            baseMesh: null
+          };
+
+          const baseGeo = getGeometryForTag(col.tag, true);
+          const baseMat = new THREE.MeshBasicMaterial({ color: TAG_COLORS.DEFAULT, transparent:true, opacity:0.12, side:THREE.DoubleSide });
+          const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+          baseMesh.rotation.x = -Math.PI / 2;
+          baseMesh.position.set(col.x, -1, col.z);
+          baseMesh.userData = { colId: col.id, layer: -1 };
+          scene.add(baseMesh);
+          clickableMeshes.push(baseMesh);
+          col.baseMesh = baseMesh;
+
+          colRegistry.push(col);
+
+          cell.dataset.colId = String(col.id);
+          cell.onclick = ()=>{ triggerHaptic(8); expandStack(col.id, Math.max(0, col.layers-1)); };
+          miniCells.push({ cell, colId: col.id });
+        }else{
+          cell.style.visibility = "hidden";
+        }
+      }
+    }
+
+    function updateMinimap(){
+      miniCells.forEach(mc=>{
+        const col = colRegistry[mc.colId];
+        mc.cell.className = "mini-cell";
+        if (col.layers > 0) mc.cell.classList.add("mini-active");
+        if (STATE.selectedColId === col.id) mc.cell.classList.add("mini-selected");
+        if (col.layers > 0 && col.tag !== "DEFAULT"){
+          mc.cell.style.backgroundColor = "#" + TAG_COLORS[col.tag].toString(16).padStart(6,"0");
+        }else if (col.layers > 0){
+          mc.cell.style.backgroundColor = "var(--cyan)";
+        }else{
+          mc.cell.style.backgroundColor = "rgba(255,255,255,0.12)";
+        }
+      });
+    }
+
+    /************************************************************
+     * SELECTION + VECTORS UI
+     ************************************************************/
+    const vectorsPanel = document.getElementById("vectors-panel");
+    const vectorList = document.getElementById("vector-list");
+    document.getElementById("vectors-close").addEventListener("click", ()=>collapseStack());
+
+    function filterChatByNode(colId){
+      const all = document.querySelectorAll(".msg[data-col-id]");
+      if (colId === -1){
+        all.forEach(m=>m.classList.remove("msg-dimmed"));
+        return;
+      }
+      all.forEach(m=>{
+        const mCol = Number(m.dataset.colId);
+        if (mCol === colId) m.classList.remove("msg-dimmed");
+        else m.classList.add("msg-dimmed");
+      });
+    }
+
+    function expandStack(colId, layerIdx){
+      const col = colRegistry[colId];
+      if (!col || col.layers === 0) return;
+
+      const safeLayer = Math.max(0, Math.min(layerIdx, col.layers-1));
+      STATE.selectedColId = colId;
+      STATE.selectedLayerIdx = safeLayer;
+      STATE.readingColId = colId;
+      STATE.readingLayerIdx = safeLayer;
+      STATE.autoPan = true;
+
+      applyColumnTag(col, col.tag); // refresh colors
+      setMode(col.tag || "DEFAULT");
+
+      vectorsPanel.style.display = "flex";
+      document.getElementById("vectors-title").textContent = `VECTORS @ ${col.coord}`;
+
+      renderVectors(colId, safeLayer);
+      if (!col.vectors[safeLayer] || col.vectors[safeLayer].length === 0){
+        fetchVectorsForLayer(colId, safeLayer).catch(()=>{});
+      }
+
+      updateMinimap();
+      filterChatByNode(colId);
+
+      // Highlight selected chat message
+      document.querySelectorAll(".msg-selected").forEach(el=>el.classList.remove("msg-selected"));
+      const msg = document.querySelector(`.msg[data-col-id="${colId}"][data-layer-idx="${safeLayer}"]`);
+      if (msg){
+        msg.classList.add("msg-selected");
+        msg.scrollIntoView({ behavior:"smooth", block:"center" });
+      }
+
+      guidance(`Selected ${col.coord}. Tap a vector to jump, or drop a new stone.`);
+    }
+
+    function collapseStack(){
+      STATE.selectedColId = -1;
+      STATE.selectedLayerIdx = -1;
+      STATE.readingColId = -1;
+      STATE.readingLayerIdx = -1;
+      STATE.autoPan = true;
+      vectorsPanel.style.display = "none";
+      setMode("DEFAULT");
+      updateMinimap();
+      filterChatByNode(-1);
+      document.querySelectorAll(".msg-selected").forEach(el=>el.classList.remove("msg-selected"));
+      guidance("Tap a node, then drop a stone. Tools are in ⋯.");
+    }
+
+    function renderVectors(colId, layerIdx){
+      vectorList.innerHTML = "";
+      const col = colRegistry[colId];
+      const vecs = (col && col.vectors[layerIdx]) ? col.vectors[layerIdx] : [];
+      if (!vecs.length){
+        const empty = document.createElement("div");
+        empty.className = "msg msg-sys";
+        empty.textContent = ">>> No vectors yet. Calculating…";
+        vectorList.appendChild(empty);
+        return;
+      }
+
+      vecs.forEach((v, idx)=>{
+        const dest = colRegistry.find(c=>c.coord === v.coord) || randomActiveColumn(colId) || colRegistry[0];
+        const css = "#" + (TAG_COLORS[dest.tag] || TAG_COLORS.DEFAULT).toString(16).padStart(6,"0");
+
+        const card = document.createElement("div");
+        card.className = "vector-card";
+
+        const main = document.createElement("button");
+        main.className = "vector-main";
+        main.innerHTML = `<span class="vector-kicker" style="color:${css}">↳ JUMP TO ${dest.coord}</span>${escapeHtml(v.reason)}`;
+        main.onclick = ()=>{
+          triggerHaptic(16);
+          // Consume the vector to reduce clutter
+          col.vectors[layerIdx].splice(idx, 1);
+          renderVectors(colId, layerIdx);
+
+          buildPath(col, layerIdx, dest, col.tag);
+          processCommand(v.reason, dest.id, { source:"vector" });
+        };
+
+        const side = document.createElement("div");
+        side.className = "vector-side";
+
+        const regen = document.createElement("button");
+        regen.title = "Regenerate";
+        regen.textContent = "⟳";
+        regen.onclick = async (e)=>{
+          e.stopPropagation();
+          triggerHaptic(10);
+          await fetchVectorsForLayer(colId, layerIdx, { replaceIndex: idx }).catch(()=>{});
+        };
+
+        const hide = document.createElement("button");
+        hide.title = "Dismiss";
+        hide.textContent = "−";
+        hide.onclick = (e)=>{
+          e.stopPropagation();
+          col.vectors[layerIdx].splice(idx, 1);
+          renderVectors(colId, layerIdx);
+          triggerHaptic(8);
+        };
+
+        side.appendChild(regen);
+        side.appendChild(hide);
+
+        card.appendChild(main);
+        card.appendChild(side);
+        vectorList.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str){
+      return String(str||"")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;");
+    }
+
+    function randomActiveColumn(excludeId){
+      const act = colRegistry.filter(c=>c.layers>0 && c.id !== excludeId);
+      if (!act.length) return null;
+      return act[Math.floor(Math.random()*act.length)];
+    }
+
+    async function fetchVectorsForLayer(colId, layerIdx, opts = {}){
+      const col = colRegistry[colId];
+      if (!col) return;
+
+      // if no other nodes exist, no vectors
+      const activeNodes = colRegistry.filter(c=>c.layers>0 && c.id !== colId).slice(0,10);
+      if (!activeNodes.length){
+        col.vectors[layerIdx] = [];
+        renderVectors(colId, layerIdx);
+        return;
+      }
+
+      // Loading UI
+      vectorList.innerHTML = "";
+      const loading = document.createElement("div");
+      loading.className = "msg msg-sys";
+      loading.textContent = ">>> TRACING CONSEQUENCES…";
+      vectorList.appendChild(loading);
+
+      const stubText = String(col.messages[layerIdx] || "").trim();
+      const mapLines = activeNodes.map(c=>`Node ${c.coord} (${c.tag}): "${c.messages[c.messages.length-1]}"`).join("\n");
+
+      const sys = `
+You are the RIPPLE Vector Engine.
+Given the selected fragment, output EXACTLY 2 vectors that jump to existing nodes in the map.
+Return ONLY VECTOR lines.
+
+Map:
+${mapLines}
+
+Formatting:
+[VECTOR: [x,y] | Therefore, <concrete consequence>]
+`.trim();
+
+      try{
+        const text = await callOpenAI("Extract vectors.", sys, { temperature:0.45, maxTokens:240 });
+        const vecs = parseVectors(text);
+        if (opts.replaceIndex != null && col.vectors[layerIdx] && col.vectors[layerIdx].length){
+          const idx = Number(opts.replaceIndex);
+          if (vecs[0]) col.vectors[layerIdx][idx] = vecs[0];
+        }else{
+          col.vectors[layerIdx] = vecs;
+        }
+      }catch(e){
+        col.vectors[layerIdx] = [];
+        appendSys(`VECTOR FAIL: ${String(e.message||e).slice(0,90)}`);
+      }finally{
+        if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx){
+          renderVectors(colId, layerIdx);
+        }
+      }
+    }
+
+    /************************************************************
+     * COMMAND PROCESSING (drop stone => add layers + optional vectors)
+     ************************************************************/
+    async function processCommand(cmd, forceTargetId = null, options = {}){
+      const text = String(cmd||"").trim();
+      if (!text) return;
+      if (STATE.isAITyping) return;
+
+      let targetCol = null;
+      if (forceTargetId != null){
+        targetCol = colRegistry[forceTargetId];
+      } else if (STATE.selectedColId !== -1){
+        targetCol = colRegistry[STATE.selectedColId];
+      } else {
+        const empty = colRegistry.filter(c=>c.layers===0);
+        targetCol = empty.length ? empty[Math.floor(Math.random()*empty.length)] : colRegistry[Math.floor(Math.random()*colRegistry.length)];
+      }
+      if (!targetCol) return;
+
+      // Apply current mode to the target node
+      if (STATE.inputMode !== "DEFAULT"){
+        applyColumnTag(targetCol, STATE.inputMode);
+      }
+
+      // Add the stone as a layer
+      const stoneLayerIdx = addLayerToColumn(targetCol, text);
+      appendUser(text, { colId: targetCol.id, layerIdx: stoneLayerIdx });
+
+      // Select it
+      expandStack(targetCol.id, stoneLayerIdx);
+
+      // LLM response
+      STATE.isAITyping = true;
+      const typing = appendSys("TRACING RIPPLES…");
+
+      try{
+        if (!LLM_CONFIG.apiKey){
+          throw new Error("OpenAI key not set");
+        }
+        const modeHint = {
+          DEFAULT: "Neutral mode: continue causally.",
+          OBSTACLE: "Obstacle mode: introduce friction, blocks, failure states.",
+          GOAL: "Goal mode: create attractor toward resolution.",
+          SHIFT: "Shift mode: pivot laterally, change frame or rules."
+        }[STATE.inputMode] || "Neutral mode.";
+
+        const sys = `
+You are RIPPLE_PASS_1.
+Output EXACTLY 4 fragments. Each must be short (6-14 words).
+Return ONLY fragment lines. Prefer format: [FRAGMENT: ...]
+No markdown.
+
+${modeHint}
+`.trim();
+
+        const reply = await callOpenAI(text, sys, { temperature:0.68, maxTokens:240 });
+        const frags = parseFragments(reply);
+
+        typing.remove();
+
+        // Add fragments as layers
+        for (const frag of frags){
+          const idx = addLayerToColumn(targetCol, frag);
+          appendAI(frag, { colId: targetCol.id, layerIdx: idx });
+          speak(frag);
+          beep(220 + Math.random()*120, 0.06);
+        }
+
+        // Refresh vectors for the newest layer
+        const newest = targetCol.layers - 1;
+        expandStack(targetCol.id, newest);
+        await fetchVectorsForLayer(targetCol.id, newest).catch(()=>{});
+
+      }catch(e){
+        typing.remove();
+        appendSys(`COMM_FAILURE: ${String(e.message||e).slice(0,120)}`);
+      }finally{
+        STATE.isAITyping = false;
+        document.getElementById("cmd-input").value = "";
+        document.getElementById("cmd-input").focus();
+      }
+    }
+
+    /************************************************************
+     * AUTO RIPPLE (simple periodic continuation)
+     ************************************************************/
+    let autoTimer = null;
+
+    function toggleAutoRipple(fromTools=false){
+      STATE.autoRippleEnabled = !STATE.autoRippleEnabled;
+      syncToolsStates();
+
+      if (!STATE.autoRippleEnabled){
+        if (autoTimer) clearTimeout(autoTimer);
+        autoTimer = null;
+        appendSys("AUTO RIPPLE: OFF.");
+        return;
+      }
+
+      appendSys("AUTO RIPPLE: ON.");
+      scheduleAuto();
+      if (!fromTools) triggerHaptic(12);
+    }
+
+    function scheduleAuto(){
+      if (!STATE.autoRippleEnabled) return;
+      if (autoTimer) return;
+      const delay = 5200 + Math.floor(Math.random()*3200);
+      autoTimer = setTimeout(async ()=>{
+        autoTimer = null;
+        if (!STATE.autoRippleEnabled) return;
+        if (STATE.isAITyping) { scheduleAuto(); return; }
+
+        const act = colRegistry.filter(c=>c.layers>0);
+        if (!act.length){ scheduleAuto(); return; }
+
+        const col = act[Math.floor(Math.random()*act.length)];
+        const seed = col.messages[col.messages.length-1] || "the water shivers";
+        setMode(col.tag || "DEFAULT");
+        await processCommand(`Therefore, ${seed}`, col.id, { source:"auto" });
+        scheduleAuto();
+      }, delay);
+    }
+
+    /************************************************************
+     * POINTER INTERACTION (tap vs drag)
+     ************************************************************/
+    let pointerDown = { x:0, y:0 };
+    let isDragging = false;
+    const DRAG_THRESHOLD = 8;
+
+    window.addEventListener("pointerdown", (e)=>{
+      if (e.target !== renderer.domElement) return;
+      pointerDown = { x:e.clientX, y:e.clientY };
+      isDragging = false;
+    });
+
+    window.addEventListener("pointermove", (e)=>{
+      if (e.target !== renderer.domElement) return;
+      const d = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+      if (d > DRAG_THRESHOLD){
+        isDragging = true;
+        STATE.autoPan = false;
+      }
+    });
+
+    window.addEventListener("pointerup", (e)=>{
+      if (e.target !== renderer.domElement) return;
+      if (isDragging) return;
+      triggerHaptic(8);
+      onInteract(e.clientX, e.clientY);
+    });
+
+    function onInteract(clientX, clientY){
+      pointer.x = (clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(clickableMeshes);
+      if (!hits.length){
+        collapseStack();
+        return;
+      }
+      const data = hits[0].object.userData || {};
+      const colId = Number(data.colId);
+      const col = colRegistry[colId];
+      if (!col || col.layers === 0) { collapseStack(); return; }
+      const layer = data.layer >= 0 ? Number(data.layer) : Math.max(0, col.layers-1);
+      expandStack(colId, layer);
+    }
+
+    /************************************************************
+     * RESIZER
+     ************************************************************/
+    const resizer = document.getElementById("resizer");
+    const bottomPanel = document.getElementById("bottom-panel");
+    let resizing = false;
+
+    resizer.addEventListener("mousedown", ()=>{ resizing=true; document.body.style.cursor="ns-resize"; });
+    resizer.addEventListener("touchstart", ()=>{ resizing=true; }, { passive:true });
+
+    window.addEventListener("mousemove", (e)=>{
+      if (!resizing) return;
+      const newHeight = Math.max(160, Math.min(window.innerHeight*0.85, window.innerHeight - e.clientY));
+      bottomPanel.style.height = `${newHeight}px`;
+      STATE.autoPan = true;
+    });
+
+    window.addEventListener("touchmove", (e)=>{
+      if (!resizing) return;
+      const y = e.touches[0].clientY;
+      const newHeight = Math.max(160, Math.min(window.innerHeight*0.85, window.innerHeight - y));
+      bottomPanel.style.height = `${newHeight}px`;
+      STATE.autoPan = true;
+    }, { passive:true });
+
+    window.addEventListener("mouseup", ()=>{ resizing=false; document.body.style.cursor="default"; });
+    window.addEventListener("touchend", ()=>{ resizing=false; });
+
+    /************************************************************
+     * CAMERA AUTOPAN TO SELECTION
+     ************************************************************/
+    function computeCameraTarget(col, layerIdx){
+      const baseY = layerIdx * STATE.tension;
+      return new THREE.Vector3(col.x, baseY + 2.2, col.z);
+    }
+
+    /************************************************************
+     * ONBOARDING
+     ************************************************************/
+    const onboarding = document.getElementById("onboarding");
+    const obBody = document.getElementById("ob-body");
+    const obNext = document.getElementById("ob-next");
+    const obBack = document.getElementById("ob-back");
+    const obSkip = document.getElementById("ob-skip");
+
+    const OB_STEPS = [
+      {
+        title: "Step 1 / Select",
+        body: `Tap a glowing dot on the minimap (or a node in the field) to expand it.
+               <div class="muted">Goal: you see VECTORS appear on the right.</div>`,
+        glow: ["#minimap-container"]
+      },
+      {
+        title: "Step 2 / Drop",
+        body: `Type a premise in the input, then press <b>DROP</b>.
+               <div class="muted">Goal: the node grows with 4 short fragments.</div>`,
+        glow: ["#input-area"]
+      },
+      {
+        title: "Step 3 / Shape",
+        body: `Cycle <b>MODE</b> (■ ⨂ ◎ ↯), then drop again to shape the field.
+               <div class="muted">Tip: OBSTACLE blocks, GOAL resolves, SHIFT pivots.</div>`,
+        glow: ["#btn-mode", "#vectors-panel"]
+      }
+    ];
+
+    function clearCoachGlow(){
+      document.querySelectorAll(".coach-glow").forEach(el=>el.classList.remove("coach-glow"));
+    }
+
+    function showOnboarding(step=0){
+      STATE.onboardingStep = Math.max(0, Math.min(step, OB_STEPS.length-1));
+      onboarding.style.display = "flex";
+      onboarding.setAttribute("aria-hidden","false");
+      renderOnboardingStep();
+    }
+
+    function hideOnboarding(markDone=true){
+      onboarding.style.display = "none";
+      onboarding.setAttribute("aria-hidden","true");
+      clearCoachGlow();
+      if (markDone) localStorage.setItem("ripple_onboarded","1");
+    }
+
+    function renderOnboardingStep(){
+      clearCoachGlow();
+      const s = OB_STEPS[STATE.onboardingStep];
+      const title = document.querySelector(".ob-title");
+      title.textContent = `RIPPLE / ${s.title}`;
+      obBody.innerHTML = s.body;
+
+      // glow targets
+      (s.glow||[]).forEach(sel=>{
+        const el = document.querySelector(sel);
+        if (el) el.classList.add("coach-glow");
+      });
+
+      obBack.style.visibility = STATE.onboardingStep === 0 ? "hidden" : "visible";
+      obNext.textContent = STATE.onboardingStep === OB_STEPS.length-1 ? "DONE" : "NEXT";
+    }
+
+    obNext.addEventListener("click", ()=>{
+      triggerHaptic(8);
+      if (STATE.onboardingStep === OB_STEPS.length-1){
+        hideOnboarding(true);
+        return;
+      }
+      STATE.onboardingStep += 1;
+      renderOnboardingStep();
+    });
+
+    obBack.addEventListener("click", ()=>{
+      triggerHaptic(6);
+      STATE.onboardingStep = Math.max(0, STATE.onboardingStep - 1);
+      renderOnboardingStep();
+    });
+
+    obSkip.addEventListener("click", ()=>{ hideOnboarding(true); });
+
+    document.getElementById("tools-tutorial").addEventListener("click", ()=>{
+      closeTools();
+      showOnboarding(0);
+    });
+
+    /************************************************************
+     * BOOT FLOW
+     ************************************************************/
+    document.getElementById("build-line").textContent = `>>> RIPPLE ENGINE ONLINE [${ENGINE_BUILD}]`;
+
+    const boot = document.getElementById("boot-screen");
+    const bootKey = document.getElementById("boot-api-key");
+    const bootProfile = document.getElementById("boot-profile");
+    const bootSkipTutorial = document.getElementById("boot-skip-tutorial");
+    const bootMsg = document.getElementById("boot-msg");
+
+    bootProfile.value = detectDefaultUIProfile();
+    setProfile(bootProfile.value);
+    setMode("DEFAULT");
+    updateMinimap();
+    updateChip();
+
+    document.getElementById("boot-start").addEventListener("click", ()=>{
+      const key = String(bootKey.value||"").trim();
+      if (!key || !key.startsWith("sk-")){
+        bootMsg.textContent = "Enter a valid OpenAI key (starts with sk-).";
+        return;
+      }
+      LLM_CONFIG.apiKey = key;
+
+      setProfile(bootProfile.value);
+      boot.style.opacity = "0";
+      setTimeout(()=>boot.remove(), 420);
+
+      appendSys("AWAKENED.");
+      guidance("Tap a node to expand. Drop a stone. Tools are in ⋯.");
+
+      const already = localStorage.getItem("ripple_onboarded") === "1";
+      const skip = Boolean(bootSkipTutorial.checked);
+      if (!already && !skip){
+        showOnboarding(0);
+      }
+    });
+
+    bootKey.addEventListener("keydown", (e)=>{
+      if (e.key === "Enter"){
+        e.preventDefault();
+        document.getElementById("boot-start").click();
+      }
+    });
+
+    /************************************************************
+     * INPUT EVENTS
+     ************************************************************/
+    document.getElementById("btn-mode").addEventListener("click", ()=>{
+      triggerHaptic(8);
+      const i = MODES.indexOf(STATE.inputMode);
+      setMode(MODES[(i+1)%MODES.length]);
+      guidance(`Mode: ${MODE_LABEL[STATE.inputMode]}. Drop a stone to apply.`);
+    });
+
+    document.getElementById("btn-auto").addEventListener("click", ()=>{
+      triggerHaptic(10);
+      toggleAutoRipple(false);
+      if (STATE.autoRippleEnabled) scheduleAuto();
+      guidance(`Auto Ripple: ${STATE.autoRippleEnabled ? "ON" : "OFF"}.`);
+    });
+
+    const cmdInput = document.getElementById("cmd-input");
+    const cmdSubmit = document.getElementById("cmd-submit");
+
+    cmdSubmit.addEventListener("click", ()=>{
+      triggerHaptic(10);
+      processCommand(cmdInput.value);
+    });
+
+    cmdInput.addEventListener("keydown", (e)=>{
+      if (e.key === "Enter"){
+        e.preventDefault();
+        processCommand(cmdInput.value);
+      }
+    });
+
+    /************************************************************
+     * SEED (light, just to show something)
+     ************************************************************/
+    (function seed(){
+      const seeds = ["DORMANT_SYSTEM_RELIC", "ECHO_CHAMBER_ACTIVE", "FRACTURED_MEMORY_NODE"];
+      for (const s of seeds){
+        const empty = colRegistry.filter(c=>c.layers===0);
+        if (!empty.length) break;
+        const col = empty[Math.floor(Math.random()*empty.length)];
+        const idx = addLayerToColumn(col, s);
+        appendMsg(s, "sys", { colId: col.id, layerIdx: idx });
+      }
+      updateMinimap();
+    })();
+
+    /************************************************************
+     * ANIMATION LOOP
+     ************************************************************/
+    const clock = new THREE.Clock();
+    function animate(){
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      // Animate label positions + selection visibility
+      const selId = STATE.readingColId !== -1 ? STATE.readingColId : STATE.selectedColId;
+      const selLayer = STATE.readingLayerIdx !== -1 ? STATE.readingLayerIdx : STATE.selectedLayerIdx;
+
+      // update base opacity
+      colRegistry.forEach(col=>{
+        if (col.layers === 0){
+          col.baseMesh.material.opacity = 0.12;
+        }else{
+          col.baseMesh.material.opacity = (STATE.selectedColId === col.id) ? 0.75 : 0.25;
+        }
+
+        // title float
+        if (col.titleSprite){
+          const y = (col.layers * STATE.tension) + 8;
+          col.titleSprite.position.set(col.x, col.titleSprite.position.y + (y - col.titleSprite.position.y) * 0.1, col.z);
+          col.titleSprite.material.opacity = (STATE.selectedColId === col.id) ? 1.0 : 0.6;
+        }
+
+        // layers
+        col.sprites.forEach((s, i)=>{
+          const targetY = i * STATE.tension;
+          s.position.y += (targetY - s.position.y) * 0.12;
+          if (STATE.selectedColId === col.id){
+            s.material.opacity = (i === selLayer) ? 1.0 : 0.82;
+          }else if (STATE.selectedColId !== -1){
+            s.material.opacity = 0.18;
+          }else{
+            s.material.opacity = (i === col.layers-1) ? 1.0 : 0.75;
+          }
+        });
+      });
+
+      // camera follow selection
+      if (selId !== -1 && selLayer !== -1 && STATE.autoPan){
+        const col = colRegistry[selId];
+        if (col){
+          const target = computeCameraTarget(col, selLayer);
+          controls.target.lerp(target, 0.12);
+        }
+      }else if (STATE.selectedColId === -1 && STATE.autoPan){
+        controls.target.lerp(new THREE.Vector3(0,0,0), 0.03);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener("resize", ()=>{
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /************************************************************
+     * FINAL INIT
+     ************************************************************/
+    document.addEventListener("keydown", (e)=>{
+      // Quick keys (desktop): A toggles auto, M toggles mode, Esc closes tools/onboarding
+      if (e.key === "Escape"){
+        if (toolsOverlay.style.display === "flex") closeTools();
+        if (onboarding.style.display === "flex") hideOnboarding(false);
+        return;
+      }
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      if (e.key.toLowerCase() === "a"){
+        toggleAutoRipple(false);
+        if (STATE.autoRippleEnabled) scheduleAuto();
+      }
+      if (e.key.toLowerCase() === "m"){
+        const i = MODES.indexOf(STATE.inputMode);
+        setMode(MODES[(i+1)%MODES.length]);
+      }
+    });
+
+    updateChip();
+    syncToolsStates();
+    appendSys("READY.");
+  </script>
+</body>
+</html>

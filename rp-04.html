@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ORCA // RIPPLE</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23030508'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%2300e5ff'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%2300e5ff' stroke-width='3' opacity='0.85'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%2300e5ff' stroke-width='2' opacity='0.6'/%3E%3C/svg%3E">
+    <style>
+        :root {
+            --bg-deep: #030508;
+            --panel-bg: rgba(6, 10, 18, 0.85);
+            --modal-bg: rgba(6, 10, 18, 0.95);
+            --border-dim: rgba(0, 229, 255, 0.2);
+            --border-glow: rgba(0, 229, 255, 0.5);
+            --text-main: #a0b0c0;
+            --text-muted: #6e8fa8;
+            --cyan: #00e5ff;
+            --orange: #ff6a00;
+            --alert: #ff4d4d;
+            --goal: #00ff88;
+            --shift: #bd00ff;
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-sans: system-ui, -apple-system, sans-serif;
+            --z-canvas: 1;
+            --z-ui: 10;
+            --z-modal: 100;
+            --z-boot: 2000;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-deep); font-family: var(--font-mono);
+            color: var(--text-main); overflow: hidden;
+            overscroll-behavior: none; 
+            touch-action: none;
+        }
+
+        input, textarea { user-select: auto; font-family: var(--font-mono); }
+
+        /* --- BACKGROUND & CANVAS --- */
+        .scanlines {
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px; pointer-events: none; z-index: var(--z-ui); opacity: 0.5;
+        }
+        #canvas-container {
+            position: absolute; inset: 0; z-index: var(--z-canvas);
+            background: radial-gradient(circle at center, #0a1118 0%, #020305 100%);
+        }
+
+        /* --- AWAKEN BOOT SCREEN (ONBOARDING) --- */
+        #boot-screen {
+            position: absolute; inset: 0; z-index: var(--z-boot);
+            background: rgba(3, 5, 8, 0.98); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s ease-in-out;
+            padding: 20px;
+        }
+        .boot-panel {
+            width: 100%; max-width: 420px;
+            background: rgba(6, 10, 18, 0.6);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.1);
+            padding: 30px; display: flex; flex-direction: column; gap: 20px;
+            text-align: center;
+        }
+        .boot-title {
+            color: var(--cyan); font-size: 1.5rem; font-weight: bold; letter-spacing: 4px;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.5); margin: 0;
+        }
+        .boot-desc { color: var(--text-main); font-size: 0.85rem; line-height: 1.5; margin: 0; }
+        #boot-api-key {
+            width: 100%; background: #02060d; border: 1px solid var(--border-dim);
+            color: var(--cyan); font-size: 1rem; padding: 14px; border-radius: 6px;
+            outline: none; text-align: center; transition: border-color 0.3s;
+        }
+        #boot-api-key:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,229,255,0.2); }
+        #boot-api-key::placeholder { color: var(--text-muted); }
+        #boot-start {
+            background: rgba(0, 229, 255, 0.1); border: 1px solid var(--cyan); color: var(--cyan);
+            font-weight: bold; letter-spacing: 2px; text-transform: uppercase;
+            padding: 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        #boot-start:hover { background: var(--cyan); color: #000; box-shadow: 0 0 20px rgba(0,229,255,0.4); }
+        #boot-msg { color: var(--alert); font-size: 0.75rem; min-height: 16px; }
+
+        /* --- MINIMAP HUD --- */
+        #minimap-container {
+            position: absolute; top: 16px; right: 16px; z-index: var(--z-ui);
+            display: flex; flex-direction: column; opacity: 0; animation: fadeInUI 1s 1s forwards;
+            background: var(--panel-bg); border: 1px solid var(--border-dim); border-radius: 8px;
+            padding: 8px; backdrop-filter: blur(8px);
+        }
+        #minimap {
+            display: grid; grid-template-columns: repeat(12, 8px); grid-template-rows: repeat(12, 8px); gap: 3px;
+        }
+        @media (min-width: 768px) {
+            #minimap { grid-template-columns: repeat(12, 12px); grid-template-rows: repeat(12, 12px); gap: 4px; }
+        }
+        .mini-cell { 
+            background: rgba(255,255,255,0.1); cursor: pointer; border-radius: 50%; 
+            transition: transform 0.1s, background-color 0.3s, box-shadow 0.3s;
+        }
+        .mini-active { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+        .mini-selected { background: var(--orange) !important; box-shadow: 0 0 8px var(--orange) !important; animation: pulse 1s infinite alternate; }
+
+        @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; transform: scale(1.2); } }
+        @keyframes fadeInUI { to { opacity: 1; } }
+
+        /* --- FLOATING RIGHT-SIDE TAG MENU --- */
+        #layer-controls {
+            position: absolute; top: 120px; right: 16px; display: none; 
+            flex-direction: column; align-items: flex-end; gap: 12px;
+            pointer-events: none; z-index: var(--z-ui); max-width: calc(100vw - 32px);
+        }
+        #tag-buttons {
+            display: flex; flex-direction: column; gap: 8px;
+            pointer-events: auto;
+        }
+        .tag-btn {
+            padding: 10px 16px; border: 1px solid var(--border-dim); background: var(--panel-bg);
+            color: #fff; font-family: var(--font-mono); font-size: 0.75rem; font-weight: bold;
+            cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px);
+            text-transform: uppercase; border-radius: 6px; letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: right;
+        }
+        .btn-obstacle { color: var(--alert); border-right: 4px solid var(--alert); }
+        .btn-goal { color: var(--goal); border-right: 4px solid var(--goal); }
+        .btn-shift { color: var(--shift); border-right: 4px solid var(--shift); }
+        .btn-branch { color: #fff; border-right: 4px solid #fff; }
+        #btn-dismiss { color: var(--text-muted); border-right: 4px solid var(--text-muted); }
+
+        /* VECTORS */
+        #vector-container { display: flex; flex-direction: column; align-items: flex-end; width: 100%; pointer-events: auto; }
+        #vector-list { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 350px; }
+        .vector-wrapper {
+            display: flex; width: 100%; background: var(--panel-bg);
+            border: 1px solid var(--border-dim); border-right: none;
+            backdrop-filter: blur(12px); border-radius: 6px 0 0 6px; overflow: hidden;
+            animation: slideInRight 0.3s forwards;
+        }
+        .vector-content {
+            flex-grow: 1; padding: 12px; background: transparent; border: none;
+            text-align: left; cursor: pointer; color: var(--text-main); font-family: var(--font-mono);
+            font-size: 0.8rem; line-height: 1.4; transition: background 0.2s;
+        }
+        .vector-content:hover { background: rgba(255, 255, 255, 0.05); }
+        .vector-therefore { font-weight: bold; font-size: 0.7rem; text-transform: uppercase; display: block; margin-bottom: 4px;}
+        .vector-actions { display: flex; flex-direction: column; width: 36px; background: rgba(0,0,0,0.5); }
+        .v-ctrl { flex: 1; background: transparent; border: none; color: #fff; cursor: pointer; transition: 0.2s; font-size: 1.2rem;}
+        .v-ctrl:hover { background: rgba(255,255,255,0.2); }
+        
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* --- HUD & BOTTOM BAR --- */
+        #hud-container {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            z-index: var(--z-ui); display: flex; flex-direction: column;
+            opacity: 0; animation: fadeInUI 1s 1s forwards;
+            pointer-events: none; /* Let clicks pass through empty space */
+        }
+
+        /* Resizable Chat Window */
+        #chat-wrapper {
+            pointer-events: auto;
+            background: linear-gradient(to top, var(--panel-bg) 60%, transparent);
+            display: flex; flex-direction: column;
+            height: 250px; max-height: 50vh;
+            border-top: 1px solid var(--border-dim);
+            position: relative;
+        }
+        #chat-resizer {
+            position: absolute; top: -10px; left: 0; right: 0; height: 20px;
+            cursor: ns-resize; z-index: 20; display: flex; justify-content: center; align-items: center;
+        }
+        #chat-resizer::after {
+            content: ''; width: 40px; height: 4px; background: var(--cyan); border-radius: 2px; opacity: 0.5;
+        }
+
+        #chat-log {
+            flex-grow: 1; padding: 16px; overflow-y: auto; font-size: 0.85rem; line-height: 1.5;
+            display: flex; flex-direction: column; gap: 8px; 
+            scrollbar-width: none; /* Firefox */
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        }
+        #chat-log::-webkit-scrollbar { display: none; }
+
+        .msg { padding-left: 12px; border-left: 2px solid transparent; animation: fadeIn 0.3s ease-out; }
+        .msg-sys { color: var(--text-muted); }
+        .msg-user { color: #fff; border-color: var(--cyan); background: rgba(0, 229, 255, 0.05); font-weight: bold; padding: 8px 12px; border-radius: 0 4px 4px 0;}
+        .msg-ai { color: var(--text-main); }
+        .msg-spawn { color: var(--shift); font-size: 0.75rem; text-transform: uppercase; }
+        .msg-dimmed { opacity: 0.3 !important; filter: grayscale(80%); } 
+        .msg[data-col-id] { cursor: pointer; transition: 0.2s; }
+        .msg[data-col-id]:hover { background: rgba(255,255,255,0.05); border-left-color: var(--cyan); opacity: 1 !important; filter: none !important;}
+        .msg-selected { border-left-color: var(--orange) !important; background: rgba(255, 106, 0, 0.1) !important; opacity: 1 !important; filter: none !important;}
+
+        .typing-indicator::after { content: ''; animation: ellipsis 1.5s infinite; }
+        @keyframes ellipsis { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Sleek Input Bar */
+        #input-bar {
+            pointer-events: auto;
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px; background: var(--modal-bg);
+            border-top: 1px solid var(--border-glow);
+            backdrop-filter: blur(20px);
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+        
+        .icon-btn {
+            background: transparent; border: none; color: var(--text-main);
+            width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; cursor: pointer; transition: 0.2s; flex-shrink: 0;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--cyan); }
+        .icon-btn svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+        
+        .icon-active { color: var(--cyan); background: rgba(0, 229, 255, 0.1); }
+        .icon-recording { color: var(--alert); animation: pulseAlert 1.5s infinite; }
+        @keyframes pulseAlert { 0% { box-shadow: 0 0 0 0 rgba(255,77,77,0.4); } 70% { box-shadow: 0 0 0 10px rgba(255,77,77,0); } 100% { box-shadow: 0 0 0 0 rgba(255,77,77,0); } }
+
+        /* Dynamic Lens Mode Indicator */
+        #btn-lens { position: relative; }
+        #lens-indicator {
+            position: absolute; bottom: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-main); border: 2px solid var(--modal-bg);
+        }
+        .lens-obstacle { background: var(--alert) !important; }
+        .lens-goal { background: var(--goal) !important; }
+        .lens-shift { background: var(--shift) !important; }
+
+        .input-wrapper {
+            flex-grow: 1; display: flex; align-items: center;
+            background: rgba(0,0,0,0.5); border: 1px solid var(--border-dim);
+            border-radius: 24px; padding: 0 16px; transition: border-color 0.3s;
+            height: 44px;
+        }
+        .input-wrapper:focus-within { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,229,255,0.1); }
+        
+        #cmd-input {
+            width: 100%; background: transparent; border: none; outline: none;
+            color: #fff; font-family: var(--font-sans); font-size: 1rem;
+        }
+        #cmd-input::placeholder { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85rem;}
+        
+        #btn-submit {
+            background: var(--cyan); color: #000; border: none;
+            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; margin-left: 8px; flex-shrink: 0;
+        }
+        #btn-submit:hover { transform: scale(1.05); box-shadow: 0 0 10px var(--cyan); }
+        #btn-submit svg { width: 18px; height: 18px; stroke: #000; stroke-width: 2.5; fill: none; }
+
+        /* --- SETTINGS DRAWER (MODAL) --- */
+        #settings-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: var(--z-modal); display: none; opacity: 0; transition: opacity 0.3s;
+        }
+        #settings-drawer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--modal-bg); border-top: 1px solid var(--border-glow);
+            border-radius: 16px 16px 0 0; z-index: calc(var(--z-modal) + 1);
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+            padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            max-height: 85vh; overflow-y: auto;
+        }
+        .settings-open #settings-overlay { display: block; opacity: 1; }
+        .settings-open #settings-drawer { transform: translateY(0); }
+        
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .drawer-title { font-size: 1.2rem; font-weight: bold; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
+        .btn-close { background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 8px; }
+        .btn-close svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; }
+
+        .setting-group { margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 20px; }
+        .setting-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .setting-label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+        .toggle-info { display: flex; flex-direction: column; gap: 4px; }
+        .toggle-title { font-size: 0.95rem; color: #fff; font-family: var(--font-sans); }
+        .toggle-desc { font-size: 0.75rem; color: var(--text-muted); }
+        
+        /* Modern Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--cyan); box-shadow: 0 0 10px rgba(0,229,255,0.4); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #000;}
+
+        /* Action Buttons in Grid */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .action-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; padding: 12px; border-radius: 8px; cursor: pointer; font-family: var(--font-sans); font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;
+        }
+        .action-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--cyan); color: var(--cyan); }
+        .action-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+        
+        .action-btn-danger { color: var(--alert); border-color: rgba(255,77,77,0.3); }
+        .action-btn-danger:hover { background: rgba(255,77,77,0.1); border-color: var(--alert); color: var(--alert); }
+
+        /* Recording specific */
+        .rec-banner { background: rgba(255,77,77,0.1); border-left: 4px solid var(--alert); padding: 12px; border-radius: 4px; display: none; margin-bottom: 16px;}
+        .rec-banner.active { display: flex; align-items: center; justify-content: space-between; }
+        .rec-text { color: var(--alert); font-size: 0.85rem; font-weight: bold; }
+
+        /* Misc overlays */
+        #hover-readout {
+            position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-weight: bold; font-size: 0.8rem; text-align: center;
+            background: rgba(0, 229, 255, 0.1); padding: 8px 16px; border: 1px solid var(--border-dim);
+            backdrop-filter: blur(4px); pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: var(--z-ui);
+            border-radius: 20px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div id="canvas-container"></div>
+    <div id="hover-readout"></div>
+
+    <!-- AWAKEN & ONBOARDING -->
+    <div id="boot-screen">
+        <div class="boot-panel">
+            <h1 class="boot-title">ORCA // RIPPLE</h1>
+            <p class="boot-desc">A topography of potential waits beneath the surface. Enter your OpenAI API key to trace the ripples.</p>
+            <input id="boot-api-key" type="password" placeholder="sk-..." autocomplete="off">
+            <button id="boot-start" type="button" onclick="startExperience()">Awaken System</button>
+            <div id="boot-msg">Keys remain local to this session.</div>
+        </div>
+    </div>
+
+    <!-- MINIMAP -->
+    <div id="minimap-container">
+        <div id="minimap"></div>
+    </div>
+
+    <!-- FLOATING RIGHT MENU (VECTORS) -->
+    <div id="layer-controls">
+        <div id="tag-buttons">
+            <button class="tag-btn btn-branch" onclick="branchStub()">⎇ Branch</button>
+            <button class="tag-btn btn-obstacle" onclick="tagLayer('OBSTACLE')">⨂ Obstacle</button>
+            <button class="tag-btn btn-goal" onclick="tagLayer('GOAL')">◎ Goal</button>
+            <button class="tag-btn btn-shift" onclick="tagLayer('SHIFT')">↯ Shift</button>
+            <button class="tag-btn" id="btn-dismiss" onclick="collapseStack()">✕ Dismiss</button>
+        </div>
+        <div id="vector-container">
+            <div id="vector-list"></div>
+        </div>
+    </div>
+
+    <!-- HUD BOTTOM -->
+    <div id="hud-container">
+        
+        <div id="chat-wrapper">
+            <div id="chat-resizer"></div>
+            <div id="chat-log"></div>
+        </div>
+
+        <div id="input-bar">
+            <!-- Focus / Recenter Button -->
+            <button class="icon-btn" onclick="recenterView()" title="Recenter View">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+            </button>
+            
+            <!-- Settings Toggle -->
+            <button class="icon-btn" onclick="toggleSettings()" title="Settings">
+                <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </button>
+            
+            <!-- Lens / Mode Toggle -->
+            <button class="icon-btn" id="btn-lens" onclick="toggleMode()" title="Cycle Lens">
+                <svg viewBox="0 0 24 24"><path d="M2 12A10 10 0 1 0 22 12A10 10 0 1 0 2 12Z"/><path d="M12 2A10 10 0 0 1 12 22"/></svg>
+                <div id="lens-indicator"></div>
+            </button>
+
+            <!-- Input -->
+            <div class="input-wrapper">
+                <input type="text" id="cmd-input" placeholder="Drop a stone..." autocomplete="off">
+                <button id="btn-submit" title="Send">
+                    <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS DRAWER -->
+    <div id="settings-overlay" onclick="toggleSettings()"></div>
+    <div id="settings-drawer">
+        <div class="drawer-header">
+            <span class="drawer-title">System Settings</span>
+            <button class="btn-close" onclick="toggleSettings()">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <div class="rec-banner" id="rec-banner-active">
+            <span class="rec-text">RECORDING IN PROGRESS...</span>
+            <button class="action-btn action-btn-danger" style="padding: 6px 12px;" onclick="toggleRecording()">Stop</button>
+        </div>
+
+        <div class="setting-group">
+            <span class="setting-label">Audio & Voice</span>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">Ambient Audio</span>
+                    <span class="toggle-desc">Atmospheric soundscapes and haptics</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-audio" onchange="toggleAudio()"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">AI Voice (TTS)</span>
+                    <span class="toggle-desc">Narrate the unfolding topography</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-tts" onchange="toggleTTS()"><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <span class="setting-label">Autonomous Engine</span>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">Auto-Ripple</span>
+                    <span class="toggle-desc" id="lbl-auto-status">System expands nodes autonomously</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-auto" onchange="toggleAutoRipple()"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">Semi-Auto Policy</span>
+                    <span class="toggle-desc">Require user approval for major jumps</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-policy" onchange="toggleAutoPolicy()"><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <span class="setting-label">Recording Studio</span>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">Include Mic Audio</span>
+                    <span class="toggle-desc">Capture your voice during recordings</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-mic" onchange="toggleRecordingVoiceCapture()" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-title">Lock Camera to Action</span>
+                    <span class="toggle-desc">Automatically pan to active nodes</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="tgl-camlock" onchange="toggleRecordingCameraLock()" checked><span class="slider"></span></label>
+            </div>
+            <div class="action-grid" style="margin-top: 16px;">
+                <button class="action-btn action-btn-danger" id="btn-start-rec" onclick="toggleRecording()">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg> Start Recording
+                </button>
+                <div id="recording-downloads" style="display:none; flex-direction:column; gap:4px; font-size:0.8rem;"></div>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <span class="setting-label">Data & Navigation</span>
+            <div class="action-grid">
+                <button class="action-btn" onclick="importTopographyFile()">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import
+                </button>
+                <input type="file" id="topo-import-file" accept=".md,.markdown,text/markdown" style="display:none">
+                <button class="action-btn" onclick="exportTopography()">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Export
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const LLM_CONFIG = {
+            provider: "openai",
+            apiKey: "",
+            model: "gpt-4o-mini",
+            ttsModel: "tts-1",
+            ttsVoice: "alloy",
+            baseUrl: "https://api.openai.com/v1"
+        };
+        let isAITyping = false;
+        let hoveredColId = -1;
+        let activeStubText = ""; 
+
+        const STATE = {
+            tension: 1.8,   
+            flowRate: 0.6,  
+            resonance: 1.0, 
+            selectedColId: -1,
+            selectedLayerIdx: -1, 
+            readingColId: -1,
+            readingLayerIdx: -1,
+            targetMode: 'GLOBAL',
+            inputMode: 'DEFAULT',
+            isPaused: false,
+            simTime: 0,
+            autoPan: true,
+            autoRippleEnabled: false,
+            autoRippleSeeded: false,
+            autoRippleStep: 0,
+            autoPolicy: "FULL",
+            autoAwaitingSpawnPick: false,
+            autoSpawnQueue: [],
+            rootSeed: "",
+            recordingActive: false,
+            recordVoiceCapture: true,
+            recordingMode: "SCENE",
+            recordingCameraLock: true,
+            recordingTake: 0,
+            recordingSessionId: "",
+            eventLog: [],
+            ttsAutoEnabled: false,
+            voiceCaptureWarned: false,
+            ttsSupported: typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window
+        };
+        STATE.recordingSessionId = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+
+        const CAMERA_TUNING = {
+            followLerp: 0.12,
+            readingFollowLerp: 0.2,
+            idleLerp: 0.03,
+            selectedYOffset: 2.2,
+            dragThresholdPx: 8,
+            recordingTargetLerp: 0.24,
+            recordingCameraLerp: 0.17
+        };
+
+        const RIPPLE_TUNING = {
+            waveFrontSpeed: 34.0,
+            waveFrontWidth: 10.0,
+            maxRippleLife: 3.2,
+            minimapScale: 0.32,
+            minimapGlow: 6.0,
+            verticalDisplacement: 2.6
+        };
+
+        const MODES = ['DEFAULT', 'OBSTACLE', 'GOAL', 'SHIFT'];
+        const MODE_CLASSES = { DEFAULT: '', OBSTACLE: 'lens-obstacle', GOAL: 'lens-goal', SHIFT: 'lens-shift'};
+        const AUTO_TAGS = ['OBSTACLE', 'GOAL', 'SHIFT'];
+
+        const TAG_COLORS = {
+            DEFAULT: 0x00e5ff,
+            OBSTACLE: 0xff4d4d,
+            GOAL: 0x00ff88,
+            SHIFT: 0xbd00ff
+        };
+
+        // ==========================================
+        // UI & INTERACTION LOGIC
+        // ==========================================
+        function toggleSettings() {
+            document.body.classList.toggle('settings-open');
+        }
+
+        let pointerDownPos = { x: 0, y: 0 };
+        let isDraggingCanvas = false;
+        let autoRippleTimer = null;
+        let pendingSpeechResolve = null;
+
+        // Chat Resizer
+        const chatResizer = document.getElementById('chat-resizer');
+        const chatWrapper = document.getElementById('chat-wrapper');
+        let isResizingChat = false;
+
+        chatResizer.addEventListener('mousedown', () => { isResizingChat = true; document.body.style.cursor = 'ns-resize'; });
+        chatResizer.addEventListener('touchstart', () => { isResizingChat = true; }, {passive: true});
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizingChat) return;
+            let newHeight = window.innerHeight - e.clientY - document.getElementById('input-bar').offsetHeight;
+            newHeight = Math.max(100, Math.min(newHeight, window.innerHeight * 0.6));
+            chatWrapper.style.height = `${newHeight}px`;
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (!isResizingChat) return;
+            let newHeight = window.innerHeight - e.touches[0].clientY - document.getElementById('input-bar').offsetHeight;
+            newHeight = Math.max(100, Math.min(newHeight, window.innerHeight * 0.6));
+            chatWrapper.style.height = `${newHeight}px`;
+        }, {passive:true});
+        window.addEventListener('mouseup', () => { isResizingChat = false; document.body.style.cursor = 'default'; });
+        window.addEventListener('touchend', () => { isResizingChat = false; });
+
+        // ==========================================
+        // WEB AUDIO & HAPTICS ENGINE
+        // ==========================================
+        let audioCtx = null;
+        let masterGain = null;
+        let ambientFxInput = null;
+        let audioEnabled = false;
+        const pentatonic = [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66, 329.63, 392.00, 440.00];
+
+        window.toggleAudio = function(forceOn = false) {
+            const toggleEl = document.getElementById('tgl-audio');
+            if (forceOn) audioEnabled = false; 
+            audioEnabled = !audioEnabled;
+            if (toggleEl) toggleEl.checked = audioEnabled;
+
+            if(audioEnabled) {
+                if(!audioCtx) initAudio();
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                triggerHaptic(15);
+            } else {
+                if(audioCtx) audioCtx.suspend();
+            }
+        };
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.3;
+            masterGain.connect(audioCtx.destination);
+            ambientFxInput = audioCtx.createGain();
+            ambientFxInput.gain.value = 0.5;
+            ambientFxInput.connect(masterGain);
+            
+            const delay = audioCtx.createDelay(); delay.delayTime.value = 0.32;
+            const feedback = audioCtx.createGain(); feedback.gain.value = 0.14;
+            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1300;
+            const wetGain = audioCtx.createGain(); wetGain.gain.value = 0.16;
+
+            ambientFxInput.connect(delay);
+            delay.connect(filter);
+            filter.connect(wetGain);
+            wetGain.connect(masterGain);
+            filter.connect(feedback);
+            feedback.connect(delay);
+        }
+
+        function playAmbientNote() {
+            if(!audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(pentatonic[Math.floor(Math.random() * pentatonic.length)], audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 2.0);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 8.0);
+            osc.connect(gain); gain.connect(ambientFxInput || masterGain);
+            osc.start(); osc.stop(audioCtx.currentTime + 8.0);
+        }
+
+        function playBootChord() {
+            if(!audioEnabled || !audioCtx) return;
+            [130.81, 196.00, 261.63, 392.00].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 3.0);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 12.0);
+                    osc.connect(gain); gain.connect(ambientFxInput || masterGain);
+                    osc.start(); osc.stop(audioCtx.currentTime + 12.0);
+                }, i * 400);
+            });
+        }
+
+        function triggerHaptic(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // ==========================================
+        // CAMERA LOGIC
+        // ==========================================
+        function getActiveFocusTarget() {
+            const preferredColId = STATE.readingColId !== -1 ? STATE.readingColId : STATE.selectedColId;
+            const preferredLayerIdx = STATE.readingLayerIdx !== -1 ? STATE.readingLayerIdx : STATE.selectedLayerIdx;
+            if (preferredColId !== -1 && preferredLayerIdx !== -1) {
+                const col = colRegistry[preferredColId];
+                if (col && col.layers > 0) return { colId: preferredColId, layerIdx: Math.max(0, Math.min(preferredLayerIdx, col.layers - 1)) };
+            }
+            return null;
+        }
+
+        function computeCameraTarget(col, layerIdx) {
+            const baseY = col.layers > 0 ? (layerIdx * STATE.tension) : 0;
+            return new THREE.Vector3(col.x, baseY + CAMERA_TUNING.selectedYOffset, col.z);
+        }
+
+        function focusCameraOnLayer(colId, layerIdx, instant = false) {
+            const col = colRegistry[colId];
+            if (!col || col.layers <= 0) return;
+            const safeLayer = Math.max(0, Math.min(layerIdx, col.layers - 1));
+            const nextTarget = computeCameraTarget(col, safeLayer);
+            STATE.selectedColId = colId; STATE.selectedLayerIdx = safeLayer;
+            STATE.readingColId = colId; STATE.readingLayerIdx = safeLayer;
+            STATE.autoPan = true;
+            if (instant) {
+                const offset = camera.position.clone().sub(controls.target);
+                controls.target.copy(nextTarget);
+                camera.position.copy(nextTarget.clone().add(offset));
+                controls.update();
+            }
+        }
+
+        window.recenterView = function() {
+            const target = getActiveFocusTarget();
+            if (!target) return;
+            triggerHaptic(20); focusCameraOnLayer(target.colId, target.layerIdx, true);
+            updateMinimap(); 
+            document.body.classList.remove('settings-open');
+        };
+
+        // ==========================================
+        // TEXT PARSING & AI CORE
+        // ==========================================
+        async function callOpenAI(userPrompt, systemPrompt, opts = {}) {
+            const key = String(LLM_CONFIG.apiKey || "").trim();
+            if (!key) throw new Error("OPENAI key missing");
+            const base = String(LLM_CONFIG.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+            const res = await fetch(`${base}/chat/completions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+                body: JSON.stringify({
+                    model: opts.model || LLM_CONFIG.model,
+                    messages: [ ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []), { role: "user", content: userPrompt } ],
+                    temperature: typeof opts.temperature === "number" ? opts.temperature : 0.55,
+                    max_tokens: opts.maxTokens || 700
+                })
+            });
+            if (!res.ok) throw new Error(`OpenAI API Error ${res.status}`);
+            const data = await res.json();
+            return String(data?.choices?.[0]?.message?.content || "").trim();
+        }
+
+        function normalizeLLMText(raw) {
+            let text = String(raw ?? "");
+            text = text.replace(/<br\s*\/?>/gi, "\n");
+            text = text.replace(/\r\n?/g, "\n");
+            text = text.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+            text = text.replace(/[\u2028\u2029\u0085]/g, "\n");
+            text = text.replace(/[ \t]+\n/g, "\n");
+            text = text.replace(/\n{3,}/g, "\n\n");
+            return text.trim();
+        }
+
+        function splitAtomicLines(raw) {
+            const lines = normalizeLLMText(raw).split("\n");
+            const out = [];
+            lines.forEach(line => {
+                const parts = String(line || "").split(/\s{2,}(?=[^\s])/g).map(s => s.trim()).filter(Boolean);
+                parts.forEach(p => out.push(p));
+            });
+            return out;
+        }
+
+        function parseTaggedActions(raw, tagName) {
+            const text = normalizeLLMText(raw);
+            const tag = String(tagName || "").toUpperCase();
+            const out = [];
+            const primary = new RegExp(`\\[\\s*${tag}\\s*:??\\s*(\\[\\s*\\d+\\s*,\\s*\\d+\\s*\\])\\s*\\|\\s*([\\s\\S]*?)\\]`, "gi");
+            let m;
+            while ((m = primary.exec(text)) !== null) {
+                const coord = String(m[1] || "").replace(/\s+/g, "");
+                const reason = String(m[2] || "").replace(/\s+/g, " ").trim();
+                if (coord && reason) out.push({ coord, reason });
+            }
+            if (out.length) return out;
+
+            const fallback = new RegExp(`^\\[?\\s*${tag}\\s*:?\\s*(\\[\\s*\\d+\\s*,\\s*\\d+\\s*\\])\\s*\\|\\s*(.+?)\\]?$`, "i");
+            text.split("\n").map(s=>s.trim()).filter(Boolean).forEach(line => {
+                const mm = line.match(fallback);
+                if (mm) {
+                    const coord = String(mm[1] || "").replace(/\s+/g, "");
+                    const reason = String(mm[2] || "").replace(/\s+/g, " ").trim();
+                    if (coord && reason) out.push({ coord, reason });
+                }
+            });
+            return out;
+        }
+
+        function uniquePreserveOrder(items) {
+            const seen = new Set(); const out = [];
+            (items || []).forEach(item => {
+                const key = String(item || "").trim().toLowerCase();
+                if (!key || seen.has(key)) return;
+                seen.add(key); out.push(String(item).trim());
+            });
+            return out;
+        }
+
+        function coercePass1Fragments(raw, desiredCount = 4) {
+            let frags = splitAtomicLines(raw)
+                .map(f => String(f || "").replace(/^["'`]+|["'`]+$/g, "").replace(/^\[.*?\]/, "").trim())
+                .filter(f => f.length >= 3 && !f.startsWith("SPAWN:") && !f.startsWith("VECTOR:"));
+            frags = uniquePreserveOrder(frags);
+            if (desiredCount > 0 && frags.length > desiredCount) frags = frags.slice(0, desiredCount);
+            return frags;
+        }
+
+        window.startExperience = function() {
+            const keyInput = document.getElementById('boot-api-key');
+            const msg = document.getElementById('boot-msg');
+            const key = String(keyInput?.value || "").trim();
+            if (!key || !key.startsWith('sk-')) {
+                if (msg) msg.textContent = "Please enter a valid OpenAI key.";
+                return;
+            }
+            LLM_CONFIG.apiKey = key;
+            bootUp();
+        };
+
+        window.bootUp = function() {
+            const boot = document.getElementById('boot-screen');
+            boot.style.opacity = 0;
+            setTimeout(() => boot.remove(), 1000);
+            toggleAudio(true); 
+            playBootChord();
+            triggerRipple(0, 0, 2.5, TAG_COLORS.DEFAULT);
+        };
+
+        // ==========================================
+        // EXPORT & IMPORT ENGINE
+        // ==========================================
+        function renderTopographyMarkdown(nodes) {
+            let out = "# RIPPLE TOPOGRAPHY EXPORT\n\n";
+            (nodes || []).forEach(node => {
+                const coord = String(node.coord || "[0,0]");
+                const title = String(node.title || "VOID");
+                const safeTag = TAG_COLORS[String(node.tag || "").toUpperCase()] ? String(node.tag).toUpperCase() : "DEFAULT";
+                out += `## NODE ${coord} : "${title}" [${safeTag}]\n`;
+
+                const stubs = Array.isArray(node.stubs) ? node.stubs : [];
+                stubs.forEach((stub, idx) => {
+                    const lines = splitAtomicLines(stub?.text || "");
+                    if (!lines.length) return;
+                    lines.forEach((line, lineIdx) => {
+                        const kind = (idx === 0 && lineIdx === 0) ? "STONE" : "FRAGMENT";
+                        out += `- ${kind}: ${line}\n`;
+                    });
+                });
+                out += "\n";
+            });
+            return out;
+        }
+
+        function parseTopographyMarkdown(mdText) {
+            const lines = normalizeLLMText(mdText).split("\n");
+            const nodes = [];
+            let current = null;
+
+            lines.forEach(line => {
+                const nodeMatch = line.match(/^##\s*NODE\s*(\[\s*\d+\s*,\s*\d+\s*\])\s*:\s*"(.*?)"\s*\[([A-Za-z_]+)\]\s*$/);
+                if (nodeMatch) {
+                    if (current) nodes.push(current);
+                    current = { coord: nodeMatch[1].replace(/\s+/g, ""), title: nodeMatch[2], tag: String(nodeMatch[3] || "DEFAULT").toUpperCase(), stubs: [] };
+                    return;
+                }
+                const itemMatch = line.match(/^\s*-\s*(STONE|FRAGMENT)\s*:\s*(.*)$/i);
+                if (itemMatch && current) {
+                    const kind = String(itemMatch[1]).toUpperCase();
+                    const text = String(itemMatch[2] || "").trim();
+                    if (text) {
+                        splitAtomicLines(text).forEach((part, idx) => {
+                            current.stubs.push({ kind: (kind === "STONE" && idx === 0) ? "STONE" : "FRAGMENT", text: part });
+                        });
+                    }
+                }
+            });
+            if (current) nodes.push(current);
+            return nodes.filter(n => n.stubs.length > 0);
+        }
+
+        window.exportTopography = function() {
+            triggerHaptic(15);
+            const rawNodes = colRegistry.filter(c => c.layers > 0).map(c => ({
+                coord: c.coord, title: c.title, tag: c.tag,
+                stubs: c.messages.map((m, i) => ({ kind: i === 0 ? "STONE" : "FRAGMENT", text: m }))
+            }));
+            const out = renderTopographyMarkdown(parseTopographyMarkdown(renderTopographyMarkdown(rawNodes)));
+            const blob = new Blob([out], {type: "text/markdown"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `ripple_map_${Date.now()}.md`;
+            a.click();
+            appendLog("TOPOGRAPHY EXPORTED TO LOCAL STORAGE.", "sys");
+            toggleSettings();
+        };
+
+        window.importTopographyFile = function() {
+            const fileInput = document.getElementById('topo-import-file');
+            if (!fileInput) return;
+            fileInput.value = ""; fileInput.click();
+        };
+
+        const topoImportFile = document.getElementById('topo-import-file');
+        topoImportFile?.addEventListener('change', async (e) => {
+            const file = e.target?.files?.[0];
+            if (!file) return;
+            const raw = await file.text().catch(() => "");
+            if (!raw) return;
+            triggerHaptic(15);
+            const parsed = parseTopographyMarkdown(raw);
+            if (!parsed.length) { appendLog("IMPORT FAILED.", "sys"); return; }
+            
+            let importedCount = 0;
+            parsed.forEach(node => {
+                let col = colRegistry.find(c => c.coord === node.coord);
+                if (!col) { const empty = colRegistry.filter(c => c.layers === 0); col = empty[0] || colRegistry[0]; }
+                if (!col) return;
+                col.tag = TAG_COLORS[node.tag] ? node.tag : "DEFAULT";
+                node.stubs.forEach((stub, idx) => {
+                    const text = String(stub.text || "").trim();
+                    if (!text) return;
+                    addLayerToColumn(col, text, idx !== 0);
+                    appendLog(text, stub.kind === "STONE" ? "user" : "ai", false, col.id, col.layers-1);
+                    importedCount++;
+                });
+            });
+            updateMinimap();
+            appendLog(`IMPORTED ${importedCount} STUBS.`, "sys");
+            toggleSettings();
+        });
+
+        // ==========================================
+        // MEDIA RECORDING
+        // ==========================================
+        let recordingStreamRaw = null;
+        let recordingStream = null;
+        let mediaRecorder = null;
+        let recordingChunks = [];
+        let recordingAudioDestination = null;
+        window.toggleRecordingVoiceCapture = function() { STATE.recordVoiceCapture = document.getElementById('tgl-mic').checked; };
+        window.toggleRecordingCameraLock = function() { STATE.recordingCameraLock = document.getElementById('tgl-camlock').checked; };
+        
+        async function startRecording() {
+            if (STATE.recordingActive) return;
+            if (typeof MediaRecorder === 'undefined') { appendLog("RECORDING NOT SUPPORTED IN THIS BROWSER.", "sys"); return; }
+
+            try {
+                if (!audioCtx) initAudio();
+                if (audioCtx?.state === 'suspended') await audioCtx.resume().catch(() => {});
+
+                recordingStreamRaw = renderer.domElement.captureStream(30);
+                const tracks = [...recordingStreamRaw.getVideoTracks()];
+
+                if (!recordingAudioDestination && audioCtx && masterGain) {
+                    recordingAudioDestination = audioCtx.createMediaStreamDestination();
+                    masterGain.connect(recordingAudioDestination);
+                }
+                if (recordingAudioDestination) {
+                    tracks.push(recordingAudioDestination.stream.getAudioTracks()[0]);
+                }
+
+                if (STATE.recordVoiceCapture) {
+                    try {
+                        const voiceStream = await navigator.mediaDevices.getUserMedia({audio: true});
+                        tracks.push(voiceStream.getAudioTracks()[0]);
+                    } catch(e) { appendLog("MIC ACCESS DENIED. RECORDING WITHOUT VOICE.", "sys"); }
+                }
+
+                recordingStream = new MediaStream(tracks);
+                mediaRecorder = new MediaRecorder(recordingStream, { mimeType: 'video/webm' });
+                recordingChunks = [];
+
+                mediaRecorder.ondataavailable = (evt) => { if (evt.data && evt.data.size > 0) recordingChunks.push(evt.data); };
+                mediaRecorder.onstop = () => {
+                    const videoBlob = new Blob(recordingChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(videoBlob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `ripple_record_${Date.now()}.webm`;
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1200);
+                    recordingChunks = [];
+                    if (recordingStream) recordingStream.getTracks().forEach(t => t.stop());
+                    mediaRecorder = null;
+                    appendLog("RECORDING SAVED.", "sys");
+                };
+
+                mediaRecorder.start(800);
+                STATE.recordingActive = true;
+                
+                const btn = document.getElementById('btn-start-rec');
+                const banner = document.getElementById('rec-banner-active');
+                if(btn) {
+                    btn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" fill="currentColor"/></svg> Stop Recording`;
+                    btn.classList.add('action-btn-danger');
+                }
+                if(banner) banner.classList.add('active');
+                
+                appendLog("RECORDING STARTED.", "sys");
+            } catch (err) {
+                appendLog(`RECORDING FAILED: ${err.message}`, 'sys');
+                STATE.recordingActive = false;
+            }
+        }
+
+        function stopRecording() {
+            if (!STATE.recordingActive) return;
+            STATE.recordingActive = false;
+            
+            const btn = document.getElementById('btn-start-rec');
+            const banner = document.getElementById('rec-banner-active');
+            if(btn) {
+                btn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg> Start Recording`;
+                btn.classList.remove('action-btn-danger');
+            }
+            if(banner) banner.classList.remove('active');
+
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        }
+
+        window.toggleRecording = function() {
+            if (STATE.recordingActive) stopRecording();
+            else startRecording();
+        };
+
+        // ==========================================
+        // AUTO-RIPPLE SYSTEM
+        // ==========================================
+        const activeRipples = [];
+        window.triggerRipple = function(x, z, intensity=1.0, colorHex=TAG_COLORS.DEFAULT) {
+            const clamped = Math.max(0.15, Math.min(1.2, intensity));
+            activeRipples.push({x, z, time: 0, intensity: clamped});
+            if (activeRipples.length > 18) activeRipples.shift();
+            
+            const geo = new THREE.RingGeometry(0.5, 1.5, 64);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, -0.5, z);
+            scene.add(mesh);
+            playAmbientNote(); triggerHaptic([30, 50, 30]);
+
+            const startTime = performance.now();
+            function grow() {
+                const prog = (performance.now() - startTime) / 2400;
+                if (prog < 1.0) {
+                    const scale = 1.0 + (1.0 - Math.pow(1.0 - prog, 3)) * 34.0;
+                    mesh.scale.set(scale, scale, scale);
+                    mesh.material.opacity = 0.55 * (1.0 - prog);
+                    requestAnimationFrame(grow);
+                } else {
+                    scene.remove(mesh); geo.dispose(); mat.dispose();
+                }
+            }
+            grow();
+        };
+
+        function setMode(mode) {
+            STATE.inputMode = mode;
+            const ind = document.getElementById('lens-indicator');
+            ind.className = '';
+            if(MODE_CLASSES[mode]) ind.classList.add(MODE_CLASSES[mode]);
+        }
+
+        window.toggleMode = function() {
+            triggerHaptic(10);
+            const nextIndex = (MODES.indexOf(STATE.inputMode) + 1) % MODES.length;
+            setMode(MODES[nextIndex]);
+        };
+
+        window.toggleAutoRipple = function() {
+            const tgl = document.getElementById('tgl-auto');
+            STATE.autoRippleEnabled = tgl ? tgl.checked : !STATE.autoRippleEnabled;
+            if(tgl) tgl.checked = STATE.autoRippleEnabled;
+            document.getElementById('lbl-auto-status').innerText = STATE.autoRippleEnabled ? "Active. System exploring." : "Paused.";
+            
+            if (!STATE.autoRippleEnabled) {
+                if (autoRippleTimer) { clearTimeout(autoRippleTimer); autoRippleTimer = null; }
+                appendLog("AUTO RIPPLE OFF.", "sys");
+            } else if (STATE.autoRippleSeeded) {
+                appendLog("AUTO RIPPLE LIVE.", "sys");
+                scheduleAutoRipple();
+            } else {
+                appendLog("AUTO RIPPLE ARMED. Drop a stone to start.", "sys");
+            }
+        };
+        
+        window.toggleAutoPolicy = function() {
+            const tgl = document.getElementById('tgl-policy');
+            STATE.autoPolicy = (tgl && tgl.checked) ? "SEMI" : "FULL";
+            appendLog(`AUTO POLICY: ${STATE.autoPolicy}`, "sys");
+        };
+
+        window.toggleTTS = function() {
+            const tgl = document.getElementById('tgl-tts');
+            STATE.ttsAutoEnabled = tgl ? tgl.checked : !STATE.ttsAutoEnabled;
+            if(tgl) tgl.checked = STATE.ttsAutoEnabled;
+            if (!STATE.ttsAutoEnabled) window.speechSynthesis.cancel();
+            appendLog(`TTS VOICE: ${STATE.ttsAutoEnabled ? "ON" : "OFF"}`, "sys");
+        };
+
+        function scheduleAutoRipple() {
+            if (!STATE.autoRippleEnabled || !STATE.autoRippleSeeded) return;
+            if (autoRippleTimer) return;
+            const delay = 4200 + Math.floor(Math.random() * 3400);
+            autoRippleTimer = setTimeout(() => {
+                autoRippleTimer = null;
+                runAutoRippleStep();
+            }, delay);
+        }
+
+        async function runAutoRippleStep() {
+            if (!STATE.autoRippleEnabled || !STATE.autoRippleSeeded) return;
+            if (STATE.autoPolicy === "SEMI" && STATE.autoAwaitingSpawnPick) return;
+            if (isAITyping) { scheduleAutoRipple(); return; }
+
+            const activeCols = colRegistry.filter(c => c.layers > 0);
+            if (!activeCols.length) { scheduleAutoRipple(); return; }
+
+            const col = activeCols[Math.floor(Math.random() * activeCols.length)];
+            const layerIdx = Math.max(0, col.layers - 1);
+            expandStack(col.id, layerIdx);
+            
+            const stubParts = splitAtomicLines(col.messages[layerIdx] || "");
+            const stub = (stubParts[stubParts.length - 1] || "").trim();
+            if (!stub) { scheduleAutoRipple(); return; }
+
+            STATE.autoRippleStep += 1;
+            
+            if (STATE.autoPolicy === "SEMI") {
+                appendLog(`SEMI STEP ${STATE.autoRippleStep}: CONTINUE @ ${col.coord}`, "sys");
+                setMode('DEFAULT');
+                processCommand(`Continue from: "${stub}"`, col.id, { source: "auto" });
+                return;
+            }
+
+            const roll = Math.random();
+            if (roll < 0.25) {
+                const tag = AUTO_TAGS[Math.floor(Math.random() * AUTO_TAGS.length)];
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: ${tag} @ ${col.coord}`, "sys");
+                tagLayer(tag);
+                return;
+            } else if (roll < 0.50 && activeCols.length > 1) {
+                const emptyNodes = colRegistry.filter(c => c.layers === 0);
+                const targetCol = emptyNodes.length > 0 ? emptyNodes[Math.floor(Math.random() * emptyNodes.length)] : colRegistry[Math.floor(Math.random() * colRegistry.length)];
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: BRANCH ${col.coord} -> ${targetCol.coord}`, "sys");
+                setMode('DEFAULT');
+                processCommand(`Branch from: "${stub}"`, targetCol.id, { source: "auto" });
+                return;
+            }
+
+            appendLog(`AUTO STEP ${STATE.autoRippleStep}: CONTINUE @ ${col.coord}`, "sys");
+            setMode('DEFAULT');
+            processCommand(`Continue from: "${stub}"`, col.id, { source: "auto" });
+        }
+
+
+        // ==========================================
+        // TEXT UI LOGIC
+        // ==========================================
+        const chatLog = document.getElementById('chat-log');
+        function appendLog(text, type='sys', animated=false, colId=null, layerIdx=null) {
+            const div = document.createElement('div');
+            div.className = `msg msg-${type} ${animated ? 'typing-indicator' : ''}`;
+            if (colId !== null && colId !== -1) {
+                div.dataset.colId = colId; div.dataset.layerIdx = layerIdx;
+                div.onclick = (e) => { e.stopPropagation(); expandStack(colId, layerIdx); }; 
+            }
+            div.innerText = (type==='user'?'> ':'') + text;
+            chatLog.appendChild(div);
+            chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
+            return div;
+        }
+
+        function filterChatByNode(colId) {
+            const allMsgs = document.querySelectorAll('.msg[data-col-id]');
+            if (colId === -1) {
+                allMsgs.forEach(m => m.classList.remove('msg-dimmed'));
+            } else {
+                allMsgs.forEach(m => {
+                    const mColId = parseInt(m.dataset.colId);
+                    if (mColId === colId) {
+                        m.classList.remove('msg-dimmed');
+                    } else {
+                        m.classList.add('msg-dimmed');
+                    }
+                });
+            }
+        }
+
+        // ==========================================
+        // THREE.JS SETUP & RENDERING
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x020305, 0.008);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+        camera.position.set(40, 50, 80);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.dampingFactor = 0.1;
+        controls.enableRotate = false; controls.enablePan = true;
+        controls.screenSpacePanning = true; controls.panSpeed = 0.95; controls.zoomSpeed = 0.8;
+        
+        const clickableMeshes = [];
+        const colRegistry = [];
+        const miniCells = [];
+
+        const beamGeo = new THREE.CylinderGeometry(1.8, 1.8, 300, 16);
+        const beamMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false});
+        const focusBeam = new THREE.Mesh(beamGeo, beamMat);
+        scene.add(focusBeam);
+        focusBeam.visible = false;
+
+        function createTextSprite(text, isTitle=false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = isTitle ? 80 : 120; 
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = isTitle ? 'rgba(0,0,0,0)' : 'rgba(2, 5, 8, 0.98)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (!isTitle) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 6; ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+            }
+
+            let fontSize = isTitle ? 40 : 52;
+            if (!isTitle) {
+                if (text.length > 35) fontSize = 42;
+                if (text.length > 55) fontSize = 32;
+                if (text.length > 75) fontSize = 24;
+            }
+
+            ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = isTitle ? '#00e5ff' : '#FFFFFF';
+            
+            if(isTitle) { ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10; } 
+            else { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; }
+            
+            ctx.fillText(text.toUpperCase(), canvas.width/2, canvas.height/2, canvas.width - 40);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, blending: THREE.NormalBlending, depthTest: !isTitle, depthWrite: !isTitle });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(15, isTitle ? 1.1 : 1.7, 1);
+            return sprite;
+        }
+
+        function getGeometryForTag(tag, isEmpty = false) {
+            if (isEmpty) return new THREE.CircleGeometry(0.5, 16); 
+            switch(tag) {
+                case 'OBSTACLE': return new THREE.PlaneGeometry(5, 5); 
+                case 'GOAL': return new THREE.RingGeometry(1, 3.5, 32); 
+                case 'SHIFT': return new THREE.CircleGeometry(3.5, 3); 
+                default: return new THREE.RingGeometry(2.0, 2.5, 24); 
+            }
+        }
+        
+        const GRID_SIZE = 12; const SPACING = 10.0; const minimap = document.getElementById('minimap');
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const cell = document.createElement('div'); cell.className = 'mini-cell'; minimap.appendChild(cell);
+                const r = Math.hypot(x - GRID_SIZE/2 + 0.5, y - GRID_SIZE/2 + 0.5);
+                if (r <= 6.5) {
+                    const col = { id: colRegistry.length, coord: `[${x},${y}]`, x: (x-GRID_SIZE/2+0.5)*SPACING, z: (y-GRID_SIZE/2+0.5)*SPACING, layers: 0, messages: [], sprites: [], tag: 'DEFAULT', layerVectors: [], title: "VOID", titleSprite: null };
+                    
+                    const baseGeo = getGeometryForTag(col.tag, true);
+                    const baseMat = new THREE.MeshBasicMaterial({ color: TAG_COLORS.DEFAULT, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+                    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+                    baseMesh.rotation.x = -Math.PI / 2; baseMesh.position.set(col.x, -1, col.z);
+                    baseMesh.userData = { colId: col.id, layer: -1 };
+                    scene.add(baseMesh);
+                    clickableMeshes.push(baseMesh);
+                    col.baseMesh = baseMesh; 
+                    
+                    colRegistry.push(col);
+                    cell.onclick = () => { triggerHaptic(10); expandStack(col.id, Math.max(0, col.layers-1)); };
+                    miniCells.push({cell, colId: col.id});
+                } else { cell.style.visibility = 'hidden'; }
+            }
+        }
+
+        function applyColumnTag(col, tag) {
+            if (!col) return;
+            const safeTag = TAG_COLORS[tag] ? tag : "DEFAULT";
+            col.tag = safeTag;
+            if (col.baseMesh) {
+                col.baseMesh.geometry.dispose();
+                col.baseMesh.geometry = getGeometryForTag(safeTag, col.layers === 0);
+                col.baseMesh.material.color.setHex(TAG_COLORS[safeTag]);
+            }
+            if (col.titleSprite) {
+                col.titleSprite.material.color.setHex(TAG_COLORS[safeTag]);
+            }
+        }
+
+        function addLayerToColumn(column, text, isNew = true) {
+            const finalText = String(text || "").trim();
+            if (!finalText) return null;
+
+            column.messages.push(finalText);
+            column.layerVectors.push([]); 
+            
+            if (column.layers === 0) {
+                column.baseMesh.geometry.dispose();
+                column.baseMesh.geometry = getGeometryForTag(column.tag, false);
+
+                const titleStr = finalText.length > 25 ? finalText.substring(0, 25) + '...' : finalText;
+                column.title = titleStr;
+                column.titleSprite = createTextSprite(`[${column.coord}] ${titleStr}`, true);
+                column.titleSprite.material.color.setHex(TAG_COLORS[column.tag] || TAG_COLORS.DEFAULT);
+                scene.add(column.titleSprite);
+            }
+
+            const sprite = createTextSprite(finalText);
+            const tagColor = column.tag ? TAG_COLORS[column.tag] : TAG_COLORS.DEFAULT;
+            sprite.material.color.setHex(tagColor);
+            
+            const startY = isNew ? (column.layers + 6) * STATE.tension : column.layers * STATE.tension;
+            sprite.position.set(column.x, startY, column.z);
+            sprite.userData = { colId: column.id, layer: column.layers, spawnTime: performance.now() };
+            
+            scene.add(sprite);
+            column.sprites.push(sprite);
+            clickableMeshes.push(sprite);
+            column.layers++;
+            
+            updateMinimap();
+            return sprite;
+        }
+
+        function buildPath(originCol, originLayerIdx, destCol, tag) {
+            const startY = originLayerIdx >= 0 ? originCol.sprites[originLayerIdx].position.y : 0;
+            const start = new THREE.Vector3(originCol.x, startY, originCol.z);
+            const end = new THREE.Vector3(destCol.x, (destCol.layers * STATE.tension) + 2, destCol.z);
+            const mid = new THREE.Vector3((start.x + end.x)/2, Math.max(start.y, end.y) + 25, (start.z + end.z)/2);
+
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+            const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.2, 8, false);
+            const color = TAG_COLORS[tag] || TAG_COLORS.DEFAULT;
+            const tubeMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+            
+            const splineObject = new THREE.Mesh(tubeGeo, tubeMat);
+            scene.add(splineObject);
+            
+            destCol.baseMesh.material.opacity = 0.8;
+            
+            const startTime = performance.now();
+            function fadeBridge() {
+                const elapsed = performance.now() - startTime;
+                if (elapsed < 6000) {
+                    tubeMat.opacity = 0.9 * (1 - elapsed / 6000);
+                    requestAnimationFrame(fadeBridge);
+                } else {
+                    scene.remove(splineObject); tubeGeo.dispose(); tubeMat.dispose();
+                    if(STATE.selectedColId !== destCol.id) destCol.baseMesh.material.opacity = destCol.layers > 0 ? 0.25 : 0.05;
+                }
+            }
+            fadeBridge();
+        }
+
+        function updateMinimap() { 
+            miniCells.forEach(mc => {
+                const col = colRegistry[mc.colId];
+                mc.cell.className = 'mini-cell';
+                if (col.layers > 0) mc.cell.classList.add('mini-active');
+                if (STATE.selectedColId === col.id) mc.cell.classList.add('mini-selected');
+                
+                if (col.layers > 0 && col.tag !== 'DEFAULT') {
+                    mc.cell.style.backgroundColor = '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0');
+                } else {
+                    mc.cell.style.backgroundColor = '';
+                }
+            });
+        }
+
+        window.expandStack = function(colId, layerIdx) { 
+            const col = colRegistry[colId];
+            if (col.layers === 0) return; 
+            if (layerIdx === undefined || layerIdx < 0) layerIdx = col.layers - 1;
+
+            STATE.selectedColId = colId; STATE.selectedLayerIdx = layerIdx;
+            STATE.readingColId = colId; STATE.readingLayerIdx = layerIdx;
+            STATE.targetMode = 'NODE'; STATE.autoPan = true; 
+            setMode(col.tag); 
+            
+            document.getElementById('layer-controls').style.display = 'flex';
+            
+            if (!col.layerVectors[layerIdx] || col.layerVectors[layerIdx].length === 0) {
+                fetchVectorsForLayer(colId, layerIdx);
+            } else {
+                renderVectors(colId, layerIdx);
+            }
+
+            updateMinimap();
+            triggerRipple(col.x, col.z, 0.8, TAG_COLORS[col.tag]);
+            
+            focusBeam.position.set(col.x, 150, col.z);
+            focusBeam.material.color.setHex(TAG_COLORS[col.tag]);
+            focusBeam.visible = true;
+
+            filterChatByNode(colId);
+            document.querySelectorAll('.msg-selected').forEach(el => el.classList.remove('msg-selected'));
+            const msgs = document.querySelectorAll(`.msg[data-col-id="${colId}"][data-layer-idx="${layerIdx}"]`);
+            if (msgs.length > 0) {
+                const targetMsg = msgs[0];
+                targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetMsg.classList.add('msg-selected');
+                const rawText = col.messages[layerIdx];
+                activeStubText = rawText; 
+                cmdInput.placeholder = `Branching from: "${rawText.substring(0, 30)}..."`;
+            }
+        }
+
+        window.collapseStack = function() { 
+            triggerHaptic(10);
+            STATE.selectedColId = -1; STATE.selectedLayerIdx = -1;
+            STATE.readingColId = -1; STATE.readingLayerIdx = -1;
+            STATE.targetMode = 'GLOBAL'; STATE.autoPan = true;
+            setMode('DEFAULT');
+            document.getElementById('layer-controls').style.display = 'none';
+            focusBeam.visible = false;
+            updateMinimap();
+            filterChatByNode(-1); 
+            
+            document.querySelectorAll('.msg-selected').forEach(el => el.classList.remove('msg-selected'));
+            activeStubText = ""; cmdInput.placeholder = "Drop a stone...";
+        }
+
+        window.tagLayer = function(tag) { 
+            if (STATE.selectedColId === -1) return;
+            triggerHaptic(15);
+            const col = colRegistry[STATE.selectedColId];
+            applyColumnTag(col, tag);
+            appendLog(`>> NODE ${col.coord} SHIFTED TO [${tag}]`, 'sys');
+            setMode(tag); 
+            triggerRipple(col.x, col.z, 1.5, TAG_COLORS[tag]);
+            updateMinimap();
+
+            const stubContext = activeStubText ? activeStubText : col.messages[col.layers-1];
+            processCommand(`Therefore, ${stubContext}`, col.id);
+        }
+
+        window.branchStub = function() { 
+            if (!activeStubText) return;
+            triggerHaptic([20, 30, 20]);
+            const stub = activeStubText;
+            collapseStack(); 
+            
+            const emptyNodes = colRegistry.filter(c => c.layers === 0);
+            const targetCol = emptyNodes.length > 0 ? emptyNodes[Math.floor(Math.random() * emptyNodes.length)] : colRegistry[Math.floor(Math.random() * colRegistry.length)];
+            
+            appendLog(`>> BRANCHING STUB TO NEW TOWER AT ${targetCol.coord}`, 'sys');
+            cmdInput.value = stub;
+            processCommand(stub, targetCol.id); 
+            cmdInput.value = "";
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function onInteract(clientX, clientY) {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes);
+            if (intersects.length > 0) {
+                const data = intersects[0].object.userData;
+                const targetLayer = data.layer >= 0 ? data.layer : Math.max(0, colRegistry[data.colId].layers - 1);
+                expandStack(data.colId, targetLayer);
+            } else {
+                collapseStack();
+            }
+        }
+
+        window.addEventListener('pointerdown', (e) => { 
+            if (e.target.tagName === 'CANVAS') {
+                pointerDownPos = { x: e.clientX, y: e.clientY };
+                isDraggingCanvas = false;
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (e.target.tagName === 'CANVAS') {
+                const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+                if (dist > CAMERA_TUNING.dragThresholdPx) {
+                    isDraggingCanvas = true; 
+                    STATE.autoPan = false;
+                }
+            }
+            
+            if(e.target.tagName !== 'CANVAS') return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes);
+            const readout = document.getElementById('hover-readout');
+            
+            if (intersects.length > 0) {
+                hoveredColId = intersects[0].object.userData.colId;
+                const col = colRegistry[hoveredColId];
+                if(col.layers > 0) {
+                    readout.innerText = `NODE ${col.coord} : ${col.title} [${col.tag}]`;
+                    readout.style.opacity = 1;
+                    readout.style.left = `${e.clientX}px`;
+                    readout.style.top = `${e.clientY - 30}px`;
+                } else {
+                    readout.style.opacity = 0;
+                }
+            } else {
+                hoveredColId = -1; readout.style.opacity = 0;
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (e.target.tagName === 'CANVAS' && !isDraggingCanvas) {
+                triggerHaptic(10);
+                onInteract(e.clientX, e.clientY);
+            }
+        });
+
+        // ==========================================
+        // API FETCHING & COMMAND PROCESSING
+        // ==========================================
+        async function fetchVectorsForLayer(colId, layerIdx) {
+            const col = colRegistry[colId];
+            const stubText = col.messages[layerIdx];
+            const list = document.getElementById('vector-list');
+            
+            list.innerHTML = `
+                <div class="vector-wrapper" style="opacity:1;">
+                    <div class="vector-loading" style="padding:12px; font-size:0.8rem; color:var(--cyan); width:100%;">⟳ TRACING CONSEQUENCES...</div>
+                </div>`;
+            
+            const sysPrompt = `You are a creative engine processing the concept: "${stubText}". Output exactly 2 Action Vectors representing logical consequence steps jumping from this thought. Format strictly as: [VECTOR: [x,y] | Therefore, <action/consequence>]. Coordinate x and y should be between 0 and 11. Do not explain.`;
+            
+            try {
+                const text = await callOpenAI("Extract Vectors", sysPrompt, { temperature: 0.6, maxTokens: 200 });
+                const vectorMatches = parseTaggedActions(text, "VECTOR");
+                col.layerVectors[layerIdx] = vectorMatches.map(m => {
+                    let destCol = colRegistry.find(c => c.coord === m.coord);
+                    if (!destCol || destCol.id === col.id) {
+                        const pool = colRegistry.filter(c => c.id !== col.id);
+                        destCol = pool[Math.floor(Math.random() * pool.length)];
+                    }
+                    return { text: m.reason, destId: destCol.id, isCollapsed: false };
+                });
+                
+                if (col.layerVectors[layerIdx].length === 0) throw new Error("Parse Fail");
+                if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx) renderVectors(colId, layerIdx);
+            } catch (e) {
+                if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx) {
+                    list.innerHTML = `<div class="vector-wrapper" style="opacity:1;"><div class="vector-loading" style="padding:12px; color:var(--alert); width:100%;">✕ CONNECTION FAILED</div></div>`;
+                }
+            }
+        }
+
+        window.renderVectors = function(colId, layerIdx) {
+            const list = document.getElementById('vector-list');
+            list.innerHTML = '';
+            const col = colRegistry[colId];
+            const vectors = col.layerVectors[layerIdx];
+            if(!vectors || vectors.length === 0) return;
+
+            vectors.forEach((vecObj, idx) => {
+                const destCol = colRegistry[vecObj.destId];
+                const destColor = destCol.tag ? TAG_COLORS[destCol.tag] : TAG_COLORS.DEFAULT;
+                const cssColor = '#' + destColor.toString(16).padStart(6, '0');
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'vector-wrapper';
+                wrapper.style.animationDelay = `${idx * 0.1}s`;
+
+                const executeJump = () => {
+                    triggerHaptic(20);
+                    col.layerVectors[layerIdx].splice(idx, 1); 
+                    renderVectors(colId, layerIdx); 
+                    buildPath(col, layerIdx, destCol, STATE.inputMode);
+                    processCommand(vecObj.text, destCol.id);
+                };
+
+                const contentBtn = document.createElement('button');
+                contentBtn.className = 'vector-content';
+                contentBtn.innerHTML = `<span class="vector-therefore" style="color:${cssColor}">↳ JUMP TO [${destCol.coord}]</span><span class="vector-reason">${vecObj.text}</span>`;
+                contentBtn.onclick = executeJump;
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'vector-actions';
+                actionsDiv.style.backgroundColor = cssColor;
+                
+                const btnMin = document.createElement('button');
+                btnMin.className = 'v-ctrl'; btnMin.innerHTML = '✕';
+                btnMin.onclick = () => { col.layerVectors[layerIdx].splice(idx, 1); renderVectors(colId, layerIdx); };
+
+                actionsDiv.appendChild(btnMin);
+                wrapper.appendChild(contentBtn);
+                wrapper.appendChild(actionsDiv);
+                list.appendChild(wrapper);
+            });
+        };
+
+        const cmdInput = document.getElementById('cmd-input');
+        const cmdSubmit = document.getElementById('btn-submit');
+        
+        async function processCommand(cmd, forceTargetId=null, opts={}) {
+            if(!cmd.trim() || isAITyping) return;
+            isAITyping = true;
+
+            const isAuto = opts.source === "auto";
+            
+            if (!STATE.autoRippleSeeded && opts.source !== "auto") {
+                STATE.autoRippleSeeded = true;
+                if (STATE.autoRippleEnabled) appendLog("AUTO RIPPLE SEEDED & LIVE.", "sys");
+            }
+
+            let targetCol;
+            if (forceTargetId !== null) {
+                targetCol = colRegistry[forceTargetId];
+            } else if (STATE.targetMode === 'NODE' && STATE.selectedColId !== -1) {
+                targetCol = colRegistry[STATE.selectedColId];
+            } else {
+                const emptyNodes = colRegistry.filter(c => c.layers === 0);
+                targetCol = emptyNodes.length > 0 ? emptyNodes[Math.floor(Math.random() * emptyNodes.length)] : colRegistry[Math.floor(Math.random() * colRegistry.length)];
+            }
+
+            const stoneLayerIdx = targetCol.layers;
+            addLayerToColumn(targetCol, cmd, true);
+            appendLog(cmd, isAuto ? 'sys' : 'user', false, targetCol.id, stoneLayerIdx);
+            if(!isAuto) cmdInput.value = '';
+
+            if (STATE.inputMode !== 'DEFAULT') applyColumnTag(targetCol, STATE.inputMode);
+            triggerRipple(targetCol.x, targetCol.z, 1.2, TAG_COLORS[targetCol.tag]);
+
+            if (STATE.selectedColId !== targetCol.id || STATE.selectedLayerIdx !== stoneLayerIdx) {
+                expandStack(targetCol.id, stoneLayerIdx);
+            }
+
+            let currentTypingIndicator = appendLog("TRACING RIPPLES", 'sys', true);
+
+            let sysPrompt = `You are a creative poetic engine. Respond to the concept "${cmd}". Return 1-3 distinct, short poetic but concrete phrases (5-12 words) about the consequence. Separate them with line breaks. Do not explain. Do not use quotes.`;
+            
+            if (STATE.inputMode === 'OBSTACLE') sysPrompt += " The consequence MUST represent failure, blockages, or high friction.";
+            if (STATE.inputMode === 'GOAL') sysPrompt += " The consequence MUST represent success, attraction, or convergence.";
+            if (STATE.inputMode === 'SHIFT') sysPrompt += " The consequence MUST represent a lateral pivot or change in perspective.";
+
+            try {
+                let replyText = await callOpenAI(cmd, sysPrompt, { temperature: 0.7, maxTokens: 300 });
+                if (currentTypingIndicator) currentTypingIndicator.remove();
+
+                const fragments = coercePass1Fragments(replyText, 3);
+                for (const line of fragments) {
+                    if (!line) continue;
+                    const lIdx = targetCol.layers;
+                    addLayerToColumn(targetCol, line, true);
+                    triggerRipple(targetCol.x, targetCol.z, 0.5, TAG_COLORS[targetCol.tag]);
+                    appendLog(line, 'ai', false, targetCol.id, lIdx);
+                    if (STATE.selectedColId === targetCol.id) expandStack(targetCol.id, targetCol.layers - 1);
+
+                    // Quick TTS fallback if enabled
+                    if (STATE.ttsAutoEnabled && STATE.ttsSupported) {
+                        const utt = new SpeechSynthesisUtterance(line);
+                        utt.rate = 0.95;
+                        window.speechSynthesis.speak(utt);
+                    }
+                }
+
+                if (isAuto && Math.random() < 0.4) {
+                    const spawnPool = colRegistry.filter(c => c.id !== targetCol.id && c.layers === 0);
+                    if(spawnPool.length > 0) {
+                        const destCol = spawnPool[Math.floor(Math.random() * spawnPool.length)];
+                        const spawnLine = "A distant consequence forms...";
+                        addLayerToColumn(destCol, spawnLine, true);
+                        buildPath(targetCol, Math.max(0, targetCol.layers - 1), destCol, targetCol.tag);
+                        appendLog(`[SPAWN @ ${destCol.coord}] ${spawnLine}`, 'spawn', false, destCol.id, destCol.layers-1);
+                    }
+                }
+
+            } catch (e) {
+                if (currentTypingIndicator) currentTypingIndicator.remove();
+                appendLog(`COMM_FAILURE: ${e.message}`, 'sys'); 
+            } finally {
+                isAITyping = false;
+                if(!isAuto) cmdInput.focus();
+                
+                if (STATE.autoRippleEnabled) {
+                    if (STATE.autoPolicy === "SEMI" && isAuto) {
+                        const waitLayer = Math.max(0, targetCol.layers - 1);
+                        expandStack(targetCol.id, waitLayer);
+                        if (!targetCol.layerVectors[waitLayer] || targetCol.layerVectors[waitLayer].length === 0) {
+                            fetchVectorsForLayer(targetCol.id, waitLayer);
+                        } else {
+                            renderVectors(targetCol.id, waitLayer);
+                        }
+                        STATE.autoAwaitingSpawnPick = true;
+                        appendLog("SEMI-AUTO: Pick a jump vector.", "sys");
+                    } else {
+                        scheduleAutoRipple();
+                    }
+                }
+            }
+        }
+
+        cmdSubmit.addEventListener('click', () => { triggerHaptic(15); processCommand(cmdInput.value); });
+        cmdInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') { triggerHaptic(15); processCommand(cmdInput.value); } });
+
+        // ==========================================
+        // MAIN ANIMATION LOOP
+        // ==========================================
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            STATE.simTime += delta;
+            const targetFlow = isAITyping ? 1.25 : 0.4;
+            STATE.flowRate += (targetFlow - STATE.flowRate) * 0.05;
+
+            for (let i = activeRipples.length - 1; i >= 0; i--) {
+                activeRipples[i].time += delta;
+                if (activeRipples[i].time > RIPPLE_TUNING.maxRippleLife) activeRipples.splice(i, 1); 
+            }
+
+            miniCells.forEach(mc => {
+                const col = colRegistry[mc.colId];
+                const isColSelected = (STATE.selectedColId === col.id);
+                const isColHovered = (hoveredColId === col.id);
+
+                if (col.layers === 0) {
+                    col.baseMesh.material.opacity = isColHovered ? 0.3 : 0.1;
+                } else {
+                    col.baseMesh.material.opacity = isColSelected ? 0.8 : (isColHovered ? 0.6 : 0.25);
+                }
+                
+                let rippleIntensity = 0;
+                activeRipples.forEach(r => {
+                    const dist = Math.hypot(col.x - r.x, col.z - r.z);
+                    const waveFront = r.time * RIPPLE_TUNING.waveFrontSpeed;
+                    const diff = Math.abs(waveFront - dist);
+                    if (diff < RIPPLE_TUNING.waveFrontWidth) {
+                        rippleIntensity = Math.max(rippleIntensity, (1 - diff / RIPPLE_TUNING.waveFrontWidth) * r.intensity * (1 - r.time / RIPPLE_TUNING.maxRippleLife));
+                    }
+                });
+
+                if (rippleIntensity > 0.05) {
+                    const baseCellColor = col.layers > 0 ? (col.tag !== 'DEFAULT' ? '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0') : 'var(--cyan)') : 'rgba(160,176,192,0.35)';
+                    mc.cell.style.transform = `scale(${1 + rippleIntensity * RIPPLE_TUNING.minimapScale})`;
+                    mc.cell.style.backgroundColor = baseCellColor;
+                    mc.cell.style.boxShadow = `0 0 ${RIPPLE_TUNING.minimapGlow * rippleIntensity}px rgba(255,255,255,0.7)`;
+                } else {
+                    mc.cell.style.transform = 'scale(1)';
+                    if (isColSelected) {
+                        mc.cell.style.backgroundColor = 'var(--orange)'; mc.cell.style.boxShadow = '0 0 8px var(--orange)';
+                    } else if (col.layers > 0) {
+                        mc.cell.style.backgroundColor = col.tag !== 'DEFAULT' ? '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0') : 'var(--cyan)';
+                        mc.cell.style.boxShadow = 'none';
+                    } else {
+                        mc.cell.style.backgroundColor = 'rgba(255,255,255,0.1)'; mc.cell.style.boxShadow = 'none';
+                    }
+                }
+
+                const spacing = STATE.tension; 
+                const wave = Math.sin((col.x * 0.08) + (col.z * 0.08) + (STATE.simTime * STATE.flowRate));
+                
+                let rippleOffset3D = 0;
+                activeRipples.forEach(r => {
+                    const dist = Math.hypot(col.x - r.x, col.z - r.z);
+                    const waveFront = r.time * RIPPLE_TUNING.waveFrontSpeed; 
+                    const diff = waveFront - dist;
+                    if (diff > 0 && diff < RIPPLE_TUNING.waveFrontWidth) { 
+                        rippleOffset3D += Math.sin((diff / RIPPLE_TUNING.waveFrontWidth) * Math.PI) * RIPPLE_TUNING.verticalDisplacement * r.intensity * (1.0 - r.time / RIPPLE_TUNING.maxRippleLife);
+                    }
+                });
+
+                if(col.titleSprite) {
+                    col.titleSprite.position.y += (((col.layers * spacing) + 8 + wave * 0.6) - col.titleSprite.position.y) * 0.1;
+                    col.titleSprite.material.opacity = (isColSelected || isColHovered) ? 1.0 : (col.layers > 0 ? 0.6 : 0.0);
+                }
+
+                col.sprites.forEach((s, l) => {
+                    const isNew = (performance.now() - s.userData.spawnTime < 1000);
+                    const isSpecificLayerSelected = (isColSelected && l === STATE.selectedLayerIdx);
+                    
+                    let targetY = (l * spacing) + (wave * 0.2) + rippleOffset3D; 
+                    if (isNew) targetY += 2.2; 
+
+                    s.position.y += (targetY - s.position.y) * 0.1;
+                    const tagColor = col.tag ? TAG_COLORS[col.tag] : TAG_COLORS.DEFAULT;
+
+                    if (isColSelected) {
+                        s.material.color.setHex(isSpecificLayerSelected ? 0xffffff : tagColor);
+                        s.material.opacity = isSpecificLayerSelected ? 1.0 : 0.85; 
+                    } else if (isColHovered) {
+                        s.material.color.setHex(l === col.layers-1 ? 0xffffff : tagColor);
+                        s.material.opacity = 1.0;
+                    } else if (STATE.selectedColId !== -1) {
+                        s.material.opacity = 0.15; 
+                    } else {
+                        s.material.color.setHex(tagColor);
+                        s.material.opacity = (l === col.layers-1) ? 1.0 : 0.7; 
+                    }
+                });
+            });
+
+            if(STATE.autoPan && !isDraggingCanvas && STATE.selectedColId === -1) {
+                controls.target.lerp(new THREE.Vector3(0,0,0), CAMERA_TUNING.idleLerp);
+            }
+            controls.update(); renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        animate();
+    </script>
+</body>
+</html>

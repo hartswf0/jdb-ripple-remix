@@ -1,0 +1,95 @@
+# RIPPLE SESSION TRANSCRIPT
+
+## MEDIA ASSET
+- asset_id: ripple-2026-03-02-rrc-runtime-candidate-take01-20260302t212226z
+- pair_code: RIPPLE-2026-03-02-RRC-RUNTIME-CANDIDATE-TAKE01-20260302T212226Z
+- title: Acute Migraine — 2026 03 02 RRC RUNTIME CANDIDATE
+- title_slug: acute-migraine-2026-03-02-rrc-runtime-candidate
+- transcript_file: ripple_2026-03-02-rrc-runtime-candidate_take01_20260302T212226Z.transcript.md
+- video_file: ripple_2026-03-02-rrc-runtime-candidate_take01_20260302T212226Z.mp4
+- pair_status: paired
+- first_prompt_source: first_user_event
+- first_prompt_excerpt: "migraine: { id: 'migraine', name: 'Acute Migraine', role: 'Emergency Medicine Resident', goal: 'Diagnose migraine, rule out serious causes, provide analgesia', obstacle: 'Distinguishing migraine from stroke, aneurysm,..."
+- recommended_base_name: acute-migraine-2026-03-02-rrc-runtime-candidate__ripple-2026-03-02-rrc-runtime-candidate-take01-20260302t212226z
+## END MEDIA ASSET
+
+- build: 2026-03-02-rrc-runtime-candidate
+- session_id: 20260302T211803Z
+- exported_at: 2026-03-02T21:22:26.182Z
+- root_seed: migraine: {         id: 'migraine',         name: 'Acute Migraine',         role: 'Emergency Medicine Resident',         goal: 'Diagnose migraine, rule out serious causes, provide analgesia',         obstacle: 'Distinguishing migraine from stroke, aneurysm, meningitis',         intro: 'ED presentation: 29yo architect, throbbing left-sided headache x5hrs. Gradual onset, worse with movement. PMHx: Mother has migraines. Social: Partied last night (red wine, beer, cigarettes). Vitals: HR 105, BP 120/60, T 37.5°C, O2 98%, RR 14.',         context: [           'CRITICAL ACTIONS: Vital signs, history, complete neurologic exam, analgesia (NSAID/triptan/antiemetic)',           'Red flags to assess: sudden onset, focal neuro deficits, fever, meningismus, trauma',           'Patient symptoms: Throbbing left eye pain, photophobia, phonophobia, nausea, blurry vision left side, lip numbness',           'Triggers: Red wine, unusual alcohol intake, smoking (non-smoker usually)',           'Physical: Uncomfortable, pale, PERRLA, EOMI, CN II-XII intact, motor 5/5, sensation intact, negative Kernig/Brudzinski',           'Decision points: Need for imaging (CT head), LP indication, medication choice, discharge vs admit'         ],         initialPrompt: 'Patient arrives to ED looking uncomfortable and pale. Patient says: "Doc, I woke up this morning with the worst headache ever, it\'s throbbing behind my left eye and I feel like I might throw up. I\'m scared this might be a stroke." What do you do?',         systemInstruction: 'You are simulating a migraine case. Play the PATIENT using lay terminology: "My head is pounding", "The light hurts my eyes", "I partied last night - had some wine and beer". Express anxiety about stroke (father may have had one). Describe pain as 8/10, throbbing, left-sided, worse with movement. Photophobia and phonophobia present. Slight blurry vision left side, lip numbness. Neurologic exam is NORMAL (critical teaching point). Track CRITICAL ACTIONS: history, neuro exam, analgesia. If given NSAID (ketorolac), antiemetic (metoclopramide/prochlorperazine), or triptan → pain improves to 5/10 within 30min. CT head if ordered: NORMAL (teaching point: not always needed for typical migraine without red flags). Simulate nurse prompting: "Doctor, aren\'t you going to give something for the headache?" Family history: mother has migraines (key detail). This is EDUCATIONAL - teach headache red flags, migraine diagnosis, and treatment options.'
+- auto_mode: on
+- auto_policy: FULL
+- recording_mode: CONTEXT
+- voice_capture: on
+
+- [00:00.020] [sys] RRC LOADED: RRC-1 | LINE=ripple-rrc
+- [00:10.493] [sys] TTS AUTO ENABLED FOR RECORDING.
+- [00:10.493] [recording] recording_started
+- [00:10.493] [sys] RECORDING STARTED (TAKE 1) [video/mp4;codecs=avc1.42E01E,mp4a.40.2] MODE=SCENE TRACKS=2.
+- [00:23.216] [sys] RUN MODE: FULL AUTO.
+- [00:34.087] [sys] PROFILE: CONFERENCE.
+- [00:42.525] [sys] AUTO SEED LOCKED.
+- [00:42.525] [sys] AUTO FLOW LIVE.
+- [00:42.525] [sys] ROOT ANCHOR LOCKED: "migraine: {         id: 'migraine',         name: 'Acute Migraine',         role..."
+- [00:42.525] [user] [10,1] migraine: {         id: 'migraine',         name: 'Acute Migraine',         role: 'Emergency Medicine Resident',         goal: 'Diagnose migraine, rule out serious causes, provide analgesia',         obstacle: 'Distinguishing migraine from stroke, aneurysm, meningitis',         intro: 'ED presentation: 29yo architect, throbbing left-sided headache x5hrs. Gradual onset, worse with movement. PMHx: Mother has migraines. Social: Partied last night (red wine, beer, cigarettes). Vitals: HR 105, BP 120/60, T 37.5°C, O2 98%, RR 14.',         context: [           'CRITICAL ACTIONS: Vital signs, history, complete neurologic exam, analgesia (NSAID/triptan/antiemetic)',           'Red flags to assess: sudden onset, focal neuro deficits, fever, meningismus, trauma',           'Patient symptoms: Throbbing left eye pain, photophobia, phonophobia, nausea, blurry vision left side, lip numbness',           'Triggers: Red wine, unusual alcohol intake, smoking (non-smoker usually)',           'Physical: Uncomfortable, pale, PERRLA, EOMI, CN II-XII intact, motor 5/5, sensation intact, negative Kernig/Brudzinski',           'Decision points: Need for imaging (CT head), LP indication, medication choice, discharge vs admit'         ],         initialPrompt: 'Patient arrives to ED looking uncomfortable and pale. Patient says: "Doc, I woke up this morning with the worst headache ever, it\'s throbbing behind my left eye and I feel like I might throw up. I\'m scared this might be a stroke." What do you do?',         systemInstruction: 'You are simulating a migraine case. Play the PATIENT using lay terminology: "My head is pounding", "The light hurts my eyes", "I partied last night - had some wine and beer". Express anxiety about stroke (father may have had one). Describe pain as 8/10, throbbing, left-sided, worse with movement. Photophobia and phonophobia present. Slight blurry vision left side, lip numbness. Neurologic exam is NORMAL (critical teaching point). Track CRITICAL ACTIONS: history, neuro exam, analgesia. If given NSAID (ketorolac), antiemetic (metoclopramide/prochlorperazine), or triptan → pain improves to 5/10 within 30min. CT head if ordered: NORMAL (teaching point: not always needed for typical migraine without red flags). Simulate nurse prompting: "Doctor, aren\'t you going to give something for the headache?" Family history: mother has migraines (key detail). This is EDUCATIONAL - teach headache red flags, migraine diagnosis, and treatment options.'
+- [00:42.525] [sys] TRACING RIPPLES
+- [00:46.294] [ai] [10,1] Patient presents with severe, throbbing left-sided headache lasting 5 hours
+- [00:53.631] [ai] [10,1] Key challenge is ruling out stroke, aneurysm, and meningitis
+- [01:00.134] [ai] [10,1] Neurologic exam normal despite symptoms like blurry vision and lip numbness
+- [01:07.070] [ai] [10,1] Treatment includes NSAIDs, antiemetics, or triptans with close monitoring
+- [01:14.740] [spawn] [9,2] [SPAWN @ [9,2]]: Red flags assessment critical: sudden onset, fever, focal deficits
+- [01:14.740] [spawn_create] [9,2] Red flags assessment critical: sudden onset, fever, focal deficits
+- [01:23.144] [sys] AUTO STEP 1: CONTINUE @ [9,2]
+- [01:23.144] [sys] [9,2] Red flags assessment critical: sudden onset, fever, focal deficits
+- [01:23.144] [sys] TRACING RIPPLES
+- [01:25.111] [ai] [9,2] Sudden onset headache suggests possible hemorrhage or stroke.
+- [01:31.381] [ai] [9,2] Fever raises concern for meningitis or encephalitis.
+- [01:36.867] [ai] [9,2] Focal neurological deficits indicate localized brain pathology.
+- [01:42.619] [ai] [9,2] Therefore, urgent imaging and neurologic exam are mandatory.
+- [01:49.306] [spawn] [1,2] [SPAWN @ [1,2]]: Order non-contrast CT head immediately to exclude bleed.
+- [01:49.306] [spawn_create] [1,2] Order non-contrast CT head immediately to exclude bleed.
+- [01:54.491] [spawn] [1,3] [SPAWN @ [1,3]]: Assess for neck stiffness and altered mental status.
+- [01:54.491] [spawn_create] [1,3] Assess for neck stiffness and altered mental status.
+- [02:06.447] [sys] AUTO STEP 2: FOLLOW SPAWN @ [1,2]
+- [02:06.447] [sys] AUTO STEP 2: CONTINUE @ [1,2]
+- [02:06.447] [sys] [1,2] Order non-contrast CT head immediately to exclude bleed.
+- [02:06.447] [sys] TRACING RIPPLES
+- [02:08.514] [ai] [1,2] Radiology team alerted to prioritize urgent CT head scan.
+- [02:15.551] [ai] [1,2] Patient prepared and transported swiftly to imaging suite.
+- [02:20.270] [ai] [1,2] Therefore, rapid exclusion of intracranial hemorrhage guides management.
+- [02:26.955] [ai] [1,2] ED team monitors for neurological changes during imaging wait.
+- [02:32.858] [spawn] [2,3] [SPAWN @ [2,3]]: Await CT results to confirm or exclude bleed.
+- [02:32.858] [spawn_create] [2,3] Await CT results to confirm or exclude bleed.
+- [02:38.094] [spawn] [3,4] [SPAWN @ [3,4]]: Prepare for possible neurology consult depending on findings.
+- [02:38.094] [spawn_create] [3,4] Prepare for possible neurology consult depending on findings.
+- [02:49.750] [sys] AUTO STEP 3: FOLLOW SPAWN @ [1,3]
+- [02:50.217] [sys] AUTO STEP 3: VECTOR [1,3] -> [10,1]
+- [02:50.217] [user] [10,1] Therefore, urgent imaging and neurologic exam are mandatory.
+- [02:50.217] [sys] TRACING RIPPLES
+- [02:52.317] [ai] [10,1] Early imaging differentiates migraine from stroke or hemorrhage.
+- [02:58.821] [ai] [10,1] Neurologic exam detects subtle focal deficits indicating emergency.
+- [03:04.757] [ai] [10,1] Therefore, urgent imaging and neurologic exam guide immediate treatment.
+- [03:11.526] [ai] [10,1] Delayed assessment risks missing life-threatening intracranial pathology.
+- [03:17.379] [spawn] [2,3] [SPAWN @ [2,3]]: Radiology team ready for rapid CT and MRI scans.
+- [03:17.379] [spawn_create] [2,3] Radiology team ready for rapid CT and MRI scans.
+- [03:22.765] [spawn] [3,4] [SPAWN @ [3,4]]: Neurology consult activated for comprehensive neurologic evaluation.
+- [03:22.765] [spawn_create] [3,4] Neurology consult activated for comprehensive neurologic evaluation.
+- [03:33.669] [sys] AUTO STEP 4: FOLLOW SPAWN @ [2,3]
+- [03:34.386] [sys] AUTO STEP 4: VECTOR [2,3] -> [10,1]
+- [03:34.386] [user] [10,1] Therefore, delayed assessment risks missing life-threatening intracranial pathology.
+- [03:34.386] [sys] TRACING RIPPLES
+- [03:36.271] [ai] [10,1] Delayed assessment prolongs patient suffering and anxiety.
+- [03:41.573] [ai] [10,1] Life-threatening conditions like hemorrhage may evolve rapidly.
+- [03:46.541] [ai] [10,1] Therefore, early imaging and evaluation are crucial for safety.
+- [03:52.412] [ai] [10,1] Missing pathology increases risk of permanent neurological damage.
+- [03:58.631] [spawn] [2,1] [SPAWN @ [2,1]]: Immediate neurologic exam and vital monitoring needed.
+- [03:58.631] [spawn_create] [2,1] Immediate neurologic exam and vital monitoring needed.
+- [04:03.583] [spawn] [2,2] [SPAWN @ [2,2]]: Consider urgent CT scan if red flags present.
+- [04:03.583] [spawn_create] [2,2] Consider urgent CT scan if red flags present.
+- [04:14.005] [sys] AUTO STEP 5: FOLLOW SPAWN @ [3,4]
+- [04:14.005] [sys] AUTO STEP 5: CONTINUE @ [3,4]
+- [04:14.005] [sys] [3,4] Neurology consult activated for comprehensive neurologic evaluation.
+- [04:14.005] [sys] TRACING RIPPLES
+- [04:16.389] [ai] [3,4] Neurology team arrives to reassess patient's neurologic status.
+- [04:22.108] [recording] recording_stopped after 251606ms
+- [04:22.108] [sys] RECORDING STOPPED. SAVING VIDEO + TRANSCRIPT.
