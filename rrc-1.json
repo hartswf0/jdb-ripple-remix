@@ -1,0 +1,120 @@
+{
+  "version": "RRC-1",
+  "line_registry": {
+    "ripple-rrc": {
+      "line_id": "ripple-rrc",
+      "status": "staging",
+      "inherits_from": "ripple-engine",
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    },
+    "ripple-engine": {
+      "line_id": "ripple-engine",
+      "status": "core",
+      "inherits_from": null,
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    },
+    "r-eng-02": {
+      "line_id": "r-eng-02",
+      "status": "staging",
+      "inherits_from": "ripple-engine",
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    },
+    "rp-02": {
+      "line_id": "rp-02",
+      "status": "experimental",
+      "inherits_from": "ripple-engine",
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    },
+    "rp-03": {
+      "line_id": "rp-03",
+      "status": "experimental",
+      "inherits_from": "ripple-engine",
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    },
+    "rp-04": {
+      "line_id": "rp-04",
+      "status": "frozen",
+      "inherits_from": "rp-02",
+      "last_parity_check": "2026-03-02",
+      "owner": "gaia"
+    }
+  },
+  "prompt_contract": {
+    "tagged_only": true,
+    "fragments": {
+      "min": 3,
+      "max": 4
+    },
+    "therefore_required_in_auto": true,
+    "spawn_policy": {
+      "manual": "optional",
+      "full_auto": "required_min_1",
+      "semi_auto": "required_on_selected_jump"
+    },
+    "root_anchor_required": true
+  },
+  "auto_policy": {
+    "weights": {
+      "continue": 0.36,
+      "branch": 0.24,
+      "tag_mutate": 0.2,
+      "vector_jump": 0.2
+    },
+    "guards": {
+      "max_consecutive_continue": 3,
+      "min_spawn_per_8_steps": 2,
+      "max_repetition_index": 0.22
+    }
+  },
+  "quality_gates": {
+    "spawn_rate": {
+      "min": 0.2,
+      "max": 0.55
+    },
+    "continuity_score": {
+      "min": 0.62
+    },
+    "repetition_index": {
+      "max": 0.22
+    },
+    "vector_utilization": {
+      "min": 0.25
+    },
+    "tag_balance_entropy": {
+      "min": 0.8
+    }
+  },
+  "recording_contract": {
+    "modes": [
+      "SCENE",
+      "CONTEXT"
+    ],
+    "first_prompt_record": true,
+    "must_export": [
+      "video",
+      "transcript",
+      "event_manifest"
+    ]
+  },
+  "parity_contract": {
+    "required_checks": [
+      "control_vocabulary",
+      "camera_focus",
+      "atomic_parser",
+      "import_export_roundtrip"
+    ]
+  },
+  "promotion_contract": {
+    "staging_to_core_requires": [
+      "parity_pass",
+      "quality_gate_pass",
+      "recording_pass",
+      "operator_review_note"
+    ]
+  }
+}

@@ -1,0 +1,4351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ORCA // RIPPLE</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23030508'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%2300e5ff'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%2300e5ff' stroke-width='3' opacity='0.85'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%2300e5ff' stroke-width='2' opacity='0.6'/%3E%3C/svg%3E">
+    <style>
+        :root {
+            --bg-deep: #030508;
+            --panel-bg: rgba(6, 10, 18, 0.95);
+            --border-dim: rgba(0, 229, 255, 0.2);
+            --text-main: #a0b0c0;
+            --cyan: #00e5ff;
+            --orange: #ff6a00;
+            --alert: #ff4d4d;
+            --goal: #00ff88;
+            --shift: #bd00ff;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; user-select: none; }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-deep); font-family: var(--font-mono);
+            color: var(--text-main); overflow: hidden;
+            overscroll-behavior: none; 
+            touch-action: none;
+        }
+
+        /* --- ONBOARDING OVERLAY --- */
+        #onboarding-overlay {
+            position: absolute; inset: 0; z-index: 1000;
+            background: var(--bg-deep); display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 2s ease-in-out; pointer-events: none;
+        }
+        .ob-text {
+            color: var(--cyan); font-family: var(--font-mono); font-size: 1.2rem;
+            letter-spacing: 4px; opacity: 0; transition: opacity 1s ease;
+            margin: 10px 0; text-transform: uppercase; font-weight: bold; text-align: center; padding: 0 20px;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px; pointer-events: none; z-index: 50;
+        }
+
+        #canvas-container {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1;
+            background: radial-gradient(circle at center, #0a1118 0%, #020305 100%);
+        }
+
+        /* --- AWAKEN BOOT SCREEN --- */
+        #boot-screen {
+            position: absolute; inset: 0; z-index: 2000;
+            background: #000; display: flex; align-items: center; justify-content: center;
+            color: var(--cyan); font-family: var(--font-mono);
+            font-weight: bold; letter-spacing: 4px; transition: opacity 1.5s ease-in-out;
+        }
+        .pulse-text { animation: textPulse 2s infinite alternate; }
+        @keyframes textPulse { from { opacity: 0.5; } to { opacity: 1; text-shadow: 0 0 15px var(--cyan); } }
+        .boot-panel {
+            width: min(520px, calc(100vw - 36px));
+            border: 1px solid var(--border-dim);
+            background: rgba(6, 10, 18, 0.95);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            padding: 18px;
+            display: grid;
+            gap: 12px;
+            text-align: center;
+        }
+        #boot-api-key {
+            width: 100%;
+            background: #02060d;
+            border: 1px solid var(--border-dim);
+            color: var(--cyan);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            padding: 10px 12px;
+            outline: none;
+        }
+        #boot-api-key::placeholder { color: #6e8fa8; }
+        #boot-start {
+            border: 1px solid var(--cyan);
+            background: transparent;
+            color: var(--cyan);
+            font-family: var(--font-mono);
+            font-weight: bold;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #boot-start:hover {
+            background: var(--cyan);
+            color: #000;
+        }
+        #boot-msg {
+            min-height: 18px;
+            color: #9fb6c9;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+        }
+        .boot-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .boot-opt {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #9fb6c9;
+            font-size: 0.72rem;
+            letter-spacing: 0.4px;
+        }
+        .boot-opt input {
+            accent-color: var(--cyan);
+        }
+        /* --- MINIMAP HUD --- */
+        #minimap-container {
+            position: absolute; top: 24px; right: 24px; z-index: 20;
+            display: flex; flex-direction: column; opacity: 0; animation: fadeInUI 2s 4s forwards;
+        }
+        #minimap {
+            display: grid; grid-template-columns: repeat(12, 10px); grid-template-rows: repeat(12, 10px);
+            gap: 4px; padding: 4px;
+        }
+        @media (min-width: 768px) {
+            #minimap { grid-template-columns: repeat(12, 12px); grid-template-rows: repeat(12, 12px); gap: 4px; }
+        }
+        .mini-cell { 
+            background: rgba(255,255,255,0.1); cursor: pointer; border-radius: 50%; 
+            transition: transform 0.1s, background-color 0.3s, box-shadow 0.3s;
+        }
+        .mini-active { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+        .mini-selected { background: var(--orange) !important; box-shadow: 0 0 8px var(--orange) !important; animation: pulse 1s infinite alternate; }
+        
+        @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; transform: scale(1.1); } }
+        @keyframes fadeInUI { to { opacity: 1; } }
+
+        /* --- FIXED RIGHT-SIDE CONTEXT MENU & VECTORS --- */
+        #layer-controls {
+            position: absolute; top: 160px; right: 16px; display: none; 
+            flex-direction: column; align-items: flex-end; gap: 12px;
+            pointer-events: none; z-index: 100; max-width: calc(100vw - 32px);
+        }
+
+        #tag-buttons {
+            display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; 
+            pointer-events: auto; overflow-x: auto; max-width: 100%;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+        #tag-buttons::-webkit-scrollbar { display: none; } 
+        
+        .tag-btn {
+            padding: 8px 12px; border: 1px solid var(--border-dim); background: var(--panel-bg);
+            color: #fff; font-family: var(--font-mono); font-size: 0.7rem; font-weight: bold;
+            cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px);
+            text-transform: uppercase; border-radius: 2px; letter-spacing: 0.5px;
+            white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); flex-shrink: 0;
+        }
+
+        .btn-obstacle { color: var(--alert); border-left: 4px solid var(--alert); }
+        .btn-goal { color: var(--goal); border-left: 4px solid var(--goal); }
+        .btn-shift { color: var(--shift); border-left: 4px solid var(--shift); }
+        .btn-branch { color: #fff; border-left: 4px solid #fff; }
+        #btn-dismiss { color: var(--text-main); border-left: 4px solid var(--text-main); }
+
+        .btn-obstacle:hover { background: var(--alert); color: #000; box-shadow: 0 0 15px var(--alert); }
+        .btn-goal:hover { background: var(--goal); color: #000; box-shadow: 0 0 15px var(--goal); }
+        .btn-shift:hover { background: var(--shift); color: #000; box-shadow: 0 0 15px var(--shift); }
+        .btn-branch:hover { background: #fff; color: #000; box-shadow: 0 0 15px #fff; }
+        #btn-dismiss:hover { background: var(--text-main) !important; color: #000 !important; }
+
+        /* --- CONTEXTUAL VECTOR TABS --- */
+        #vector-container { display: flex; flex-direction: column; align-items: flex-end; width: 100%; pointer-events: auto; }
+        
+        #vector-toggle {
+            background: var(--panel-bg); color: var(--cyan); border: 1px solid var(--cyan);
+            padding: 6px 12px; font-family: var(--font-mono); font-size: 0.7rem; font-weight: bold; cursor: pointer;
+            margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border-radius: 2px;
+            backdrop-filter: blur(8px); transition: all 0.2s;
+        }
+        #vector-toggle:hover { background: var(--cyan); color: #000; }
+
+        #vector-list {
+            display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 450px;
+            transition: opacity 0.3s;
+        }
+        #vector-list.collapsed { display: none !important; }
+
+        .vector-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.8); padding: 8px 12px; border: 1px solid var(--border-dim);
+            border-right: 4px solid var(--cyan); border-radius: 4px 0 0 4px; backdrop-filter: blur(12px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); gap: 16px;
+        }
+        
+        .vector-action-btn {
+            background: transparent; border: 1px solid var(--text-main); color: var(--text-main);
+            font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; padding: 4px 8px; 
+            transition: all 0.2s; border-radius: 2px; text-transform: uppercase; font-weight: bold;
+        }
+        .vector-action-btn:hover { background: var(--text-main); color: #000; }
+
+        .vector-loading {
+            color: var(--cyan); font-family: var(--font-mono); font-size: 0.8rem; font-weight: bold;
+            padding: 12px; background: var(--panel-bg); border: 1px solid var(--border-dim);
+            backdrop-filter: blur(12px); display: flex; align-items: center; gap: 10px;
+            border-right: 4px solid var(--cyan); border-radius: 4px 0 0 4px;
+        }
+        .vector-loading::before {
+            content: '⟳'; display: inline-block; animation: spin 1s linear infinite; font-size: 1.2rem;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .vector-wrapper {
+            display: flex; width: 100%; background: var(--panel-bg);
+            border: 1px solid var(--border-dim); border-right: none;
+            backdrop-filter: blur(12px); box-shadow: 0 8px 25px rgba(0,0,0,0.8);
+            border-radius: 4px 0 0 4px; transition: transform 0.2s;
+            opacity: 0; animation: slideInRight 0.3s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+            overflow: hidden; pointer-events: auto;
+        }
+        .vector-wrapper:hover { transform: translateX(-4px); }
+
+        .vector-content {
+            flex-grow: 1; padding: 12px 16px; background: transparent; border: none;
+            text-align: left; cursor: pointer; color: var(--text-main); font-family: var(--font-mono);
+            font-size: 0.85rem; line-height: 1.5; transition: background 0.2s;
+        }
+        .vector-content:hover { background: rgba(255, 255, 255, 0.05); }
+
+        /* TINY COLLAPSED TAB STYLING */
+        .vector-collapsed-tab {
+            padding: 6px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
+            color: #fff; font-family: var(--font-mono); font-size: 0.75rem; font-weight: bold;
+            cursor: pointer; align-self: flex-end; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: all 0.2s; backdrop-filter: blur(8px);
+            opacity: 0; animation: slideInRight 0.3s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+        .vector-collapsed-tab:hover { transform: translateX(-4px); filter: brightness(1.2); }
+
+        .vector-therefore { font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 1px;}
+        .vector-reason { color: #fff; font-weight: normal; }
+
+        .vector-actions {
+            display: flex; flex-direction: column; width: 32px; flex-shrink: 0;
+        }
+        .v-ctrl {
+            flex: 1; background: rgba(0,0,0,0.3); border: none; border-bottom: 1px solid rgba(0,0,0,0.4);
+            color: rgba(255,255,255,0.8); cursor: pointer; font-size: 14px; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+        .v-ctrl:last-child { border-bottom: none; }
+        .v-ctrl:hover { background: rgba(0,0,0,0.7); color: #fff; }
+
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* --- BOTTOM TERMINAL WITH DRAG RESIZER --- */
+        .hud-panel {
+            position: absolute; z-index: 10; background: var(--panel-bg);
+            border: 1px solid var(--border-dim); border-top: none;
+            backdrop-filter: blur(12px); display: flex; flex-direction: column; 
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.8); opacity: 0; animation: fadeInUI 2s 4s forwards;
+            bottom: 0; left: 0; right: 0; height: 260px;
+        }
+        
+        #resizer {
+            position: absolute; top: 0; left: 0; right: 0; height: 16px;
+            cursor: ns-resize; z-index: 20; background: rgba(0, 229, 255, 0.05);
+            border-top: 2px solid var(--cyan); display: flex; justify-content: center; align-items: center;
+        }
+        #resizer::before {
+            content: "|||"; color: var(--cyan); font-size: 10px; letter-spacing: 4px; opacity: 0.5; font-family: sans-serif;
+        }
+        #resizer:hover { background: rgba(0, 229, 255, 0.15); }
+
+        #chat-wrapper {
+            flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;
+            margin-top: 16px; 
+        }
+
+        #chat-log {
+            flex-grow: 1; padding: 8px 20px; overflow-y: auto; font-size: 0.85rem; line-height: 1.5;
+            display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: var(--cyan) transparent;
+        }
+
+        #guidance-bar {
+            display: flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 4px 20px;
+            font-size: 0.72rem;
+            letter-spacing: 0.3px;
+            color: #8fc5de;
+            border-top: 1px solid rgba(0, 229, 255, 0.12);
+            background: rgba(3, 8, 14, 0.65);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #recording-downloads {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 20px;
+            border-top: 1px solid rgba(0, 229, 255, 0.18);
+            background: rgba(0, 0, 0, 0.58);
+            font-size: 0.72rem;
+            line-height: 1.2;
+            flex-wrap: wrap;
+        }
+
+        .rec-download-label {
+            color: var(--text-main);
+            opacity: 0.85;
+            font-weight: bold;
+            letter-spacing: 0.4px;
+        }
+
+        .rec-download-link {
+            color: var(--cyan);
+            text-decoration: none;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 3px 8px;
+            border-radius: 3px;
+            background: rgba(0, 229, 255, 0.08);
+            font-weight: bold;
+        }
+
+        .rec-download-link:hover {
+            background: rgba(0, 229, 255, 0.2);
+            color: #fff;
+        }
+
+        .msg { padding-left: 12px; border-left: 2px solid transparent; animation: fadeIn 0.3s ease-out; position: relative; transition: all 0.3s; }
+        .msg-dimmed { opacity: 0.4 !important; filter: grayscale(80%); } 
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .msg[data-col-id] { cursor: pointer; }
+        .msg[data-col-id]:hover { background: rgba(0, 229, 255, 0.1); border-left-color: var(--cyan); opacity: 1 !important; filter: none !important; }
+        .msg[data-col-id]::before { content: '[' attr(data-coord) '] '; font-size: 0.75rem; opacity: 0.8; color: var(--cyan); font-weight: bold; }
+        
+        .msg-selected {
+            background: rgba(255, 106, 0, 0.15) !important;
+            border-left: 4px solid var(--orange) !important;
+            box-shadow: inset 0 0 15px rgba(255, 106, 0, 0.1);
+            opacity: 1 !important; filter: none !important;
+        }
+        
+        /* Compact Inline Chat Vector */
+        .msg-chat-vector {
+            background: rgba(189, 0, 255, 0.1); border-left: 4px solid var(--shift) !important;
+            color: #fff; padding: 6px 10px; margin-top: 2px; border-radius: 2px;
+            cursor: pointer; font-weight: normal; display: inline-flex; gap: 8px; align-items: baseline;
+        }
+        .msg-chat-vector:hover { background: rgba(189, 0, 255, 0.25); transform: translateX(4px); }
+        .vec-target { color: var(--shift); font-size: 0.75rem; text-transform: uppercase; font-weight: bold; white-space: nowrap; flex-shrink: 0;}
+
+        .msg-sys { color: #687a8c; border-color: #687a8c; }
+        .msg-user { color: #fff; border-color: var(--cyan); background: rgba(0, 229, 255, 0.05); font-weight: bold; }
+        .msg-ai { color: var(--goal); border-color: var(--goal); background: rgba(0, 255, 136, 0.05); }
+        .msg-spawn { color: var(--shift); border-color: var(--shift); font-weight: bold; font-size: 0.75rem; text-transform: uppercase;}
+        
+        .typing-indicator::after { content: ''; animation: ellipsis 1.5s infinite; }
+        @keyframes ellipsis { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+        /* --- COMPACT MOBILE CONTROL STRIP --- */
+        #input-area {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 86px;
+            grid-template-rows: 44px 48px;
+            border-top: 1px solid var(--border-dim);
+            background: #000;
+            align-items: stretch;
+            height: auto;
+            min-height: 92px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        #control-primary,
+        #control-secondary {
+            display: flex;
+            align-items: stretch;
+            flex-shrink: 0;
+            grid-column: 1 / 3;
+            grid-row: 1 / 2;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+        }
+
+        #control-primary {
+            border-bottom: 1px solid rgba(0, 229, 255, 0.12);
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            overflow: hidden;
+        }
+        #control-secondary {
+            display: none !important;
+        }
+
+        #control-primary::-webkit-scrollbar,
+        #control-secondary::-webkit-scrollbar { display: none; }
+
+        .control-btn {
+            background: transparent; border: none; color: var(--text-main); font-size: 1rem; font-family: var(--font-mono);
+            cursor: pointer; padding: 0 12px; border-right: 1px solid var(--border-dim);
+            transition: background 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; font-weight: bold;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .control-btn:hover { background: var(--panel-bg); color: #fff; }
+        .control-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .ctrl-active { color: var(--goal) !important; text-shadow: 0 0 6px rgba(0, 255, 136, 0.45); }
+        .rec-active {
+            color: var(--alert) !important;
+            text-shadow: 0 0 6px rgba(255, 77, 77, 0.5);
+            animation: recBlink 1s infinite alternate;
+        }
+        @keyframes recBlink { from { opacity: 0.6; } to { opacity: 1; } }
+        
+        .mode-obstacle { color: var(--alert) !important; text-shadow: 0 0 5px var(--alert); }
+        .mode-goal { color: var(--goal) !important; text-shadow: 0 0 5px var(--goal); }
+        .mode-shift { color: var(--shift) !important; text-shadow: 0 0 5px var(--shift); }
+
+        @media (max-width: 767px) {
+            #input-area {
+                min-height: 92px;
+                grid-template-rows: 42px 46px;
+            }
+
+            #control-primary .control-btn {
+                min-height: 40px;
+                padding: 0 10px;
+                font-size: 0.9rem;
+            }
+
+            #cmd-input {
+                grid-column: 1 / 2;
+                grid-row: 2 / 3;
+                min-width: 0;
+                height: 46px;
+                padding: 0 12px;
+                font-size: 0.95rem;
+            }
+
+            #cmd-submit {
+                width: 100%;
+                height: 46px;
+                grid-column: 2 / 3;
+                grid-row: 2 / 3;
+                padding: 0;
+            }
+        }
+
+        /* Desktop specific styling */
+        .lbl-desk { display: none; }
+        @media (min-width: 768px) {
+            .hud-panel { left: 24px; right: 24px; border-left: 1px solid var(--border-dim); border-right: 1px solid var(--border-dim); border-radius: 4px 4px 0 0;}
+            .lbl-desk { display: inline; margin-left: 8px; }
+            #resizer { border-radius: 4px 4px 0 0; }
+            #input-area {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 92px;
+                grid-template-rows: 44px 50px;
+                height: auto;
+                min-height: 92px;
+                align-items: stretch;
+            }
+            #control-primary,
+            #control-secondary {
+                grid-column: 1 / 3;
+                grid-row: 1 / 2;
+                overflow: visible;
+                border-bottom: none;
+            }
+            #cmd-input {
+                grid-column: 1 / 2;
+                grid-row: 2 / 3;
+                min-width: 180px;
+                height: 50px;
+            }
+            #cmd-submit {
+                grid-column: 2 / 3;
+                grid-row: 2 / 3;
+                width: 100%;
+                height: 50px;
+            }
+        }
+
+        #cmd-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-top: 1px solid rgba(0, 229, 255, 0.1);
+            color: var(--cyan);
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 0 16px;
+            outline: none;
+            font-weight: bold;
+            min-width: 0;
+        }
+        #cmd-submit {
+            background: transparent;
+            color: var(--cyan);
+            border: none;
+            border-left: 1px solid var(--border-dim);
+            border-top: 1px solid rgba(0, 229, 255, 0.1);
+            font-weight: bold; font-size: 1.2rem; cursor: pointer; padding: 0 20px; transition: all 0.2s; display: flex; align-items: center;
+            justify-content: center;
+        }
+        #cmd-submit:hover { background: var(--cyan); color: #000; }
+
+        #hover-readout {
+            position: absolute; top: 60%; left: 50%; transform: translateX(-50%);
+            color: #fff; font-weight: bold; font-size: 0.8rem; text-align: center;
+            background: rgba(0, 229, 255, 0.1); padding: 8px 16px; border: 1px solid var(--border-dim);
+            backdrop-filter: blur(4px); pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 50;
+        }
+
+        /* Always-visible autonomous mode toggle */
+        #auto-fab {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 120;
+            padding: 8px 12px;
+            border: 1px solid var(--border-dim);
+            background: rgba(6, 10, 18, 0.95);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        }
+        #auto-fab.is-live {
+            color: var(--goal);
+            border-color: var(--goal);
+            text-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+        }
+        #auto-fab.is-semi {
+            color: var(--orange);
+            border-color: var(--orange);
+            text-shadow: 0 0 6px rgba(255, 106, 0, 0.4);
+        }
+
+        body.pseudo-fullscreen #minimap-container,
+        body.pseudo-fullscreen #layer-controls,
+        body.pseudo-fullscreen #spawn-feed,
+        body.pseudo-fullscreen #guidance-bar {
+            display: none !important;
+        }
+        body.record-hide-map #minimap-container {
+            display: none !important;
+        }
+        body.record-hide-chat #bottom-panel {
+            display: none !important;
+        }
+        body.record-hide-popups #layer-controls,
+        body.record-hide-popups #hover-readout,
+        body.record-hide-popups #spawn-feed,
+        body.record-hide-popups #guidance-bar,
+        body.record-hide-popups #auto-fab {
+            display: none !important;
+        }
+
+        #recording-modal {
+            position: absolute;
+            inset: 0;
+            z-index: 1700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+        #recording-modal.is-hidden {
+            display: none;
+        }
+        .recording-panel {
+            width: min(640px, calc(100vw - 24px));
+            max-height: min(84vh, 620px);
+            overflow: auto;
+            background: rgba(6, 10, 18, 0.98);
+            border: 1px solid var(--border-dim);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75);
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+        .recording-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--cyan);
+            font-size: 0.8rem;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .recording-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .recording-note {
+            color: #8fb8cb;
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
+        .recording-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .recording-panel .control-btn {
+            border: 1px solid var(--border-dim);
+            min-height: 40px;
+            justify-content: flex-start;
+            padding: 0 10px;
+        }
+        @media (max-width: 767px) {
+            #recording-modal {
+                align-items: flex-end;
+            }
+            .recording-panel {
+                width: 100%;
+                max-height: 86vh;
+                border-radius: 10px 10px 0 0;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+            }
+            .recording-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #spawn-feed {
+            position: absolute;
+            top: 64px;
+            left: 24px;
+            z-index: 118;
+            width: min(520px, calc(100vw - 48px));
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+        }
+        .spawn-event {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            background: rgba(6, 10, 18, 0.88);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            color: #fff;
+            padding: 6px 10px;
+            border-left: 3px solid var(--shift);
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+            animation: spawnFadeIn 0.2s ease-out;
+        }
+        @keyframes spawnFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #rrc-status {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: var(--z-ui);
+            border: 1px solid var(--border-dim);
+            background: var(--panel-bg);
+            color: var(--cyan);
+            font-size: 0.72rem;
+            letter-spacing: 0.03em;
+            border-radius: 8px;
+            padding: 6px 10px;
+            max-width: min(56vw, 360px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="rrc-runtime.js"></script>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div id="canvas-container"></div>
+    <div id="hover-readout"></div>
+
+    <!-- AWAKEN & ONBOARDING OVERLAY -->
+    <div id="boot-screen">
+        <div class="boot-panel">
+            <span class="pulse-text">[ AWAKEN TOPOGRAPHY ]</span>
+            <input id="boot-api-key" type="password" placeholder="Enter OpenAI API key (sk-...)" autocomplete="off">
+            <div class="boot-options">
+                <label class="boot-opt"><input id="boot-record-intro" type="checkbox">Record Intro</label>
+                <label class="boot-opt"><input id="boot-record-first" type="checkbox" checked>Record First Prompt</label>
+                <label class="boot-opt"><input id="boot-voice-capture" type="checkbox" checked>Capture Voice</label>
+            </div>
+            <button id="boot-start" type="button" onclick="startExperience()">Enter Experience</button>
+            <div id="boot-msg">OpenAI key required. Layout profile is automatic by device size.</div>
+        </div>
+    </div>
+
+    <div id="onboarding-overlay">
+        <div id="ob-1" class="ob-text">The water is still.</div>
+        <div id="ob-2" class="ob-text" style="margin-top: 20px;">A topography of potential waits beneath the surface.</div>
+        <div id="ob-3" class="ob-text" style="margin-top: 40px; color: var(--orange);">Drop a stone. Watch the ripples.</div>
+    </div>
+
+    <!-- MINIMAP -->
+    <div id="rrc-status">RRC LOADING...</div>
+    <button id="auto-fab" onclick="cycleRunMode()" title="Run Mode">MODE MANUAL</button>
+    <div id="spawn-feed"></div>
+    <div id="minimap-container">
+        <div id="minimap"></div>
+    </div>
+
+    <!-- LAYER-SPECIFIC CONTROLS & VECTORS (DOCKED RIGHT) -->
+    <div id="layer-controls">
+        <div id="tag-buttons">
+            <button id="btn-branch" class="tag-btn btn-branch" onclick="branchStub()">⎇ BRANCH</button>
+            <button id="btn-obstacle" class="tag-btn btn-obstacle" onclick="tagLayer('OBSTACLE')">⨂ OBSTACLE</button>
+            <button id="btn-goal" class="tag-btn btn-goal" onclick="tagLayer('GOAL')">◎ GOAL</button>
+            <button id="btn-shift" class="tag-btn btn-shift" onclick="tagLayer('SHIFT')">↯ SHIFT</button>
+            <button id="btn-dismiss" class="tag-btn" onclick="collapseStack()" style="background:#000; color:var(--text-main); border-color:var(--text-main);">✕ DISMISS</button>
+        </div>
+        <div id="vector-container">
+            <div id="vector-list"></div>
+        </div>
+    </div>
+
+    <div class="hud-panel" id="bottom-panel">
+        <div id="resizer"></div>
+        <div id="chat-wrapper">
+            <div id="chat-log">
+                <div class="msg msg-sys">>>> RIPPLE ENGINE ONLINE.</div>
+            </div>
+            <div id="recording-downloads"></div>
+            <div id="guidance-bar"></div>
+            <!-- MOBILE-OPTIMIZED INPUT BAR -->
+            <div id="input-area">
+                <div id="control-primary">
+                    <button id="btn-audio" class="control-btn" onclick="toggleAudio()" title="Toggle Audio">
+                        <span id="audio-lbl">AUDIO OFF VOICE OFF</span>
+                    </button>
+                    <button id="btn-run-mode" class="control-btn" onclick="cycleRunMode()" title="Cycle Run Mode">
+                        <span id="run-mode-lbl">MODE MANUAL</span>
+                    </button>
+                    <button id="btn-fullscreen" class="control-btn" onclick="toggleFullscreen()" title="Toggle View">
+                        <span id="full-lbl">VIEW</span>
+                    </button>
+                    <button id="btn-rec-open" class="control-btn" onclick="toggleRecordingModal()" title="Open Recording Panel">
+                        <span id="rec-open-lbl">RECORD</span>
+                    </button>
+                </div>
+                <div id="control-secondary" class="is-collapsed"></div>
+                <input type="text" id="cmd-input" placeholder="Drop a Stone..." autocomplete="off">
+                <button id="cmd-submit" title="Execute Ripple">
+                    SEND
+                </button>
+                <input type="file" id="topo-import-file" accept=".md,.markdown,text/markdown" style="display:none">
+            </div>
+        </div>
+    </div>
+
+    <div id="recording-modal" class="is-hidden" onclick="if(event.target === this) toggleRecordingModal(false)">
+        <div class="recording-panel" role="dialog" aria-modal="true" aria-label="Recording controls">
+            <div class="recording-head">
+                <span>Recording Controls</span>
+                <button class="control-btn" type="button" onclick="toggleRecordingModal(false)">Close</button>
+            </div>
+            <div class="recording-grid">
+                <button id="btn-rec" class="control-btn" onclick="toggleRecording()" title="Start or Stop Recording">
+                    <span id="rec-lbl">REC OFF</span>
+                </button>
+                <button id="btn-rec-mode" class="control-btn" onclick="toggleRecordingMode()" title="Recording Source Mode">
+                    <span id="rec-mode-lbl">REC SRC SCENE</span>
+                </button>
+                <button id="btn-rec-cam" class="control-btn" onclick="toggleRecordingCameraLock()" title="Recording Camera Lock">
+                    <span id="rec-cam-lbl">CAM LOCK</span>
+                </button>
+                <button id="btn-rec-voice" class="control-btn" onclick="toggleRecordingVoiceCapture()" title="Capture Voice in Recording">
+                    <span id="rec-voice-lbl">VOICE ON</span>
+                </button>
+                <button id="btn-rec-first" class="control-btn" onclick="toggleRecordOnFirstPrompt()" title="Auto-start recording on first prompt">
+                    <span id="rec-first-lbl">REC FIRST ON</span>
+                </button>
+                <button id="btn-rec-profile" class="control-btn" onclick="toggleConferenceProfile()" title="Toggle Conference Profile">
+                    <span id="rec-profile-lbl">PROFILE AUTO</span>
+                </button>
+                <button id="btn-tts" class="control-btn" onclick="toggleTTS()" title="Toggle Text-to-Speech">
+                    <span id="tts-lbl">TTS OFF</span>
+                </button>
+                <button id="btn-focus" class="control-btn" onclick="recenterView()" title="Center Camera on Node">
+                    <span>FOCUS</span>
+                </button>
+                <button id="btn-import" class="control-btn" onclick="importTopographyFile()" title="Import Memory">
+                    <span>IMPORT</span>
+                </button>
+                <button id="btn-export" class="control-btn" onclick="exportTopography()" title="Export Memory">
+                    <span>EXPORT</span>
+                </button>
+                <button id="btn-rrc-report" class="control-btn" onclick="exportRRCReport()" title="Export RRC Run Report">
+                    <span>RRC REPORT</span>
+                </button>
+            </div>
+            <div class="recording-note">
+                Configure exactly what to include in recording here. Conference profile can be toggled from this panel.
+            </div>
+            <div class="recording-actions">
+                <button class="control-btn" type="button" onclick="toggleRecordingModal(false)">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LLM_CONFIG = {
+            provider: "openai",
+            apiKey: "",
+            model: "gpt-4.1-mini",
+            ttsModel: "gpt-4o-mini-tts",
+            ttsVoice: "alloy",
+            baseUrl: "https://api.openai.com/v1"
+        };
+        const RRC_LINE_ID = "ripple-rrc";
+        let RRC_CONFIG = null;
+        let RRC_LINE_SPEC = null;
+        let RRC_TRACKER = null;
+        let isAITyping = false;
+        let hoveredColId = -1;
+        let activeStubText = ""; 
+
+        const STATE = {
+            tension: 1.8,   
+            flowRate: 0.6,  
+            resonance: 1.0, 
+            selectedColId: -1,
+            selectedLayerIdx: -1, 
+            readingColId: -1,
+            readingLayerIdx: -1,
+            targetMode: 'GLOBAL',
+            inputMode: 'DEFAULT',
+            isPaused: false,
+            simTime: 0,
+            autoPan: true,
+            autoRippleEnabled: false,
+            autoRippleSeeded: false,
+            autoRippleStep: 0,
+            autoPolicy: "FULL",
+            autoAwaitingSpawnPick: false,
+            runMode: "MANUAL",
+            uiProfile: "AUTO",
+            pseudoFullscreen: false,
+            autoSpawnQueue: [],
+            rootSeed: "",
+            recordingActive: false,
+            recordIntroArmed: false,
+            recordOnFirstPrompt: true,
+            recordVoiceCapture: true,
+            recordCaptureScope: { map: true, chat: true, popups: true },
+            recordScopeConfigured: false,
+            recordingMode: "SCENE",
+            recordingCameraLock: true,
+            recordingTake: 0,
+            recordingSessionId: "",
+            eventLog: [],
+            secondaryControlsVisible: false,
+            ttsAutoEnabled: false,
+            voiceCaptureWarned: false,
+            ttsSupported: typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window
+        };
+        STATE.recordingSessionId = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+
+        const CAMERA_TUNING = {
+            followLerp: 0.12,
+            readingFollowLerp: 0.2,
+            idleLerp: 0.03,
+            selectedYOffset: 2.2,
+            panelLiftScale: 0.015,
+            panelLiftMax: 10.0,
+            dragThresholdPx: 8,
+            recordingTargetLerp: 0.24,
+            recordingCameraLerp: 0.17
+        };
+
+        const RIPPLE_TUNING = {
+            waveFrontSpeed: 34.0,
+            waveFrontWidth: 10.0,
+            maxRippleLife: 3.2,
+            minimapScale: 0.32,
+            minimapGlow: 6.0,
+            verticalDisplacement: 2.6
+        };
+
+        const MODES = ['DEFAULT', 'OBSTACLE', 'GOAL', 'SHIFT'];
+        const MODE_SYMBOLS = { DEFAULT: '■', OBSTACLE: '⨂', GOAL: '◎', SHIFT: '↯' };
+        const MODE_CLASSES = { DEFAULT: 'mode-default', OBSTACLE: 'mode-obstacle', GOAL: 'mode-goal', SHIFT: 'mode-shift'};
+        const MODE_LABELS = { DEFAULT: 'NEUTRAL', OBSTACLE: 'OBSTACLE', GOAL: 'GOAL', SHIFT: 'SHIFT'};
+        const AUTO_TAGS = ['OBSTACLE', 'GOAL', 'SHIFT'];
+
+        const TAG_COLORS = {
+            DEFAULT: 0x00e5ff,
+            OBSTACLE: 0xff4d4d,
+            GOAL: 0x00ff88,
+            SHIFT: 0xbd00ff
+        };
+        const SYSTEM_SEED_TITLES = new Set(["DORMANT_SYSTEM_RELIC", "ECHO_CHAMBER_ACTIVE", "FRACTURED_MEMORY_NODE"]);
+
+        // --- INTERACTION LOGIC (Scoping variables globally to fix pointer down error) ---
+        let pointerDownPos = { x: 0, y: 0 };
+        let isDraggingCanvas = false;
+        let autoRippleTimer = null;
+        let pendingSpeechResolve = null;
+        let mediaRecorder = null;
+        let recordingChunks = [];
+        let recordingSourceStream = null;
+        let recordingStream = null;
+        let recordingAudioDestination = null;
+        let recordingStartedAtMs = 0;
+        let recordingMimeType = "";
+        let recordingDownloadUrls = [];
+        const openAITTSBufferCache = new Map();
+
+        // --- RESIZABLE PANEL LOGIC ---
+        const resizer = document.getElementById('resizer');
+        const bottomPanel = document.getElementById('bottom-panel');
+        let isResizingPanel = false;
+
+        resizer.addEventListener('mousedown', () => { isResizingPanel = true; document.body.style.cursor = 'ns-resize'; });
+        resizer.addEventListener('touchstart', () => { isResizingPanel = true; }, {passive: true});
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizingPanel) return;
+            let newHeight = window.innerHeight - e.clientY;
+            newHeight = Math.max(120, Math.min(newHeight, window.innerHeight * 0.8));
+            bottomPanel.style.height = `${newHeight}px`;
+            if(STATE.selectedColId !== -1) STATE.autoPan = true; 
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (!isResizingPanel) return;
+            let newHeight = window.innerHeight - e.touches[0].clientY;
+            newHeight = Math.max(120, Math.min(newHeight, window.innerHeight * 0.8));
+            bottomPanel.style.height = `${newHeight}px`;
+            if(STATE.selectedColId !== -1) STATE.autoPan = true;
+        });
+
+        window.addEventListener('mouseup', () => { isResizingPanel = false; document.body.style.cursor = 'default'; });
+        window.addEventListener('touchend', () => { isResizingPanel = false; });
+
+
+        // --- WEB AUDIO & HAPTICS ENGINE ---
+        let audioCtx = null;
+        let masterGain = null;
+        let ambientFxInput = null;
+        let audioEnabled = false;
+
+        const pentatonic = [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66, 329.63, 392.00, 440.00];
+
+        function getVoiceStatusShort() {
+            if (!STATE.ttsSupported) return "N/A";
+            return STATE.ttsAutoEnabled ? "ON" : "OFF";
+        }
+
+        function updateAudioLabel() {
+            const el = document.getElementById('audio-lbl');
+            if (!el) return;
+            el.innerText = `AUDIO ${audioEnabled ? "ON" : "OFF"} VOICE ${getVoiceStatusShort()}`;
+        }
+
+        window.toggleAudio = function(forceOn = false) {
+            if (forceOn) audioEnabled = false; 
+            audioEnabled = !audioEnabled;
+            if(audioEnabled) {
+                if(!audioCtx) initAudio();
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                triggerHaptic(15);
+            } else {
+                if(audioCtx) audioCtx.suspend();
+            }
+            updateAudioLabel();
+        };
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.3;
+            masterGain.connect(audioCtx.destination);
+
+            ambientFxInput = audioCtx.createGain();
+            ambientFxInput.gain.value = 0.5;
+            ambientFxInput.connect(masterGain);
+
+            const delay = audioCtx.createDelay();
+            delay.delayTime.value = 0.32;
+            const feedback = audioCtx.createGain();
+            feedback.gain.value = 0.14;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1300;
+            const wetGain = audioCtx.createGain();
+            wetGain.gain.value = 0.16;
+
+            ambientFxInput.connect(delay);
+            delay.connect(filter);
+            filter.connect(wetGain);
+            wetGain.connect(masterGain);
+            filter.connect(feedback);
+            feedback.connect(delay);
+        }
+
+        function playAmbientNote() {
+            if(!audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const destination = ambientFxInput || masterGain;
+            
+            osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
+            const freq = pentatonic[Math.floor(Math.random() * pentatonic.length)];
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 2.0);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 8.0);
+            
+            osc.connect(gain);
+            gain.connect(destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 8.0);
+        }
+
+        function playBootChord() {
+            if(!audioEnabled || !audioCtx) return;
+            const destination = ambientFxInput || masterGain;
+            [130.81, 196.00, 261.63, 392.00].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 3.0);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 12.0);
+                    osc.connect(gain);
+                    gain.connect(destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 12.0);
+                }, i * 400);
+            });
+        }
+
+        function triggerHaptic(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        function getActiveFocusTarget() {
+            const preferredColId = STATE.readingColId !== -1 ? STATE.readingColId : STATE.selectedColId;
+            const preferredLayerIdx = STATE.readingLayerIdx !== -1 ? STATE.readingLayerIdx : STATE.selectedLayerIdx;
+            if (preferredColId !== -1 && preferredLayerIdx !== -1) {
+                const col = colRegistry[preferredColId];
+                if (col && col.layers > 0) {
+                    return { colId: preferredColId, layerIdx: Math.max(0, Math.min(preferredLayerIdx, col.layers - 1)) };
+                }
+            }
+            const allAddressable = document.querySelectorAll('.msg[data-col-id][data-layer-idx]');
+            const lastMsg = allAddressable.length ? allAddressable[allAddressable.length - 1] : null;
+            if (lastMsg) {
+                const colId = Number(lastMsg.dataset.colId);
+                const layerIdx = Number(lastMsg.dataset.layerIdx);
+                const col = colRegistry[colId];
+                if (Number.isFinite(colId) && Number.isFinite(layerIdx) && col && col.layers > 0) {
+                    return { colId, layerIdx: Math.max(0, Math.min(layerIdx, col.layers - 1)) };
+                }
+            }
+            return null;
+        }
+
+        function computeCameraTarget(col, layerIdx) {
+            const baseY = col.layers > 0 ? (layerIdx * STATE.tension) : 0;
+            const panel = document.getElementById('bottom-panel');
+            const panelLift = panel ? Math.min(CAMERA_TUNING.panelLiftMax, panel.offsetHeight * CAMERA_TUNING.panelLiftScale) : 0;
+            return new THREE.Vector3(col.x, baseY + CAMERA_TUNING.selectedYOffset + panelLift, col.z);
+        }
+
+        function computeRecordingCameraPosition(target) {
+            const panel = document.getElementById('bottom-panel');
+            const panelLift = panel ? Math.min(CAMERA_TUNING.panelLiftMax, panel.offsetHeight * 0.01) : 0;
+            return new THREE.Vector3(
+                target.x + 30,
+                target.y + 22 + panelLift,
+                target.z + 38
+            );
+        }
+
+        function applyRecordingCameraRig(col, layerIdx) {
+            const target = computeCameraTarget(col, layerIdx);
+            const desiredPos = computeRecordingCameraPosition(target);
+            controls.target.lerp(target, CAMERA_TUNING.recordingTargetLerp);
+            camera.position.lerp(desiredPos, CAMERA_TUNING.recordingCameraLerp);
+        }
+
+        function setRecordingCameraState(isActive) {
+            if (!controls) return;
+            if (isActive && STATE.recordingCameraLock) {
+                controls.enableRotate = false;
+                controls.enablePan = false;
+                controls.enableZoom = false;
+                STATE.autoPan = true;
+                const focus = getActiveFocusTarget();
+                if (focus) focusCameraOnLayer(focus.colId, focus.layerIdx, true);
+                return;
+            }
+            controls.enableRotate = true;
+            controls.enablePan = true;
+            controls.enableZoom = true;
+        }
+
+        function focusCameraOnLayer(colId, layerIdx, instant = false) {
+            const col = colRegistry[colId];
+            if (!col || col.layers <= 0) return;
+            const safeLayer = Math.max(0, Math.min(layerIdx, col.layers - 1));
+            const nextTarget = computeCameraTarget(col, safeLayer);
+
+            STATE.selectedColId = colId;
+            STATE.selectedLayerIdx = safeLayer;
+            STATE.readingColId = colId;
+            STATE.readingLayerIdx = safeLayer;
+            STATE.autoPan = true;
+
+            if (instant) {
+                const offset = camera.position.clone().sub(controls.target);
+                controls.target.copy(nextTarget);
+                camera.position.copy(nextTarget.clone().add(offset));
+                controls.update();
+            }
+        }
+        window.focusCameraOnLayer = focusCameraOnLayer;
+
+        window.recenterView = function() {
+            const target = getActiveFocusTarget();
+            if (!target) return;
+            triggerHaptic(20);
+            focusCameraOnLayer(target.colId, target.layerIdx, true);
+            updateMinimap();
+        };
+
+        // --- AWAKEN ONBOARDING SEQUENCE ---
+        async function callOpenAI(userPrompt, systemPrompt, opts = {}) {
+            const key = String(LLM_CONFIG.apiKey || "").trim();
+            if (!key) throw new Error("OPENAI key missing");
+
+            const base = String(LLM_CONFIG.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+            const res = await fetch(`${base}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${key}`
+                },
+                body: JSON.stringify({
+                    model: opts.model || LLM_CONFIG.model,
+                    messages: [
+                        ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+                        { role: "user", content: userPrompt }
+                    ],
+                    temperature: typeof opts.temperature === "number" ? opts.temperature : 0.55,
+                    max_tokens: opts.maxTokens || 700
+                })
+            });
+
+            if (!res.ok) {
+                const detail = await res.text().catch(() => "");
+                throw new Error(`OpenAI ${res.status}${detail ? `: ${detail.slice(0, 180)}` : ""}`);
+            }
+            const data = await res.json();
+            return String(data?.choices?.[0]?.message?.content || "").trim();
+        }
+
+        async function callOpenAISpeech(text, opts = {}) {
+            const key = String(LLM_CONFIG.apiKey || "").trim();
+            if (!key) throw new Error("OPENAI key missing");
+            const base = String(LLM_CONFIG.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+            const input = String(text || "").trim();
+            if (!input) throw new Error("OpenAI speech input missing");
+
+            const model = opts.model || LLM_CONFIG.ttsModel || "gpt-4o-mini-tts";
+            const voice = opts.voice || LLM_CONFIG.ttsVoice || "alloy";
+            const cacheKey = `${model}::${voice}::${input}`;
+            if (openAITTSBufferCache.has(cacheKey)) {
+                return openAITTSBufferCache.get(cacheKey);
+            }
+
+            const res = await fetch(`${base}/audio/speech`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${key}`
+                },
+                body: JSON.stringify({
+                    model,
+                    voice,
+                    input,
+                    format: "mp3"
+                })
+            });
+
+            if (!res.ok) {
+                const detail = await res.text().catch(() => "");
+                throw new Error(`OpenAI speech ${res.status}${detail ? `: ${detail.slice(0, 140)}` : ""}`);
+            }
+
+            const buf = await res.arrayBuffer();
+            if (!buf || !buf.byteLength) throw new Error("OpenAI speech returned empty audio");
+
+            if (!audioCtx) initAudio();
+            if (audioCtx?.state === "suspended") {
+                await audioCtx.resume().catch(() => {});
+            }
+            const decoded = await audioCtx.decodeAudioData(buf.slice(0));
+            openAITTSBufferCache.set(cacheKey, decoded);
+            if (openAITTSBufferCache.size > 96) {
+                const first = openAITTSBufferCache.keys().next().value;
+                if (first) openAITTSBufferCache.delete(first);
+            }
+            return decoded;
+        }
+
+        function normalizeLineBreaks(raw, decodeEscaped = false) {
+            let text = String(raw ?? "");
+            text = text
+                .replace(/<br\s*\/?>/gi, "\n")
+                .replace(/\r\n?/g, "\n")
+                .replace(/[\u2028\u2029\u0085\f\v]/g, "\n");
+            if (decodeEscaped) {
+                text = text.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
+            }
+            return text;
+        }
+
+        function splitAtomicLines(raw) {
+            const baseLines = normalizeLineBreaks(raw, true).split("\n");
+            const out = [];
+            baseLines.forEach(line => {
+                const parts = String(line || "")
+                    .split(/\s{2,}(?=[^\s])/g)
+                    .map(s => s.trim())
+                    .filter(Boolean);
+                if (!parts.length) return;
+                parts.forEach(part => out.push(part));
+            });
+            return out;
+        }
+        window.splitAtomicLines = splitAtomicLines;
+
+        function normalizeLLMText(raw) {
+            return normalizeLineBreaks(raw, true)
+                .replace(/```(?:json|xml|txt)?/gi, "")
+                .replace(/```/g, "")
+                .trim();
+        }
+
+        function splitIntoStubFragments(raw) {
+            const cleaned = normalizeLLMText(raw)
+                .replace(/\[\s*SPAWN[\s\S]*?\]/gi, "")
+                .replace(/\[\s*VECTOR[\s\S]*?\]/gi, "")
+                .replace(/\[.*?\]/g, "")
+                .trim();
+
+            if (!cleaned) return [];
+
+            const byLine = splitAtomicLines(cleaned)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .map(s => s.replace(/^\s*(?:[-*]\s+|\d+[.)]\s+)/, ""))
+                .filter(s => !/\bnode\s*\[\d+\s*,\s*\d+\]/i.test(s))
+                .filter(s => !s.includes("|"));
+
+            if (byLine.length > 1) return byLine;
+
+            const bySentence = cleaned
+                .split(/(?<=[.?!])\s+|\s{2,}(?=[A-Z])/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .filter(s => !/\bnode\s*\[\d+\s*,\s*\d+\]/i.test(s))
+                .filter(s => !s.includes("|"));
+
+            if (bySentence.length > 1) return bySentence;
+            return byLine.length ? byLine : [cleaned];
+        }
+
+        function parseTaggedActions(raw, tagName) {
+            const text = normalizeLLMText(raw);
+            const tag = String(tagName || "").toUpperCase();
+            const out = [];
+
+            // Primary tolerant parser:
+            // [VECTOR: [x,y] | reason]
+            // [VECTOR [x, y] | reason]
+            // [VECTOR: [x,y]|reason]
+            const primary = new RegExp(
+                `\\[\\s*${tag}\\s*:??\\s*(\\[\\s*\\d+\\s*,\\s*\\d+\\s*\\])\\s*\\|\\s*([\\s\\S]*?)\\]`,
+                "gi"
+            );
+
+            let m;
+            while ((m = primary.exec(text)) !== null) {
+                const coord = String(m[1] || "").replace(/\s+/g, "");
+                const reason = String(m[2] || "").replace(/\s+/g, " ").trim();
+                if (coord && reason) out.push({ coord, reason });
+            }
+            if (out.length) return out;
+
+            // Fallback line parser:
+            // VECTOR: [x,y] | reason
+            // VECTOR [x, y] | reason
+            const lines = text.split("\n").map(s => s.trim()).filter(Boolean);
+            const fallback = new RegExp(
+                `^\\[?\\s*${tag}\\s*:?\\s*(\\[\\s*\\d+\\s*,\\s*\\d+\\s*\\])\\s*\\|\\s*(.+?)\\]?$`,
+                "i"
+            );
+            lines.forEach(line => {
+                const mm = line.match(fallback);
+                if (!mm) return;
+                const coord = String(mm[1] || "").replace(/\s+/g, "");
+                const reason = String(mm[2] || "").replace(/\s+/g, " ").trim();
+                if (coord && reason) out.push({ coord, reason });
+            });
+
+            return out;
+        }
+
+        function parseSimpleTaggedLines(raw, tagName) {
+            const text = normalizeLLMText(raw);
+            const tag = String(tagName || "").toUpperCase();
+            const out = [];
+
+            const bracketed = new RegExp(`\\[\\s*${tag}\\s*:\\s*([\\s\\S]*?)\\]`, "gi");
+            let m;
+            while ((m = bracketed.exec(text)) !== null) {
+                const val = String(m[1] || "").trim();
+                if (val) out.push(val);
+            }
+            if (out.length) return out;
+
+            const lineRegex = new RegExp(`^\\s*${tag}\\s*:\\s*(.+)$`, "i");
+            splitAtomicLines(text).forEach(line => {
+                const mm = line.match(lineRegex);
+                if (!mm) return;
+                const val = String(mm[1] || "").trim();
+                if (val) out.push(val);
+            });
+            return out;
+        }
+
+        function uniquePreserveOrder(items) {
+            const seen = new Set();
+            const out = [];
+            (items || []).forEach(item => {
+                const key = String(item || "").trim().toLowerCase();
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                out.push(String(item).trim());
+            });
+            return out;
+        }
+
+        function chunkWords(text, maxWords = 7) {
+            const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return [];
+            const out = [];
+            for (let i = 0; i < words.length; i += maxWords) {
+                out.push(words.slice(i, i + maxWords).join(" "));
+            }
+            return out;
+        }
+
+        function coercePass1Fragments(raw, desiredCount = 4) {
+            // Preferred path: explicit machine-readable FRAGMENT lines.
+            let frags = parseSimpleTaggedLines(raw, "FRAGMENT");
+            if (!frags.length) {
+                frags = splitIntoStubFragments(raw);
+            }
+
+            frags = uniquePreserveOrder(
+                frags
+                    .map(f => String(f || "").replace(/^["'`]+|["'`]+$/g, "").trim())
+                    .filter(f => f.length >= 3)
+            );
+
+            // If model returned one long line with title-case phrase transitions,
+            // split on lower->Upper phrase boundaries.
+            if (frags.length === 1) {
+                const one = frags[0];
+                const phraseSplit = one
+                    .split(/(?<=[a-z]{3,})\s+(?=[A-Z][a-z]{2,}\b)/g)
+                    .map(s => s.trim())
+                    .filter(Boolean);
+                if (phraseSplit.length > 1) {
+                    frags = uniquePreserveOrder(phraseSplit);
+                }
+            }
+
+            // Last-resort: fixed-size word chunking.
+            if (frags.length === 1 && frags[0].split(/\s+/).length > 10) {
+                frags = uniquePreserveOrder(chunkWords(frags[0], 6));
+            }
+
+            if (desiredCount > 0 && frags.length > desiredCount) {
+                frags = frags.slice(0, desiredCount);
+            }
+            return frags;
+        }
+
+        window.startExperience = async function() {
+            const keyInput = document.getElementById('boot-api-key');
+            const msg = document.getElementById('boot-msg');
+            const recIntroInput = document.getElementById('boot-record-intro');
+            const recFirstInput = document.getElementById('boot-record-first');
+            const recVoiceInput = document.getElementById('boot-voice-capture');
+            const key = String(keyInput?.value || "").trim();
+            if (!key || !key.startsWith('sk-')) {
+                if (msg) msg.textContent = "Enter a valid OpenAI key (starts with sk-).";
+                return;
+            }
+            LLM_CONFIG.apiKey = key;
+            STATE.recordIntroArmed = Boolean(recIntroInput?.checked);
+            STATE.recordOnFirstPrompt = !STATE.recordIntroArmed && Boolean(recFirstInput?.checked);
+            STATE.recordVoiceCapture = Boolean(recVoiceInput?.checked);
+            applyUIProfile("AUTO", false);
+            applyRunMode("MANUAL", false);
+            if (msg) {
+                if (STATE.recordIntroArmed) {
+                    msg.textContent = "Key loaded. Intro recording armed...";
+                } else if (STATE.recordOnFirstPrompt) {
+                    msg.textContent = "Key loaded. Recording will start on first prompt.";
+                } else {
+                    msg.textContent = "Key loaded. Starting...";
+                }
+            }
+            if (STATE.recordIntroArmed && !STATE.recordingActive) {
+                await startRecording();
+            }
+            bootUp();
+        };
+
+        window.bootUp = function() {
+            const boot = document.getElementById('boot-screen');
+            boot.style.opacity = 0;
+            setTimeout(() => boot.remove(), 1500);
+
+            toggleAudio(true); 
+            playBootChord();
+            triggerRipple(0, 0, 2.5, TAG_COLORS.DEFAULT);
+
+            setTimeout(() => document.getElementById('ob-1').style.opacity = 1, 1500);
+            setTimeout(() => document.getElementById('ob-2').style.opacity = 1, 3500);
+            setTimeout(() => document.getElementById('ob-3').style.opacity = 1, 5500);
+            setTimeout(() => {
+                const overlay = document.getElementById('onboarding-overlay');
+                overlay.style.opacity = 0;
+                setTimeout(() => overlay.remove(), 2000);
+            }, 8500);
+        };
+
+        // --- RIPPLE SYSTEM ---
+        const activeRipples = [];
+        window.triggerRipple = function(x, z, intensity=1.0, colorHex=TAG_COLORS.DEFAULT) {
+            const clampedIntensity = Math.max(0.15, Math.min(1.2, intensity));
+            activeRipples.push({x, z, time: 0, intensity: clampedIntensity});
+            if (activeRipples.length > 18) activeRipples.shift();
+            const geo = new THREE.RingGeometry(0.5, 1.5, 64);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(x, -0.5, z);
+            scene.add(mesh);
+
+            playAmbientNote();
+            triggerHaptic([30, 50, 30]);
+
+            const startTime = performance.now();
+            const duration = 2400; 
+
+            function grow() {
+                const elapsed = performance.now() - startTime;
+                const progress = elapsed / duration;
+                if (progress < 1.0) {
+                    const scale = 1.0 + (1.0 - Math.pow(1.0 - progress, 3)) * 34.0;
+                    mesh.scale.set(scale, scale, scale);
+                    mesh.material.opacity = 0.55 * (1.0 - progress);
+                    requestAnimationFrame(grow);
+                } else {
+                    scene.remove(mesh);
+                    geo.dispose();
+                    mat.dispose();
+                }
+            }
+            grow();
+        };
+
+        function renderTopographyMarkdown(nodes) {
+            let out = "# RIPPLE TOPOGRAPHY EXPORT\n\n";
+            (nodes || []).forEach(node => {
+                const coord = String(node.coord || "[0,0]");
+                const title = String(node.title || "VOID");
+                const safeTag = TAG_COLORS[String(node.tag || "").toUpperCase()] ? String(node.tag).toUpperCase() : "DEFAULT";
+                out += `## NODE ${coord} : "${title}" [${safeTag}]\n`;
+
+                const stubs = Array.isArray(node.stubs) ? node.stubs : [];
+                stubs.forEach((stub, idx) => {
+                    const lines = splitAtomicLines(stub?.text || "");
+                    if (!lines.length) return;
+                    lines.forEach((line, lineIdx) => {
+                        const kind = (idx === 0 && lineIdx === 0) ? "STONE" : "FRAGMENT";
+                        out += `- ${kind}: ${line}\n`;
+                    });
+                });
+                out += "\n";
+            });
+            return out;
+        }
+
+        // --- EXPORT SYSTEM ---
+        window.exportTopography = function() {
+            triggerHaptic(15);
+            normalizeAllColumns();
+            const rawNodes = colRegistry
+                .filter(c => c.layers > 0)
+                .map(c => ({
+                    coord: c.coord,
+                    title: c.title,
+                    tag: c.tag,
+                    stubs: c.messages.map((m, i) => ({ kind: i === 0 ? "STONE" : "FRAGMENT", text: m }))
+                }));
+
+            // Final canonicalization pass: parse + render guarantees one bullet per stub line.
+            const out = renderTopographyMarkdown(parseTopographyMarkdown(renderTopographyMarkdown(rawNodes)));
+            const blob = new Blob([out], {type: "text/markdown"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `ripple_map_${Date.now()}.md`;
+            a.click();
+            appendLog("TOPOGRAPHY EXPORTED TO LOCAL STORAGE.", "sys");
+        };
+
+        window.importTopographyFile = function() {
+            const fileInput = document.getElementById('topo-import-file');
+            if (!fileInput) return;
+            fileInput.value = "";
+            fileInput.click();
+        };
+
+        function parseTopographyMarkdown(mdText) {
+            const lines = normalizeLineBreaks(mdText, true).split("\n");
+            const nodes = [];
+            let current = null;
+
+            lines.forEach(line => {
+                const nodeMatch = line.match(/^##\s*NODE\s*(\[\s*\d+\s*,\s*\d+\s*\])\s*:\s*"(.*?)"\s*\[([A-Za-z_]+)\]\s*$/);
+                if (nodeMatch) {
+                    if (current) nodes.push(current);
+                    current = {
+                        coord: nodeMatch[1].replace(/\s+/g, ""),
+                        title: nodeMatch[2],
+                        tag: String(nodeMatch[3] || "DEFAULT").toUpperCase(),
+                        stubs: []
+                    };
+                    return;
+                }
+
+                const itemMatch = line.match(/^\s*-\s*(STONE|FRAGMENT)\s*:\s*(.*)$/i);
+                if (itemMatch && current) {
+                    const kind = String(itemMatch[1]).toUpperCase();
+                    const text = String(itemMatch[2] || "").trim();
+                    if (text) {
+                        const atomic = splitAtomicLines(text);
+                        if (!atomic.length) return;
+                        atomic.forEach((part, idx) => {
+                            current.stubs.push({
+                                kind: (kind === "STONE" && idx === 0) ? "STONE" : "FRAGMENT",
+                                text: part
+                            });
+                        });
+                    }
+                    return;
+                }
+
+                // Recover malformed multiline exports where extra lines are left un-prefixed.
+                if (current) {
+                    const plain = line.trim();
+                    if (!plain || plain.startsWith("#")) return;
+                    current.stubs.push({ kind: "FRAGMENT", text: plain });
+                }
+            });
+            if (current) nodes.push(current);
+
+            return nodes.filter(n => n.stubs.length > 0);
+        }
+
+        function removeClickableObject(obj) {
+            const idx = clickableMeshes.indexOf(obj);
+            if (idx >= 0) clickableMeshes.splice(idx, 1);
+        }
+
+        function normalizeColumnStubs(column) {
+            if (!column || !Array.isArray(column.messages) || !column.messages.length) return false;
+
+            const flattened = [];
+            column.messages.forEach(msg => {
+                const parts = splitAtomicLines(msg);
+                if (parts.length) {
+                    parts.forEach(p => flattened.push(p));
+                }
+            });
+
+            if (!flattened.length) return false;
+            const unchanged = flattened.length === column.messages.length &&
+                flattened.every((v, i) => v === column.messages[i]);
+            if (unchanged) return false;
+
+            // Remove old rendered layers.
+            column.sprites.forEach(sprite => {
+                scene.remove(sprite);
+                if (sprite.material?.map) sprite.material.map.dispose?.();
+                sprite.material?.dispose?.();
+                removeClickableObject(sprite);
+            });
+            column.sprites = [];
+
+            if (column.titleSprite) {
+                scene.remove(column.titleSprite);
+                if (column.titleSprite.material?.map) column.titleSprite.material.map.dispose?.();
+                column.titleSprite.material?.dispose?.();
+                column.titleSprite = null;
+            }
+
+            column.messages = [];
+            column.layerVectors = [];
+            column.layers = 0;
+            column.title = "VOID";
+
+            column.baseMesh.geometry.dispose();
+            column.baseMesh.geometry = getGeometryForTag(column.tag, true);
+
+            flattened.forEach(line => addLayerToColumn(column, line, false));
+            return true;
+        }
+
+        function normalizeAllColumns() {
+            let changed = 0;
+            colRegistry.forEach(col => {
+                if (normalizeColumnStubs(col)) changed += 1;
+            });
+            if (changed > 0) {
+                updateMinimap();
+                appendLog(`NORMALIZED ${changed} NODE(S): multiline stubs split into atomic tabs.`, "sys");
+            }
+            return changed;
+        }
+
+        function importTopographyMarkdown(mdText) {
+            const parsed = parseTopographyMarkdown(mdText);
+            if (!parsed.length) return false;
+
+            let importedCount = 0;
+            parsed.forEach(node => {
+                let col = colRegistry.find(c => c.coord === node.coord);
+                if (!col) {
+                    const empty = colRegistry.filter(c => c.layers === 0);
+                    col = empty[0] || colRegistry[0];
+                }
+                if (!col) return;
+
+                col.tag = TAG_COLORS[node.tag] ? node.tag : "DEFAULT";
+
+                node.stubs.forEach((stub, idx) => {
+                    const text = String(stub.text || "").trim();
+                    if (!text) return;
+                    const beforeLayers = col.layers;
+                    addLayerToColumn(col, text, idx !== 0);
+                    const newLayerIdx = beforeLayers;
+                    appendLog(text, stub.kind === "STONE" ? "user" : "ai", false, col.id, newLayerIdx);
+                    importedCount += 1;
+                });
+            });
+
+            updateMinimap();
+            appendLog(`IMPORTED ${importedCount} STUBS FROM TOPOGRAPHY MARKDOWN.`, "sys");
+            return importedCount > 0;
+        }
+
+        // --- MODE CONTROLS ---
+        function setMode(mode) {
+            STATE.inputMode = mode;
+            const badge = document.getElementById('mode-badge');
+            if (!badge) return;
+            badge.className = `control-btn ${MODE_CLASSES[mode]}`;
+            badge.innerHTML = `LENS <span id="mode-lbl">${MODE_LABELS[mode]}</span>`;
+        }
+
+        window.toggleMode = function() {
+            triggerHaptic(10);
+            const currentIndex = MODES.indexOf(STATE.inputMode);
+            const nextIndex = (currentIndex + 1) % MODES.length;
+            setMode(MODES[nextIndex]);
+        };
+
+        function updateControlDensityUI() {
+            const secondary = document.getElementById('control-secondary');
+            if (secondary) secondary.classList.add('is-collapsed');
+            updateGuidanceUI();
+        }
+
+        window.toggleSecondaryControls = function() {
+            STATE.secondaryControlsVisible = !STATE.secondaryControlsVisible;
+            updateControlDensityUI();
+            triggerHaptic(8);
+        };
+
+        function detectDefaultUIProfile() {
+            return window.innerWidth < 900 ? "MOBILE" : "DESKTOP";
+        }
+
+        function getEffectiveUIProfile() {
+            return STATE.uiProfile === "CONFERENCE" ? "CONFERENCE" : detectDefaultUIProfile();
+        }
+
+        function updateUIProfileLabel() {
+            const lbl = document.getElementById('rec-profile-lbl');
+            if (!lbl) return;
+            lbl.textContent = STATE.uiProfile === "CONFERENCE" ? "PROFILE CONFERENCE" : "PROFILE AUTO";
+        }
+
+        function isNativeFullscreenActive() {
+            return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+        }
+
+        function hasNativeFullscreenSupport() {
+            const el = document.documentElement;
+            return Boolean(el.requestFullscreen || el.webkitRequestFullscreen || document.exitFullscreen || document.webkitExitFullscreen);
+        }
+
+        async function requestNativeFullscreen() {
+            const el = document.documentElement;
+            if (el.requestFullscreen) {
+                await el.requestFullscreen();
+                return true;
+            }
+            if (el.webkitRequestFullscreen) {
+                el.webkitRequestFullscreen();
+                return true;
+            }
+            return false;
+        }
+
+        async function exitNativeFullscreen() {
+            if (document.exitFullscreen) {
+                await document.exitFullscreen();
+                return true;
+            }
+            if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+                return true;
+            }
+            return false;
+        }
+
+        function updateFullscreenUI() {
+            const btn = document.getElementById('btn-fullscreen');
+            const lbl = document.getElementById('full-lbl');
+            if (!btn || !lbl) return;
+            const active = isNativeFullscreenActive() || STATE.pseudoFullscreen;
+            lbl.textContent = active ? 'EXIT' : 'VIEW';
+            btn.classList.toggle('ctrl-active', active);
+        }
+
+        window.toggleFullscreen = async function() {
+            const nativeSupported = hasNativeFullscreenSupport();
+            try {
+                if (nativeSupported) {
+                    if (isNativeFullscreenActive()) {
+                        await exitNativeFullscreen();
+                    } else {
+                        await requestNativeFullscreen();
+                    }
+                    STATE.pseudoFullscreen = false;
+                    document.body.classList.remove('pseudo-fullscreen');
+                } else {
+                    STATE.pseudoFullscreen = !STATE.pseudoFullscreen;
+                    document.body.classList.toggle('pseudo-fullscreen', STATE.pseudoFullscreen);
+                }
+            } catch (e) {
+                // Fallback if native request fails (common on some mobile browsers)
+                STATE.pseudoFullscreen = !STATE.pseudoFullscreen;
+                document.body.classList.toggle('pseudo-fullscreen', STATE.pseudoFullscreen);
+            }
+            updateFullscreenUI();
+            updateGuidanceUI();
+            triggerHaptic(10);
+        };
+
+        function applyUIProfile(profile, announce = false) {
+            const raw = String(profile || "AUTO").toUpperCase();
+            STATE.uiProfile = raw === "CONFERENCE" ? "CONFERENCE" : "AUTO";
+
+            if (STATE.uiProfile === "CONFERENCE") {
+                STATE.recordingMode = "CONTEXT";
+                STATE.recordingCameraLock = true;
+                STATE.recordVoiceCapture = true;
+                STATE.ttsAutoEnabled = true;
+            }
+
+            updateUIProfileLabel();
+            updateControlDensityUI();
+            updateAutoRippleUI();
+            updateRecordingToolsUI();
+            updateTTSUI();
+            updateAudioLabel();
+            if (announce) {
+                appendLog(`PROFILE: ${STATE.uiProfile === "CONFERENCE" ? "CONFERENCE" : "AUTO"}.`, "sys");
+            }
+        }
+
+        window.toggleConferenceProfile = function() {
+            const next = STATE.uiProfile === "CONFERENCE" ? "AUTO" : "CONFERENCE";
+            applyUIProfile(next, true);
+            triggerHaptic(10);
+        };
+
+        window.activatePerformancePreset = function() {
+            applyUIProfile("CONFERENCE", true);
+            appendLog("CONFERENCE PRESET READY: MAP+CHAT, CAM LOCK, VOICE ON.", "sys");
+            triggerHaptic([12, 20, 12]);
+        };
+
+        function updateGuidanceUI() {
+            const el = document.getElementById('guidance-bar');
+            if (!el) return;
+
+            let text = "Set MODE to MANUAL/FULL/SEMI, drop a stone, then use GOAL/OBSTACLE/SHIFT to shape the field.";
+            if (!LLM_CONFIG.apiKey) {
+                text = "Enter OpenAI key, then start experience.";
+            } else if (STATE.recordingActive) {
+                const mode = STATE.recordingMode === "CONTEXT" ? "MAP+CHAT" : "SCENE";
+                text = `Recording ${mode}. ${STATE.recordingCameraLock ? "Camera locked to active line." : "Camera free."}`;
+            } else if (STATE.recordOnFirstPrompt) {
+                text = "Recording is armed for first prompt. Entry protocol will not be captured.";
+            } else if (STATE.autoRippleEnabled && STATE.autoPolicy === "SEMI" && STATE.autoAwaitingSpawnPick) {
+                text = "Semi-auto waiting: pick a JUMP vector to choose next spawn.";
+            } else if (STATE.autoRippleEnabled && !STATE.autoRippleSeeded) {
+                text = `${STATE.runMode === "SEMI_AUTO" ? "Semi-auto" : "Full auto"} armed: drop first stone to start.`;
+            } else if (STATE.uiProfile === "CONFERENCE") {
+                text = "Conference profile active from RECORD panel.";
+            } else if (getEffectiveUIProfile() === "MOBILE") {
+                text = "Mobile layout active automatically. Input stays pinned.";
+            }
+
+            el.textContent = text;
+        }
+
+        function isoStamp() {
+            return new Date().toISOString();
+        }
+
+        function compactStamp() {
+            return isoStamp().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+        }
+
+        function getRRCPromptContract() {
+            return RRC_CONFIG?.prompt_contract || {
+                fragments: { min: 3, max: 4 },
+                therefore_required_in_auto: true,
+                spawn_policy: {
+                    manual: "optional",
+                    full_auto: "required_min_1",
+                    semi_auto: "required_on_selected_jump"
+                }
+            };
+        }
+
+        function getRRCAutoPolicy() {
+            return RRC_CONFIG?.auto_policy || {
+                weights: { continue: 0.36, branch: 0.24, tag_mutate: 0.2, vector_jump: 0.2 },
+                guards: { max_consecutive_continue: 3, min_spawn_per_8_steps: 2, max_repetition_index: 0.22 }
+            };
+        }
+
+        async function initRRC() {
+            const statusEl = document.getElementById('rrc-status');
+            if (!window.RRCRuntime) {
+                if (statusEl) statusEl.textContent = "RRC unavailable";
+                return;
+            }
+            RRC_CONFIG = await window.RRCRuntime.loadConfig("rrc-1.json");
+            RRC_LINE_SPEC = window.RRCRuntime.getLineSpec(RRC_CONFIG, RRC_LINE_ID);
+            RRC_TRACKER = window.RRCRuntime.createTracker(RRC_LINE_ID, RRC_CONFIG);
+            window.RRCRuntime.renderStatus(statusEl, RRC_LINE_SPEC, RRC_CONFIG?.version);
+
+            const recCfg = RRC_CONFIG?.recording_contract || {};
+            if (typeof recCfg.first_prompt_record === "boolean") {
+                STATE.recordOnFirstPrompt = recCfg.first_prompt_record;
+            }
+            updateRecordingToolsUI();
+            updateGuidanceUI();
+            appendLog(`RRC LOADED: ${RRC_CONFIG?.version || "RRC-1"} | LINE=${RRC_LINE_ID}`, "sys");
+        }
+
+        window.exportRRCReport = function() {
+            if (!window.RRCRuntime || !RRC_TRACKER) {
+                appendLog("RRC REPORT FAILED: runtime not initialized.", "sys");
+                return;
+            }
+            const parity = window.RRCRuntime.collectParitySnapshot(document);
+            const report = window.RRCRuntime.finalizeRun(RRC_TRACKER, RRC_CONFIG || {}, parity);
+            const file = `rrc_run_report_${compactStamp()}.json`;
+            window.RRCRuntime.downloadJson(file, report);
+            appendLog(`RRC REPORT EXPORTED: ${file}`, "sys");
+        };
+
+        function msToClock(ms) {
+            const t = Math.max(0, Math.floor(ms || 0));
+            const mm = String(Math.floor(t / 60000)).padStart(2, '0');
+            const ss = String(Math.floor((t % 60000) / 1000)).padStart(2, '0');
+            const mmm = String(t % 1000).padStart(3, '0');
+            return `${mm}:${ss}.${mmm}`;
+        }
+
+        function pushEvent(type, text, meta = {}) {
+            STATE.eventLog.push({
+                atIso: isoStamp(),
+                atSimMs: Math.round(STATE.simTime * 1000),
+                type: String(type || "sys"),
+                text: String(text || ""),
+                ...meta
+            });
+            if (window.RRCRuntime && RRC_TRACKER) {
+                window.RRCRuntime.recordEvent(RRC_TRACKER, type, text, meta);
+            }
+            if (STATE.eventLog.length > 5000) {
+                STATE.eventLog = STATE.eventLog.slice(-5000);
+            }
+        }
+
+        function appendSpawnFeed(text, meta = {}) {
+            const feed = document.getElementById('spawn-feed');
+            if (!feed) return;
+            const node = document.createElement('div');
+            node.className = 'spawn-event';
+            const coord = meta.coord ? `${meta.coord} ` : '';
+            node.textContent = `SPAWN ${coord}${text}`;
+            feed.prepend(node);
+            while (feed.children.length > 8) {
+                feed.removeChild(feed.lastChild);
+            }
+            setTimeout(() => {
+                node.style.opacity = '0';
+                node.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => node.remove(), 520);
+            }, 5200);
+        }
+
+        function updateRecordingUI() {
+            const lbl = document.getElementById('rec-lbl');
+            const btn = document.getElementById('btn-rec');
+            const openLbl = document.getElementById('rec-open-lbl');
+            const openBtn = document.getElementById('btn-rec-open');
+            if (!lbl || !btn) return;
+            lbl.textContent = STATE.recordingActive ? 'REC LIVE' : 'REC OFF';
+            btn.classList.toggle('rec-active', STATE.recordingActive);
+            if (openLbl) openLbl.textContent = STATE.recordingActive ? 'RECORDING' : 'RECORD';
+            if (openBtn) openBtn.classList.toggle('rec-active', STATE.recordingActive);
+            updateGuidanceUI();
+        }
+
+        function updateRecordingToolsUI() {
+            const modeLbl = document.getElementById('rec-mode-lbl');
+            const modeBtn = document.getElementById('btn-rec-mode');
+            const camLbl = document.getElementById('rec-cam-lbl');
+            const camBtn = document.getElementById('btn-rec-cam');
+            const voiceLbl = document.getElementById('rec-voice-lbl');
+            const voiceBtn = document.getElementById('btn-rec-voice');
+            const firstLbl = document.getElementById('rec-first-lbl');
+            const firstBtn = document.getElementById('btn-rec-first');
+
+            const mode = STATE.recordingMode === "CONTEXT" ? "MAP+CHAT" : "SCENE";
+            if (modeLbl) modeLbl.textContent = `REC SRC ${mode}`;
+            if (modeBtn) modeBtn.classList.toggle('ctrl-active', mode === "MAP+CHAT");
+
+            const cam = STATE.recordingCameraLock ? "LOCK" : "FREE";
+            if (camLbl) camLbl.textContent = `CAM ${cam}`;
+            if (camBtn) camBtn.classList.toggle('ctrl-active', STATE.recordingCameraLock);
+
+            const voice = STATE.recordVoiceCapture ? "ON" : "OFF";
+            if (voiceLbl) voiceLbl.textContent = `VOICE ${voice}`;
+            if (voiceBtn) voiceBtn.classList.toggle('ctrl-active', STATE.recordVoiceCapture);
+
+            const first = STATE.recordOnFirstPrompt ? "ON" : "OFF";
+            if (firstLbl) firstLbl.textContent = `REC FIRST ${first}`;
+            if (firstBtn) {
+                firstBtn.classList.toggle('ctrl-active', STATE.recordOnFirstPrompt);
+                firstBtn.disabled = STATE.recordingActive || STATE.recordIntroArmed;
+            }
+            updateUIProfileLabel();
+            updateGuidanceUI();
+        }
+
+        function getScopeSummary(scope) {
+            const s = scope || {};
+            const out = [];
+            if (s.map) out.push("map");
+            if (s.chat) out.push("chat");
+            if (s.popups) out.push("popups");
+            return out.join(",") || "scene-only";
+        }
+
+        function applyRecordingScopeClasses(isActive) {
+            document.body.classList.remove("record-hide-map", "record-hide-chat", "record-hide-popups");
+            if (!isActive) return;
+            const scope = STATE.recordCaptureScope || {};
+            if (!scope.map) document.body.classList.add("record-hide-map");
+            if (!scope.chat) document.body.classList.add("record-hide-chat");
+            if (!scope.popups) document.body.classList.add("record-hide-popups");
+        }
+
+        function promptRecordingScope(requireExplicit = false) {
+            const defaults = getScopeSummary(STATE.recordCaptureScope);
+            const raw = window.prompt(
+                requireExplicit
+                    ? "Choose recording scope now (required): map, chat, popups (comma-separated) or 'none'."
+                    : "Record includes: map, chat, popups (comma-separated). Use 'none' for scene-only.",
+                defaults
+            );
+            if (raw === null) return false;
+
+            const text = String(raw).trim().toLowerCase();
+            if (requireExplicit && !text) {
+                appendLog("RECORD SCOPE REQUIRED FOR FIRST-PROMPT RECORDING.", "sys");
+                return false;
+            }
+            if (!text || text === "all") {
+                STATE.recordCaptureScope = { map: true, chat: true, popups: true };
+            } else if (text === "none") {
+                STATE.recordCaptureScope = { map: false, chat: false, popups: false };
+            } else {
+                const tokens = new Set(text.split(/[,\s]+/).filter(Boolean));
+                const scope = {
+                    map: tokens.has("map"),
+                    chat: tokens.has("chat"),
+                    popups: tokens.has("popups")
+                };
+                if (!scope.map && !scope.chat && !scope.popups) {
+                    appendLog("RECORD SCOPE INVALID. USE: map, chat, popups OR none.", "sys");
+                    return false;
+                }
+                STATE.recordCaptureScope = scope;
+            }
+
+            const hasOverlayCapture = STATE.recordCaptureScope.map || STATE.recordCaptureScope.chat || STATE.recordCaptureScope.popups;
+            STATE.recordingMode = hasOverlayCapture ? "CONTEXT" : "SCENE";
+            STATE.recordScopeConfigured = true;
+            updateRecordingToolsUI();
+            appendLog(`RECORD SCOPE: ${getScopeSummary(STATE.recordCaptureScope)}.`, "sys");
+            return true;
+        }
+
+        window.toggleRecordingModal = function(forceOpen = null) {
+            const modal = document.getElementById('recording-modal');
+            if (!modal) return;
+            const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : modal.classList.contains('is-hidden');
+            modal.classList.toggle('is-hidden', !shouldOpen);
+            if (shouldOpen) {
+                updateRecordingUI();
+                updateRecordingToolsUI();
+                updateTTSUI();
+            }
+        };
+
+        window.toggleRecordingMode = function() {
+            if (STATE.recordingActive) {
+                appendLog("STOP RECORDING BEFORE CHANGING SOURCE MODE.", "sys");
+                return;
+            }
+            STATE.recordingMode = STATE.recordingMode === "SCENE" ? "CONTEXT" : "SCENE";
+            updateRecordingToolsUI();
+            appendLog(`RECORDING SOURCE MODE: ${STATE.recordingMode === "CONTEXT" ? "MAP+CHAT (TAB/WINDOW CAPTURE)" : "SCENE (CANVAS ONLY)"}.`, "sys");
+            triggerHaptic(8);
+        };
+
+        window.toggleRecordingCameraLock = function() {
+            STATE.recordingCameraLock = !STATE.recordingCameraLock;
+            if (STATE.recordingActive) {
+                setRecordingCameraState(STATE.recordingActive);
+            }
+            updateRecordingToolsUI();
+            appendLog(`RECORD CAMERA: ${STATE.recordingCameraLock ? "LOCKED FOLLOW" : "FREE"}.`, "sys");
+            triggerHaptic(8);
+        };
+
+        window.toggleRecordingVoiceCapture = function() {
+            STATE.recordVoiceCapture = !STATE.recordVoiceCapture;
+            updateRecordingToolsUI();
+            updateAudioLabel();
+            appendLog(`RECORD VOICE CAPTURE: ${STATE.recordVoiceCapture ? "ON" : "OFF"}.`, "sys");
+            triggerHaptic(8);
+        };
+
+        window.toggleRecordOnFirstPrompt = function() {
+            if (STATE.recordingActive) {
+                appendLog("STOP RECORDING BEFORE CHANGING FIRST-PROMPT RECORD SETTING.", "sys");
+                return;
+            }
+            if (STATE.recordIntroArmed) {
+                appendLog("FIRST-PROMPT RECORD DISABLED WHILE INTRO RECORD IS ARMED.", "sys");
+                return;
+            }
+            STATE.recordOnFirstPrompt = !STATE.recordOnFirstPrompt;
+            updateRecordingToolsUI();
+            appendLog(`RECORD ON FIRST PROMPT: ${STATE.recordOnFirstPrompt ? "ON" : "OFF"}.`, "sys");
+            triggerHaptic(8);
+        };
+
+        function buildTranscriptMarkdown() {
+            const header = [
+                '# RIPPLE SESSION TRANSCRIPT',
+                '',
+                `- build: ${ENGINE_BUILD}`,
+                `- session_id: ${STATE.recordingSessionId || compactStamp()}`,
+                `- exported_at: ${isoStamp()}`,
+                `- root_seed: ${STATE.rootSeed || '(none)'}`,
+                `- auto_mode: ${STATE.autoRippleEnabled ? 'on' : 'off'}`,
+                `- auto_policy: ${STATE.autoPolicy || 'FULL'}`,
+                `- recording_mode: ${STATE.recordingMode || 'SCENE'}`,
+                `- voice_capture: ${STATE.recordVoiceCapture ? 'on' : 'off'}`,
+                ''
+            ];
+            const lines = STATE.eventLog.map(e => {
+                const at = msToClock(e.atSimMs);
+                const coord = e.coord ? ` ${e.coord}` : '';
+                return `- [${at}] [${e.type}]${coord} ${e.text}`;
+            });
+            return [...header, ...lines].join('\n');
+        }
+
+        function downloadBlob(data, type, filename, options = {}) {
+            let blob = data instanceof Blob ? data : new Blob([data], { type });
+            if (data instanceof Blob && type && data.type !== type) {
+                blob = data.slice(0, data.size, type);
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            if (options.keepUrl) {
+                return { blob, url, filename, type: blob.type || type };
+            }
+            setTimeout(() => URL.revokeObjectURL(url), 1200);
+            return { blob, url: null, filename, type: blob.type || type };
+        }
+
+        function clearRecordingDownloads() {
+            const box = document.getElementById('recording-downloads');
+            if (!box) return;
+            recordingDownloadUrls.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) {}
+            });
+            recordingDownloadUrls = [];
+            box.innerHTML = '';
+            box.style.display = 'none';
+        }
+
+        function setRecordingDownloads(files) {
+            const box = document.getElementById('recording-downloads');
+            if (!box) return;
+            clearRecordingDownloads();
+            if (!files || !files.length) return;
+
+            const label = document.createElement('span');
+            label.className = 'rec-download-label';
+            label.textContent = 'RECORDING READY:';
+            box.appendChild(label);
+
+            files.forEach(file => {
+                if (!file?.url) return;
+                recordingDownloadUrls.push(file.url);
+                const link = document.createElement('a');
+                link.className = 'rec-download-link';
+                link.href = file.url;
+                link.download = file.filename;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = file.label || file.filename;
+                box.appendChild(link);
+            });
+
+            box.style.display = 'flex';
+        }
+
+        function getVideoFileExtension(mimeType) {
+            const base = String(mimeType || '').split(';')[0].trim().toLowerCase();
+            if (base === 'video/mp4') return 'mp4';
+            if (base === 'video/quicktime') return 'mov';
+            if (base === 'video/x-matroska') return 'mkv';
+            if (base === 'video/webm') return 'webm';
+            return 'webm';
+        }
+
+        async function verifyVideoBlobPlayable(blob, mimeType) {
+            if (!blob || !blob.size) return false;
+            return new Promise(resolve => {
+                const v = document.createElement('video');
+                const url = URL.createObjectURL(blob);
+                let done = false;
+                const finish = (ok) => {
+                    if (done) return;
+                    done = true;
+                    URL.revokeObjectURL(url);
+                    resolve(ok);
+                };
+                v.preload = 'metadata';
+                v.muted = true;
+                v.onloadedmetadata = () => finish(true);
+                v.onerror = () => finish(false);
+                setTimeout(() => finish(false), 2200);
+                v.src = url;
+                try { v.load(); } catch (e) { finish(false); }
+            });
+        }
+
+        function ensureRecordingAudioTap() {
+            if (!audioCtx || !masterGain) return null;
+            if (!recordingAudioDestination) {
+                recordingAudioDestination = audioCtx.createMediaStreamDestination();
+                masterGain.connect(recordingAudioDestination);
+            }
+            return recordingAudioDestination;
+        }
+
+        function selectRecordingMimeType() {
+            const candidates = [
+                'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+                'video/mp4;codecs=h264,aac',
+                'video/mp4',
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm;codecs=h264,opus',
+                'video/webm'
+            ];
+            for (const mime of candidates) {
+                if (MediaRecorder.isTypeSupported(mime)) return mime;
+            }
+            return '';
+        }
+
+        function createMediaRecorderSafe(stream) {
+            const preferred = selectRecordingMimeType();
+            const attempts = [];
+            if (preferred) attempts.push(() => new MediaRecorder(stream, { mimeType: preferred }));
+            attempts.push(() => new MediaRecorder(stream));
+
+            for (const build of attempts) {
+                try {
+                    const recorder = build();
+                    return { recorder, mimeType: recorder.mimeType || preferred || 'video/webm', fallback: 'full-stream' };
+                } catch (e) {
+                    // keep trying fallbacks
+                }
+            }
+
+            // last fallback: video-only stream
+            const videoOnlyTracks = stream.getVideoTracks();
+            if (videoOnlyTracks.length) {
+                const videoOnlyStream = new MediaStream(videoOnlyTracks);
+                if (preferred) {
+                    try {
+                        const recorder = new MediaRecorder(videoOnlyStream, { mimeType: preferred });
+                        return { recorder, mimeType: recorder.mimeType || preferred || 'video/webm', fallback: 'video-only' };
+                    } catch (e) {
+                        // continue
+                    }
+                }
+                const recorder = new MediaRecorder(videoOnlyStream);
+                return { recorder, mimeType: recorder.mimeType || 'video/webm', fallback: 'video-only' };
+            }
+
+            throw new Error("Unable to create MediaRecorder for this browser stream.");
+        }
+
+        async function startRecording() {
+            if (STATE.recordingActive) return;
+            if (typeof MediaRecorder === 'undefined') {
+                appendLog("RECORDING NOT SUPPORTED IN THIS BROWSER.", "sys");
+                return;
+            }
+
+            try {
+                applyRecordingScopeClasses(true);
+                clearRecordingDownloads();
+                if (!audioCtx) {
+                    initAudio();
+                }
+                if (audioCtx?.state === 'suspended') {
+                    await audioCtx.resume().catch(() => {});
+                }
+
+                if (STATE.recordingMode === "CONTEXT") {
+                    if (!navigator.mediaDevices?.getDisplayMedia) {
+                        throw new Error("Context recording requires getDisplayMedia support.");
+                    }
+                    recordingSourceStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { frameRate: 30 },
+                        audio: true
+                    });
+                } else {
+                    if (!renderer?.domElement?.captureStream) {
+                        throw new Error("Scene recording requires canvas captureStream support.");
+                    }
+                    recordingSourceStream = renderer.domElement.captureStream(30);
+                }
+
+                const tracks = [];
+                const sourceVideoTracks = recordingSourceStream?.getVideoTracks?.() || [];
+                const sourceAudioTracks = recordingSourceStream?.getAudioTracks?.() || [];
+                sourceVideoTracks.forEach(t => tracks.push(t));
+
+                if (!sourceVideoTracks.length) {
+                    throw new Error("Recording source has no video tracks.");
+                }
+
+                if (STATE.recordingMode === "CONTEXT" && sourceAudioTracks.length) {
+                    sourceAudioTracks.forEach(t => tracks.push(t));
+                } else {
+                    const tap = ensureRecordingAudioTap();
+                    const appAudioTrack = tap?.stream?.getAudioTracks?.()[0];
+                    if (appAudioTrack) tracks.push(appAudioTrack);
+                }
+
+                const sourceVideoTrack = sourceVideoTracks[0];
+                if (sourceVideoTrack && STATE.recordingMode === "CONTEXT") {
+                    sourceVideoTrack.addEventListener('ended', () => {
+                        if (STATE.recordingActive) {
+                            appendLog("CONTEXT CAPTURE ENDED BY BROWSER. STOPPING RECORD.", "sys");
+                            stopRecording();
+                        }
+                    }, { once: true });
+                }
+
+                recordingStream = new MediaStream(tracks);
+                const safe = createMediaRecorderSafe(recordingStream);
+                mediaRecorder = safe.recorder;
+                recordingMimeType = safe.mimeType;
+                recordingChunks = [];
+
+                mediaRecorder.ondataavailable = (evt) => {
+                    if (evt.data && evt.data.size > 0) recordingChunks.push(evt.data);
+                };
+                mediaRecorder.onerror = (evt) => {
+                    const err = evt?.error?.message || evt?.name || "unknown recorder error";
+                    appendLog(`RECORDER ERROR: ${err}`, "sys");
+                };
+                mediaRecorder.onstop = async () => {
+                    const stamp = compactStamp();
+                    const take = String(STATE.recordingTake).padStart(2, '0');
+                    const base = `ripple_${ENGINE_BUILD}_take${take}_${stamp}`;
+                    const savedFiles = [];
+
+                    if (recordingChunks.length) {
+                        const mimeRaw = recordingMimeType || mediaRecorder?.mimeType || 'video/webm';
+                        const mime = String(mimeRaw).split(';')[0] || 'video/webm';
+                        const ext = getVideoFileExtension(mimeRaw);
+                        const videoBlob = new Blob(recordingChunks, { type: mime });
+                        const playable = await verifyVideoBlobPlayable(videoBlob, mime);
+                        if (!playable) {
+                            appendLog(`VIDEO VERIFY WARNING: browser could not load recorded ${mime}. File may still play externally.`, 'sys');
+                        }
+                        const videoFile = downloadBlob(videoBlob, mime, `${base}.${ext}`, { keepUrl: true });
+                        savedFiles.push({ label: 'VIDEO', ...videoFile });
+                    } else {
+                        appendLog("RECORDING CAPTURED NO VIDEO DATA. TRY AGAIN IN A NORMAL WINDOW (EXTENSIONS OFF).", "sys");
+                    }
+                    const transcriptFile = downloadBlob(buildTranscriptMarkdown(), 'text/markdown', `${base}.transcript.md`, { keepUrl: true });
+                    savedFiles.push({ label: 'TRANSCRIPT', ...transcriptFile });
+                    setRecordingDownloads(savedFiles);
+                    appendLog("RECORDING SAVED. USE THE RECORDING READY LINKS IF AUTO-DOWNLOAD WAS BLOCKED.", "sys");
+
+                    recordingChunks = [];
+                    recordingMimeType = "";
+                    applyRecordingScopeClasses(false);
+                    if (recordingStream) {
+                        recordingStream.getTracks().forEach(t => t.stop());
+                        recordingStream = null;
+                    }
+                    if (recordingSourceStream) {
+                        recordingSourceStream.getTracks().forEach(t => t.stop());
+                        recordingSourceStream = null;
+                    }
+                    mediaRecorder = null;
+                };
+
+                STATE.recordingTake += 1;
+                recordingStartedAtMs = Date.now();
+                STATE.recordingActive = true;
+                STATE.recordIntroArmed = false;
+                STATE.recordOnFirstPrompt = false;
+                setRecordingCameraState(true);
+                if (STATE.recordVoiceCapture && !STATE.ttsAutoEnabled) {
+                    STATE.ttsAutoEnabled = true;
+                    updateTTSUI();
+                    appendLog("TTS AUTO ENABLED FOR RECORDING.", "sys");
+                }
+                updateRecordingUI();
+                pushEvent('recording', 'recording_started', {});
+                appendLog(`RECORDING STARTED (TAKE ${STATE.recordingTake}) [${recordingMimeType}] MODE=${STATE.recordingMode} TRACKS=${tracks.length}.`, 'sys');
+                mediaRecorder.start(800);
+            } catch (err) {
+                appendLog(`RECORDING FAILED: ${String(err?.message || err)}`, 'sys');
+                STATE.recordingActive = false;
+                setRecordingCameraState(false);
+                applyRecordingScopeClasses(false);
+                if (recordingStream) {
+                    recordingStream.getTracks().forEach(t => t.stop());
+                    recordingStream = null;
+                }
+                if (recordingSourceStream) {
+                    recordingSourceStream.getTracks().forEach(t => t.stop());
+                    recordingSourceStream = null;
+                }
+                mediaRecorder = null;
+                updateRecordingUI();
+            }
+        }
+
+        function stopRecording() {
+            if (!STATE.recordingActive) return;
+            STATE.recordingActive = false;
+            setRecordingCameraState(false);
+            applyRecordingScopeClasses(false);
+            updateRecordingUI();
+            pushEvent('recording', `recording_stopped after ${Math.max(0, Date.now() - recordingStartedAtMs)}ms`, {});
+            appendLog("RECORDING STOPPED. SAVING VIDEO + TRANSCRIPT.", 'sys');
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                try { mediaRecorder.requestData(); } catch (e) {}
+                setTimeout(() => {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                    }
+                }, 120);
+            } else {
+                if (recordingStream) {
+                    recordingStream.getTracks().forEach(t => t.stop());
+                    recordingStream = null;
+                }
+                if (recordingSourceStream) {
+                    recordingSourceStream.getTracks().forEach(t => t.stop());
+                    recordingSourceStream = null;
+                }
+                mediaRecorder = null;
+            }
+        }
+
+        window.toggleRecording = async function() {
+            if (STATE.recordingActive) {
+                stopRecording();
+            } else {
+                if (!promptRecordingScope()) return;
+                toggleRecordingModal(false);
+                await startRecording();
+            }
+        };
+
+        window.addEventListener('beforeunload', () => {
+            applyRecordingScopeClasses(false);
+            if (recordingStream) {
+                recordingStream.getTracks().forEach(t => t.stop());
+                recordingStream = null;
+            }
+            if (recordingSourceStream) {
+                recordingSourceStream.getTracks().forEach(t => t.stop());
+                recordingSourceStream = null;
+            }
+            recordingDownloadUrls.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) {}
+            });
+            recordingDownloadUrls = [];
+        });
+
+        function sanitizeSpeechText(text) {
+            let cleaned = String(text || "").trim();
+            if (!cleaned) return "";
+            cleaned = cleaned
+                .replace(/^\[SPAWN\s*@\s*\[[^\]]+\]\]\s*:\s*/i, "")
+                .replace(/\[\s*(?:OBSTACLE|GOAL|SHIFT)\s+SEQUENCE\s+INITIATED\s*\][^"]*"(.*?)"\s*$/i, "$1")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (/^(trace the next consequence|push this thread|deepen the ripple|reveal a subtle aftermath)\b/i.test(cleaned)) {
+                return "";
+            }
+            if (!cleaned || cleaned.length < 3) return "";
+            return cleaned.slice(0, 220);
+        }
+
+        function getPreferredVoice() {
+            if (!STATE.ttsSupported) return null;
+            const voices = window.speechSynthesis.getVoices() || [];
+            if (!voices.length) return null;
+            return voices.find(v => /^en[-_]/i.test(v.lang) && /natural|enhanced|premium|samantha|alex|victoria/i.test(v.name))
+                || voices.find(v => /^en[-_]/i.test(v.lang))
+                || voices[0];
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function speakTextAndWait(text, options = {}) {
+            const spoken = sanitizeSpeechText(text);
+            const minPauseMs = typeof options.minPauseMs === "number" ? options.minPauseMs : 320;
+            if (!spoken) {
+                await sleep(minPauseMs);
+                return false;
+            }
+
+            const words = spoken.split(/\s+/).filter(Boolean).length;
+            const estimatedMs = Math.max(minPauseMs, Math.min(4200, 420 + words * 260));
+            const preferRecordedVoice = STATE.ttsAutoEnabled && STATE.recordVoiceCapture && STATE.recordingActive && Boolean(LLM_CONFIG.apiKey);
+            const wantsVoice = STATE.ttsAutoEnabled;
+
+            if (!wantsVoice) {
+                await sleep(estimatedMs);
+                return false;
+            }
+
+            if (preferRecordedVoice) {
+                try {
+                    const decoded = await callOpenAISpeech(spoken, {});
+                    if (decoded && audioCtx && masterGain) {
+                        STATE.voiceCaptureWarned = false;
+                        if (audioCtx.state === 'suspended') {
+                            await audioCtx.resume().catch(() => {});
+                        }
+                        await new Promise(resolve => {
+                            let settled = false;
+                            let guard = null;
+                            const done = (ok) => {
+                                if (settled) return;
+                                settled = true;
+                                if (guard) clearTimeout(guard);
+                                resolve(ok);
+                            };
+                            const src = audioCtx.createBufferSource();
+                            src.buffer = decoded;
+                            src.connect(masterGain);
+                            src.onended = () => done(true);
+                            guard = setTimeout(() => done(false), Math.max(2200, Math.min(14000, estimatedMs + 6000)));
+                            try {
+                                src.start();
+                            } catch (e) {
+                                done(false);
+                            }
+                        });
+                        return true;
+                    }
+                } catch (e) {
+                    if (!STATE.voiceCaptureWarned) {
+                        appendLog(`VOICE CAPTURE FALLBACK: ${String(e?.message || e).slice(0, 90)}`, "sys");
+                        STATE.voiceCaptureWarned = true;
+                    }
+                }
+            }
+
+            if (!STATE.ttsSupported || !STATE.ttsAutoEnabled) {
+                await sleep(estimatedMs);
+                return false;
+            }
+
+            return new Promise(resolve => {
+                let settled = false;
+                let guard = null;
+                let startGuard = null;
+                let started = false;
+                const done = (ok) => {
+                    if (settled) return;
+                    settled = true;
+                    if (guard) clearTimeout(guard);
+                    if (startGuard) clearTimeout(startGuard);
+                    if (pendingSpeechResolve === done) pendingSpeechResolve = null;
+                    resolve(ok);
+                };
+
+                pendingSpeechResolve = done;
+                const utt = new SpeechSynthesisUtterance(spoken);
+                const voice = getPreferredVoice();
+                if (voice) utt.voice = voice;
+                utt.rate = 0.92;
+                utt.pitch = 0.98;
+                utt.onstart = () => { started = true; };
+                utt.onend = () => done(true);
+                utt.onerror = () => done(false);
+
+                // Fast failover for blocked/broken speech engines.
+                startGuard = setTimeout(() => {
+                    if (!started) done(false);
+                }, 1200);
+                guard = setTimeout(() => done(false), Math.min(Math.max(estimatedMs + 900, 1800), 3200));
+                try {
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utt);
+                } catch (e) {
+                    done(false);
+                }
+            });
+        }
+
+        function stopTTS() {
+            if (!STATE.ttsSupported) return;
+            if (typeof pendingSpeechResolve === "function") {
+                pendingSpeechResolve(false);
+                pendingSpeechResolve = null;
+            }
+            window.speechSynthesis.cancel();
+        }
+
+        function updateTTSUI() {
+            const lbl = document.getElementById('tts-lbl');
+            const btn = document.getElementById('btn-tts');
+            if (!lbl || !btn) return;
+            if (!STATE.ttsSupported) {
+                lbl.textContent = 'TTS N/A';
+                btn.disabled = true;
+                btn.classList.remove('ctrl-active');
+                updateGuidanceUI();
+                updateAudioLabel();
+                return;
+            }
+            lbl.textContent = STATE.ttsAutoEnabled ? 'TTS ON' : 'TTS OFF';
+            btn.classList.toggle('ctrl-active', STATE.ttsAutoEnabled);
+            btn.disabled = false;
+            updateGuidanceUI();
+            updateAudioLabel();
+        }
+
+        window.toggleTTS = function() {
+            if (!STATE.ttsSupported) {
+                appendLog("TTS NOT AVAILABLE IN THIS BROWSER.", "sys");
+                return;
+            }
+            STATE.ttsAutoEnabled = !STATE.ttsAutoEnabled;
+            if (!STATE.ttsAutoEnabled) {
+                stopTTS();
+                appendLog("TTS AUTO VOICE OFF.", "sys");
+            } else {
+                appendLog("TTS AUTO VOICE ON.", "sys");
+            }
+            updateTTSUI();
+        };
+
+        function applyRunMode(mode, announce = true) {
+            const next = ["MANUAL", "FULL_AUTO", "SEMI_AUTO"].includes(String(mode || ""))
+                ? String(mode)
+                : "MANUAL";
+            STATE.runMode = next;
+            if (next === "MANUAL") {
+                STATE.autoRippleEnabled = false;
+                STATE.autoPolicy = "FULL";
+                clearAutoRippleTimer();
+                setAutoAwaitingSpawnPick(false);
+                if (announce) appendLog("RUN MODE: MANUAL.", "sys");
+            } else {
+                STATE.autoRippleEnabled = true;
+                STATE.autoPolicy = next === "SEMI_AUTO" ? "SEMI" : "FULL";
+                if (announce) appendLog(`RUN MODE: ${next === "SEMI_AUTO" ? "SEMI AUTO" : "FULL AUTO"}.`, "sys");
+                if (STATE.autoRippleSeeded) {
+                    scheduleAutoRipple();
+                }
+            }
+            updateAutoRippleUI();
+            updateGuidanceUI();
+        }
+
+        window.cycleRunMode = function() {
+            const order = ["MANUAL", "FULL_AUTO", "SEMI_AUTO"];
+            const idx = order.indexOf(STATE.runMode);
+            const next = order[(idx + 1) % order.length];
+            applyRunMode(next, true);
+            triggerHaptic(12);
+        };
+
+        function updateAutoRippleUI() {
+            const runLbl = document.getElementById('run-mode-lbl');
+            const autoFab = document.getElementById('auto-fab');
+            const displayMode = STATE.runMode === "FULL_AUTO" ? "FULL" : (STATE.runMode === "SEMI_AUTO" ? "SEMI" : "MANUAL");
+            const waiting = STATE.autoRippleEnabled && STATE.autoPolicy === "SEMI" && STATE.autoAwaitingSpawnPick;
+            const suffix = waiting ? " WAIT" : (!STATE.autoRippleEnabled ? "" : (STATE.autoRippleSeeded ? " LIVE" : " ARMED"));
+            const label = `MODE ${displayMode}${suffix}`;
+            if (runLbl) runLbl.textContent = label;
+            if (autoFab) {
+                autoFab.textContent = label;
+                autoFab.classList.toggle('is-live', STATE.runMode === "FULL_AUTO" && STATE.autoRippleEnabled && STATE.autoRippleSeeded && !waiting);
+                autoFab.classList.toggle('is-semi', STATE.runMode === "SEMI_AUTO");
+            }
+        }
+
+        function setAutoAwaitingSpawnPick(waiting) {
+            STATE.autoAwaitingSpawnPick = Boolean(waiting);
+            updateAutoRippleUI();
+        }
+
+        function onManualSpawnPicked(colId) {
+            if (!(STATE.autoRippleEnabled && STATE.autoPolicy === "SEMI")) return;
+            setAutoAwaitingSpawnPick(false);
+            enqueueAutoSpawnTarget(colId);
+            appendLog("SEMI-AUTO: spawn pick accepted, resuming.", "sys");
+        }
+
+        window.toggleAutoPolicy = function() {
+            const next = STATE.runMode === "SEMI_AUTO" ? "FULL_AUTO" : "SEMI_AUTO";
+            applyRunMode(next, true);
+        };
+
+        function clearAutoRippleTimer() {
+            if (!autoRippleTimer) return;
+            clearTimeout(autoRippleTimer);
+            autoRippleTimer = null;
+        }
+
+        function randomChoice(items) {
+            if (!items || !items.length) return null;
+            return items[Math.floor(Math.random() * items.length)];
+        }
+
+        function weightedChoice(weightedItems) {
+            const items = (weightedItems || []).filter(x => x && typeof x.weight === "number" && x.weight > 0);
+            if (!items.length) return null;
+            const total = items.reduce((sum, x) => sum + x.weight, 0);
+            let roll = Math.random() * total;
+            for (const item of items) {
+                roll -= item.weight;
+                if (roll <= 0) return item.value;
+            }
+            return items[items.length - 1].value;
+        }
+
+        function applyColumnTag(col, tag) {
+            if (!col) return;
+            const safeTag = TAG_COLORS[tag] ? tag : "DEFAULT";
+            col.tag = safeTag;
+
+            if (col.baseMesh) {
+                col.baseMesh.geometry.dispose();
+                col.baseMesh.geometry = getGeometryForTag(safeTag, col.layers === 0);
+                col.baseMesh.material.color.setHex(TAG_COLORS[safeTag]);
+            }
+            if (col.titleSprite) {
+                col.titleSprite.material.color.setHex(TAG_COLORS[safeTag]);
+            }
+        }
+
+        function pickAutoTag(currentTag) {
+            const current = String(currentTag || "DEFAULT").toUpperCase();
+            const weighted = [
+                { value: "SHIFT", weight: current === "SHIFT" ? 0.2 : 0.5 },
+                { value: "OBSTACLE", weight: current === "OBSTACLE" ? 0.22 : 0.3 },
+                { value: "GOAL", weight: current === "GOAL" ? 0.22 : 0.3 }
+            ];
+            return weightedChoice(weighted) || randomChoice(AUTO_TAGS);
+        }
+
+        function pickAutoSpawnTag(parentTag) {
+            const parent = String(parentTag || "DEFAULT").toUpperCase();
+            if (parent === "GOAL") {
+                return weightedChoice([
+                    { value: "SHIFT", weight: 0.45 },
+                    { value: "GOAL", weight: 0.2 },
+                    { value: "OBSTACLE", weight: 0.35 }
+                ]) || "SHIFT";
+            }
+            if (parent === "OBSTACLE") {
+                return weightedChoice([
+                    { value: "SHIFT", weight: 0.5 },
+                    { value: "OBSTACLE", weight: 0.25 },
+                    { value: "GOAL", weight: 0.25 }
+                ]) || "SHIFT";
+            }
+            return weightedChoice([
+                { value: "SHIFT", weight: 0.5 },
+                { value: "OBSTACLE", weight: 0.25 },
+                { value: "GOAL", weight: 0.25 }
+            ]) || "SHIFT";
+        }
+
+        function enqueueAutoSpawnTarget(colId) {
+            const id = Number(colId);
+            if (!Number.isFinite(id) || id < 0) return;
+            if (STATE.autoSpawnQueue.includes(id)) return;
+            STATE.autoSpawnQueue.push(id);
+            if (STATE.autoSpawnQueue.length > 32) {
+                STATE.autoSpawnQueue = STATE.autoSpawnQueue.slice(-32);
+            }
+        }
+
+        function popNextAutoSpawnTarget(activeCols) {
+            if (!STATE.autoSpawnQueue.length) return null;
+            const activeSet = new Set((activeCols || []).map(c => c.id));
+            while (STATE.autoSpawnQueue.length) {
+                const id = STATE.autoSpawnQueue.shift();
+                if (!activeSet.has(id)) continue;
+                const col = colRegistry[id];
+                if (col && col.layers > 0) return col;
+            }
+            return null;
+        }
+
+        function isSystemSeedColumn(col) {
+            if (!col || col.layers === 0) return false;
+            const first = String(col.messages?.[0] || "").trim().toUpperCase();
+            return SYSTEM_SEED_TITLES.has(first) && col.layers <= 1;
+        }
+
+        function getActiveColumns(options = {}) {
+            const active = colRegistry.filter(c => c.layers > 0);
+            if (options.includeSeeds) return active;
+            const nonSeed = active.filter(c => !isSystemSeedColumn(c));
+            return nonSeed.length > 0 ? nonSeed : active;
+        }
+
+        function pickAutoTargetColumn(activeCols) {
+            if (!activeCols.length) return null;
+            if (STATE.selectedColId !== -1) {
+                const selected = activeCols.find(c => c.id === STATE.selectedColId);
+                if (selected && Math.random() < 0.2) return selected;
+            }
+            // Frontier-biased selection: favor columns that are not already deep stacks.
+            const weighted = activeCols
+                .map(col => {
+                    const frontierWeight = Math.max(1, 10 - Math.min(9, col.layers));
+                    const seedPenalty = isSystemSeedColumn(col) ? 0.08 : 1.0;
+                    const w = Math.max(1, Math.round(frontierWeight * seedPenalty * 10));
+                    return { col, w };
+                })
+                .flatMap(({ col, w }) => Array.from({ length: w }, () => col));
+            return randomChoice(weighted) || randomChoice(activeCols);
+        }
+
+        function buildAutoContinuationPrompt(stub) {
+            const base = String(stub || '').trim();
+            const templates = [
+                `Continue from this state with concrete consequences: ${base}`,
+                `Advance this thread one step with physical detail: ${base}`,
+                `What happens immediately next in-scene from: ${base}`,
+                `Continue causally from: ${base}`
+            ];
+            return randomChoice(templates) || `Continue from: "${base}"`;
+        }
+
+        function buildAutoBranchPrompt(stub) {
+            const base = String(stub || '').trim();
+            const templates = [
+                `Branch this consequence into a nearby node: ${base}`,
+                `Create a secondary branch from: ${base}`,
+                `Shift this pressure laterally into another node: ${base}`,
+                `Generate a neighboring reaction to: ${base}`
+            ];
+            return randomChoice(templates) || `Branch from: "${base}"`;
+        }
+
+        function markAutoSeededFromUser() {
+            if (STATE.autoRippleSeeded) return;
+            STATE.autoRippleSeeded = true;
+            appendLog("AUTO SEED LOCKED.", "sys");
+            updateAutoRippleUI();
+            if (STATE.autoRippleEnabled) {
+                appendLog("AUTO FLOW LIVE.", "sys");
+                scheduleAutoRipple();
+            }
+        }
+
+        async function tryAutoVectorJump(originCol, layerIdx) {
+            if (!originCol || originCol.layers === 0) return false;
+            let activeNodes = getActiveColumns().filter(c => c.id !== originCol.id).slice(0, 12);
+            if (!activeNodes.length) {
+                activeNodes = getActiveColumns({ includeSeeds: true }).filter(c => c.id !== originCol.id).slice(0, 12);
+            }
+            if (!activeNodes.length) return false;
+
+            const stubText = String(originCol.messages[layerIdx] || "").trim();
+            if (!stubText) return false;
+
+            let topoMap = `<Map_Graph_State>\n`;
+            activeNodes.forEach(c => {
+                const top = c.messages[c.messages.length - 1] || "";
+                topoMap += `  Node [${c.coord}] (${c.tag}): "${top}"\n`;
+            });
+            topoMap += `</Map_Graph_State>`;
+
+            const sysPrompt = `
+<POML_Ripple_Auto_Vector>
+    <Meta>
+        <Engine>RIPPLE_AUTO_VECTOR</Engine>
+        ${topoMap}
+    </Meta>
+    <System_Role>Route one concrete causal jump from the current fragment into an existing node.</System_Role>
+    <Current_Fragment>"${stubText}"</Current_Fragment>
+    <Formatting_Rules>
+        1. Output EXACTLY one line.
+        2. Format strictly as: [VECTOR: [x,y] | Therefore, <concrete consequence>]
+        3. Target must be an existing node from Map_Graph_State.
+        4. No prose outside the VECTOR line.
+    </Formatting_Rules>
+</POML_Ripple_Auto_Vector>`;
+
+            try {
+                const text = await callOpenAI("Route one therefore jump.", sysPrompt, { temperature: 0.35, maxTokens: 220 });
+                const parsed = parseTaggedActions(text, "VECTOR");
+                const picked = parsed[0];
+                if (!picked) return false;
+
+                let destCol = colRegistry.find(c => c.coord === picked.coord);
+                if (!destCol || destCol.id === originCol.id) {
+                    destCol = randomChoice(activeNodes);
+                }
+                if (!destCol) return false;
+
+                let reason = String(picked.reason || "").trim();
+                if (!/^therefore,/i.test(reason)) reason = `Therefore, ${reason}`;
+
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: VECTOR ${originCol.coord} -> ${destCol.coord}`, "sys");
+                buildPath(originCol, layerIdx, destCol, originCol.tag);
+                if (window.RRCRuntime && RRC_TRACKER) {
+                    window.RRCRuntime.recordAction(RRC_TRACKER, "vector_jump");
+                    window.RRCRuntime.recordVectorUse(RRC_TRACKER);
+                }
+                processCommand(reason, destCol.id, {
+                    source: "auto_vector",
+                    stoneText: reason,
+                    forceSpawn: true,
+                    requireTherefore: true
+                });
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function scheduleAutoRipple() {
+            if (!STATE.autoRippleEnabled || !STATE.autoRippleSeeded) return;
+            if (autoRippleTimer) return;
+            const delay = 4200 + Math.floor(Math.random() * 3400);
+            autoRippleTimer = setTimeout(() => {
+                autoRippleTimer = null;
+                runAutoRippleStep();
+            }, delay);
+        }
+
+        async function runAutoRippleStep() {
+            if (!STATE.autoRippleEnabled || !STATE.autoRippleSeeded) return;
+            if (STATE.autoPolicy === "SEMI" && STATE.autoAwaitingSpawnPick) {
+                updateAutoRippleUI();
+                return;
+            }
+            if (isAITyping) {
+                scheduleAutoRipple();
+                return;
+            }
+            STATE.autoPan = true;
+
+            const activeCols = getActiveColumns();
+            if (!activeCols.length) {
+                scheduleAutoRipple();
+                return;
+            }
+
+            const queuedCol = popNextAutoSpawnTarget(activeCols);
+            const col = queuedCol || pickAutoTargetColumn(activeCols);
+            if (!col) {
+                scheduleAutoRipple();
+                return;
+            }
+
+            const layerIdx = Math.max(0, col.layers - 1);
+            expandStack(col.id, layerIdx);
+            const stubParts = splitAtomicLines(col.messages[layerIdx] || "");
+            const stub = (stubParts[stubParts.length - 1] || stubParts[0] || "").trim();
+            if (!stub) {
+                scheduleAutoRipple();
+                return;
+            }
+
+            if (STATE.autoPolicy === "SEMI") {
+                STATE.autoRippleStep += 1;
+                const rollSemi = Math.random();
+                if (queuedCol) {
+                    appendLog(`SEMI STEP ${STATE.autoRippleStep}: FOLLOW PICK @ ${col.coord}`, "sys");
+                }
+                if (rollSemi < 0.4) {
+                    const tag = pickAutoTag(col.tag);
+                    appendLog(`SEMI STEP ${STATE.autoRippleStep}: ${tag} @ ${col.coord}`, "sys");
+                    if (window.RRCRuntime && RRC_TRACKER) {
+                        window.RRCRuntime.recordAction(RRC_TRACKER, "tag_mutate");
+                        window.RRCRuntime.recordTagMutation(RRC_TRACKER, tag);
+                    }
+                    tagLayer(tag, { source: "auto", noSpawn: true, forceSpawn: false, requireTherefore: true });
+                    return;
+                }
+                appendLog(`SEMI STEP ${STATE.autoRippleStep}: CONTINUE @ ${col.coord}`, "sys");
+                if (window.RRCRuntime && RRC_TRACKER) {
+                    window.RRCRuntime.recordAction(RRC_TRACKER, "continue");
+                }
+                setMode('DEFAULT');
+                processCommand(buildAutoContinuationPrompt(stub), col.id, {
+                    source: "auto",
+                    stoneText: stub,
+                    noSpawn: true,
+                    forceSpawn: false,
+                    requireTherefore: true
+                });
+                return;
+            }
+
+            if (!queuedCol && col.layers >= 12 && activeCols.length > 1) {
+                const branchPool = colRegistry.filter(c => c.id !== col.id && c.layers < 8);
+                const targetCol = randomChoice(branchPool.length ? branchPool : colRegistry.filter(c => c.id !== col.id));
+                if (targetCol) {
+                    STATE.autoRippleStep += 1;
+                    appendLog(`AUTO STEP ${STATE.autoRippleStep}: DEPTH GUARD BRANCH ${col.coord} -> ${targetCol.coord}`, "sys");
+                    if (window.RRCRuntime && RRC_TRACKER) {
+                        window.RRCRuntime.recordAction(RRC_TRACKER, "branch");
+                    }
+                    setMode('DEFAULT');
+                    processCommand(buildAutoBranchPrompt(stub), targetCol.id, {
+                        source: "auto",
+                        stoneText: stub,
+                        forceSpawn: true,
+                        requireTherefore: true
+                    });
+                    return;
+                }
+            }
+
+            STATE.autoRippleStep += 1;
+            if (queuedCol) {
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: FOLLOW SPAWN @ ${col.coord}`, "sys");
+            }
+
+            let action = "continue";
+            if (window.RRCRuntime && RRC_TRACKER) {
+                action = window.RRCRuntime.chooseAutoAction(RRC_CONFIG || {}, RRC_TRACKER, {
+                    canVectorJump: activeCols.length > 1,
+                    canBranch: activeCols.length > 1 && !queuedCol,
+                    canTagMutate: true
+                });
+            } else {
+                const roll = Math.random();
+                if (roll < 0.28 && activeCols.length > 1) action = "vector_jump";
+                else if (roll < 0.62) action = "tag_mutate";
+                else if (roll < 0.92 && activeCols.length > 1 && !queuedCol) action = "branch";
+                else action = "continue";
+            }
+
+            if (action === "vector_jump") {
+                const jumped = await tryAutoVectorJump(col, layerIdx);
+                if (jumped) return;
+                action = "continue";
+            }
+
+            if (action === "tag_mutate") {
+                const tag = pickAutoTag(col.tag);
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: ${tag} @ ${col.coord}`, "sys");
+                if (window.RRCRuntime && RRC_TRACKER) {
+                    window.RRCRuntime.recordAction(RRC_TRACKER, "tag_mutate");
+                    window.RRCRuntime.recordTagMutation(RRC_TRACKER, tag);
+                }
+                tagLayer(tag, { source: "auto" });
+                return;
+            }
+
+            if (action === "branch") {
+                const emptyNodes = colRegistry.filter(c => c.layers === 0);
+                const targetCol = emptyNodes.length > 0 ? randomChoice(emptyNodes) : randomChoice(colRegistry.filter(c => c.id !== col.id));
+                if (!targetCol) {
+                    scheduleAutoRipple();
+                    return;
+                }
+                appendLog(`AUTO STEP ${STATE.autoRippleStep}: BRANCH ${col.coord} -> ${targetCol.coord}`, "sys");
+                if (window.RRCRuntime && RRC_TRACKER) {
+                    window.RRCRuntime.recordAction(RRC_TRACKER, "branch");
+                }
+                setMode('DEFAULT');
+                processCommand(buildAutoBranchPrompt(stub), targetCol.id, {
+                    source: "auto",
+                    stoneText: stub,
+                    forceSpawn: true,
+                    requireTherefore: true
+                });
+                return;
+            }
+
+            appendLog(`AUTO STEP ${STATE.autoRippleStep}: CONTINUE @ ${col.coord}`, "sys");
+            if (window.RRCRuntime && RRC_TRACKER) {
+                window.RRCRuntime.recordAction(RRC_TRACKER, "continue");
+            }
+            setMode('DEFAULT');
+            processCommand(buildAutoContinuationPrompt(stub), col.id, {
+                source: "auto",
+                stoneText: stub,
+                forceSpawn: true,
+                requireTherefore: true
+            });
+        }
+
+        window.toggleAutoRipple = function() {
+            const next = STATE.runMode === "MANUAL" ? "FULL_AUTO" : "MANUAL";
+            applyRunMode(next, true);
+        };
+
+        // =========================================================
+        // THREE.JS ENGINE
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020305, 0.008);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+        camera.position.set(40, 50, 80);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x020305);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; 
+        controls.dampingFactor = 0.1;
+        controls.enableRotate = false;
+        controls.enablePan = true;
+        controls.screenSpacePanning = true;
+        controls.panSpeed = 0.95;
+        controls.zoomSpeed = 0.8;
+        controls.maxDistance = 300; 
+        controls.minDistance = 10;
+        controls.maxPolarAngle = Math.PI / 1.8;
+        controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+        controls.touches.ONE = THREE.TOUCH.PAN;
+        controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+
+        const clickableMeshes = [];
+        const colRegistry = [];
+        const miniCells = [];
+
+        // Focus Beam
+        const beamGeo = new THREE.CylinderGeometry(1.8, 1.8, 300, 16);
+        const beamMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false});
+        const focusBeam = new THREE.Mesh(beamGeo, beamMat);
+        scene.add(focusBeam);
+        focusBeam.visible = false;
+
+        function createTextSprite(text, isTitle=false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = isTitle ? 80 : 120; 
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = isTitle ? 'rgba(0,0,0,0)' : 'rgba(2, 5, 8, 0.98)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (!isTitle) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+            }
+
+            let fontSize = isTitle ? 40 : 52;
+            if (!isTitle) {
+                if (text.length > 35) fontSize = 42;
+                if (text.length > 55) fontSize = 32;
+                if (text.length > 75) fontSize = 24;
+            }
+
+            ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = isTitle ? '#00e5ff' : '#FFFFFF';
+            
+            if(isTitle) {
+                ctx.shadowColor = "#00e5ff";
+                ctx.shadowBlur = 10;
+            } else {
+                ctx.shadowColor = "transparent";
+                ctx.shadowBlur = 0;
+            }
+            
+            ctx.fillText(text.toUpperCase(), canvas.width/2, canvas.height/2, canvas.width - 40);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, blending: THREE.NormalBlending, depthTest: !isTitle, depthWrite: !isTitle });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(15, isTitle ? 1.1 : 1.7, 1);
+            return sprite;
+        }
+
+        function getGeometryForTag(tag, isEmpty = false) {
+            if (isEmpty) return new THREE.CircleGeometry(0.5, 16); 
+            switch(tag) {
+                case 'OBSTACLE': return new THREE.PlaneGeometry(5, 5); 
+                case 'GOAL': return new THREE.RingGeometry(1, 3.5, 32); 
+                case 'SHIFT': return new THREE.CircleGeometry(3.5, 3); 
+                default: return new THREE.RingGeometry(2.0, 2.5, 24); 
+            }
+        }
+
+        function getNeighboringNode(centerCol) {
+            let candidates = colRegistry.filter(c => c.id !== centerCol.id);
+            candidates.sort((a, b) => {
+                return Math.hypot(a.x - centerCol.x, a.z - centerCol.z) - Math.hypot(b.x - centerCol.x, b.z - centerCol.z);
+            });
+            let closest = candidates.slice(0, 4);
+            let emptyClose = closest.filter(c => c.layers === 0);
+            if (emptyClose.length > 0) return emptyClose[Math.floor(Math.random() * emptyClose.length)];
+            return closest[Math.floor(Math.random() * closest.length)];
+        }
+
+        // --- GRID GENERATION & MINIMAP INIT ---
+        const GRID_SIZE = 12;
+        const RADIUS_MAX = 6.5;
+        const SPACING = 10.0;
+        const centerPos = GRID_SIZE / 2;
+        const minimap = document.getElementById('minimap');
+
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const dx = x - centerPos + 0.5;
+                const dy = y - centerPos + 0.5;
+                const r = Math.sqrt(dx*dx + dy*dy);
+                
+                const cell = document.createElement('div');
+                cell.className = 'mini-cell';
+                minimap.appendChild(cell);
+
+                if (r <= RADIUS_MAX) {
+                    const col = {
+                        id: colRegistry.length, coord: `[${x},${y}]`,
+                        x: dx * SPACING, z: dy * SPACING,
+                        layers: 0, messages: [], sprites: [], tag: 'DEFAULT', layerVectors: [], title: "VOID", titleSprite: null
+                    };
+                    
+                    const baseGeo = getGeometryForTag(col.tag, true);
+                    const baseMat = new THREE.MeshBasicMaterial({ color: TAG_COLORS.DEFAULT, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+                    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+                    baseMesh.rotation.x = -Math.PI / 2;
+                    baseMesh.position.set(col.x, -1, col.z);
+                    baseMesh.userData = { colId: col.id, layer: -1 };
+                    scene.add(baseMesh);
+                    clickableMeshes.push(baseMesh);
+                    col.baseMesh = baseMesh; 
+
+                    colRegistry.push(col);
+                    
+                    cell.dataset.colId = col.id;
+                    cell.onclick = () => { triggerHaptic(10); expandStack(col.id, col.layers - 1); };
+                    miniCells.push({cell, colId: col.id});
+                } else {
+                    cell.style.visibility = 'hidden'; 
+                }
+            }
+        }
+
+        function updateMinimap() {
+            miniCells.forEach(mc => {
+                const col = colRegistry[mc.colId];
+                mc.cell.className = 'mini-cell';
+                if (col.layers > 0) mc.cell.classList.add('mini-active');
+                if (STATE.selectedColId === col.id) mc.cell.classList.add('mini-selected');
+                
+                if (col.layers > 0 && col.tag !== 'DEFAULT') {
+                    mc.cell.style.backgroundColor = '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0');
+                } else {
+                    mc.cell.style.backgroundColor = '';
+                }
+            });
+        }
+
+        function addLayerToColumn(column, text, isNew = true) {
+            const atomic = splitAtomicLines(text);
+            if (atomic.length > 1) {
+                let lastSprite = null;
+                atomic.forEach((line, idx) => {
+                    lastSprite = addLayerToColumn(column, line, isNew && idx === 0);
+                });
+                return lastSprite;
+            }
+
+            const finalText = (atomic[0] || String(text || "").trim());
+            if (!finalText) return null;
+
+            column.messages.push(finalText);
+            column.layerVectors.push([]); 
+            
+            if (column.layers === 0) {
+                column.baseMesh.geometry.dispose();
+                column.baseMesh.geometry = getGeometryForTag(column.tag, false);
+
+                const titleStr = finalText.length > 25 ? finalText.substring(0, 25) + '...' : finalText;
+                column.title = titleStr;
+                column.titleSprite = createTextSprite(`[${column.coord}] ${titleStr}`, true);
+                column.titleSprite.material.color.setHex(TAG_COLORS[column.tag] || TAG_COLORS.DEFAULT);
+                scene.add(column.titleSprite);
+            }
+
+            const sprite = createTextSprite(finalText);
+            const tagColor = column.tag ? TAG_COLORS[column.tag] : TAG_COLORS.DEFAULT;
+            sprite.material.color.setHex(tagColor);
+            
+            const startY = isNew ? (column.layers + 6) * STATE.tension : column.layers * STATE.tension;
+            sprite.position.set(column.x, startY, column.z);
+            sprite.userData = { colId: column.id, layer: column.layers, spawnTime: performance.now() };
+            
+            scene.add(sprite);
+            column.sprites.push(sprite);
+            clickableMeshes.push(sprite);
+            column.layers++;
+            
+            updateMinimap();
+            return sprite;
+        }
+
+        // --- PRE-POPULATE THE BOARD ---
+        function seedBoard() {
+            const seedPhrases = [
+                "DORMANT_SYSTEM_RELIC", "ECHO_CHAMBER_ACTIVE", "FRACTURED_MEMORY_NODE"
+            ];
+            colRegistry.forEach(col => {
+                if (Math.random() < 0.05 && seedPhrases.length > 0) {
+                    addLayerToColumn(col, seedPhrases.pop(), false);
+                }
+            });
+        }
+        seedBoard();
+        normalizeAllColumns();
+
+        // --- PATH BUILDING (JUMPS) ---
+        function buildPath(originCol, originLayerIdx, destCol, tag) {
+            const startY = originLayerIdx >= 0 ? originCol.sprites[originLayerIdx].position.y : 0;
+            const start = new THREE.Vector3(originCol.x, startY, originCol.z);
+            const end = new THREE.Vector3(destCol.x, (destCol.layers * STATE.tension) + 2, destCol.z);
+            const mid = new THREE.Vector3((start.x + end.x)/2, Math.max(start.y, end.y) + 25, (start.z + end.z)/2);
+
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+            const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.2, 8, false);
+            const color = TAG_COLORS[tag] || TAG_COLORS.DEFAULT;
+            const tubeMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+            
+            const splineObject = new THREE.Mesh(tubeGeo, tubeMat);
+            scene.add(splineObject);
+            
+            destCol.baseMesh.material.opacity = 0.8;
+            
+            const startTime = performance.now();
+            function fadeBridge() {
+                const elapsed = performance.now() - startTime;
+                if (elapsed < 6000) {
+                    tubeMat.opacity = 0.9 * (1 - elapsed / 6000);
+                    requestAnimationFrame(fadeBridge);
+                } else {
+                    scene.remove(splineObject);
+                    tubeGeo.dispose();
+                    tubeMat.dispose();
+                    if(STATE.selectedColId !== destCol.id) destCol.baseMesh.material.opacity = destCol.layers > 0 ? 0.25 : 0.05;
+                }
+            }
+            fadeBridge();
+        }
+
+        // --- PASS 2: FETCH THEREFORE VECTORS FOR A SPECIFIC LAYER ---
+        async function fetchVectorsForLayer(colId, layerIdx) {
+            const col = colRegistry[colId];
+            const stubText = col.messages[layerIdx];
+            const list = document.getElementById('vector-list');
+            
+            list.innerHTML = `
+                <div class="vector-wrapper" style="opacity:1;">
+                    <div class="vector-loading" style="width:100%;">TRACING CONSEQUENCES...</div>
+                </div>`;
+            
+            const activeNodes = colRegistry.filter(c => c.layers > 0 && c.id !== colId).slice(0, 10);
+            let topoMap = `<Map_Graph_State>\n`;
+            activeNodes.forEach(c => {
+                topoMap += `  Node [${c.coord}] (${c.tag}): "${c.messages[c.messages.length - 1]}"\n`;
+            });
+            topoMap += `</Map_Graph_State>`;
+
+            const sysPrompt = `
+<POML_Ripple_Vector_Pass>
+    <Meta>
+        <Engine>RIPPLE</Engine>
+        ${topoMap}
+    </Meta>
+    <System_Role>You are the RIPPLE Vector Engine. The user selected a specific fragment of reality. Calculate logical "Therefore" consequences branching off this exact moment.</System_Role>
+    <Target_Fragment>"${stubText}"</Target_Fragment>
+    <Column_Mode>${col.tag}</Column_Mode>
+    <Formatting_Rules>
+        1. Output exactly 2 Action Vectors representing logical bridges.
+        2. If Column_Mode is OBSTACLE, vectors must introduce friction. If GOAL, vectors must move towards resolution. If SHIFT, vectors must pivot laterally.
+        3. Format strictly as: [VECTOR: [x,y] | Therefore, <action/consequence>]
+        3b. Return ONLY VECTOR lines. No prose, no markdown, no code fences.
+        4. CRITICAL: You MUST use the Map_Graph_State to jump to existing nodes.
+        5. DO NOT echo the Map_Graph_State back to the user.
+    </Formatting_Rules>
+</POML_Ripple_Vector_Pass>`;
+            
+            try {
+                const text = await callOpenAI("Extract Therefore Vectors.", sysPrompt, { temperature: 0.4, maxTokens: 400 });
+
+                const vectorMatches = parseTaggedActions(text, "VECTOR");
+                col.layerVectors[layerIdx] = vectorMatches.map(m => {
+                    const coordTarget = m.coord;
+                    let actionReason = m.reason;
+                    if(!actionReason.toLowerCase().startsWith('therefore')) actionReason = `Therefore, ${actionReason}`;
+                    
+                    let destCol = colRegistry.find(c => c.coord === coordTarget);
+                    if (!destCol || destCol.id === col.id) {
+                        const pool = colRegistry.filter(c => c.id !== col.id);
+                        destCol = pool[Math.floor(Math.random() * pool.length)];
+                    }
+                    return { text: actionReason, destId: destCol.id, isLoading: false, isCollapsed: false };
+                });
+                
+                if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx) {
+                    renderVectors(colId, layerIdx);
+                }
+            } catch (e) {
+                if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx) {
+                    list.innerHTML = `<div class="vector-wrapper" style="opacity:1;"><div class="vector-loading" style="width:100%; color:var(--alert);">✕ CONNECTION FAILED</div></div>`;
+                }
+            }
+        }
+
+        async function fetchSingleVector(colId, layerIdx, vecIdx) {
+            triggerHaptic(10);
+            const col = colRegistry[colId];
+            
+            // Backup the old vector in case the API call fails so we don't lose it entirely
+            const oldVec = { ...col.layerVectors[layerIdx][vecIdx] };
+            
+            col.layerVectors[layerIdx][vecIdx].isLoading = true;
+            renderVectors(colId, layerIdx);
+
+            const stubText = col.messages[layerIdx];
+            const activeNodes = colRegistry.filter(c => c.layers > 0 && c.id !== colId).slice(0, 10);
+            let topoMap = `<Map_Graph_State>\n`;
+            activeNodes.forEach(c => {
+                topoMap += `  Node [${c.coord}] (${c.tag}): "${c.messages[c.messages.length - 1]}"\n`;
+            });
+            topoMap += `</Map_Graph_State>`;
+
+            const sysPrompt = `
+<POML_Ripple_Vector_Pass>
+    <Meta>
+        <Engine>RIPPLE</Engine>
+        ${topoMap}
+    </Meta>
+    <System_Role>You are the RIPPLE Vector Engine. The user asked for an alternative logical "Therefore" consequence branching off this exact moment.</System_Role>
+    <Target_Fragment>"${stubText}"</Target_Fragment>
+    <Avoid_Previous>"${oldVec.text}"</Avoid_Previous>
+    <Column_Mode>${col.tag}</Column_Mode>
+    <Formatting_Rules>
+        1. Output EXACTLY 1 Action Vector representing a completely NEW logical bridge. Do not repeat the Avoid_Previous logic.
+        2. Format strictly as: [VECTOR: [x,y] | Therefore, <action/consequence>]
+        2b. Return ONLY one VECTOR line. No prose, no markdown, no code fences.
+        3. CRITICAL: You MUST use the Map_Graph_State to jump to an existing node that makes narrative sense.
+        4. DO NOT echo the Map_Graph_State back to the user.
+    </Formatting_Rules>
+</POML_Ripple_Vector_Pass>`;
+            
+            try {
+                const text = await callOpenAI("Generate ONE alternative Action Vector.", sysPrompt, { temperature: 0.55, maxTokens: 240 });
+
+                const parsed = parseTaggedActions(text, "VECTOR");
+                const match = parsed[0] || null;
+                if (match) {
+                    const coordTarget = match.coord;
+                    let actionReason = match.reason;
+                    if(!actionReason.toLowerCase().startsWith('therefore')) actionReason = `Therefore, ${actionReason}`;
+                    
+                    let destCol = colRegistry.find(c => c.coord === coordTarget);
+                    if (!destCol || destCol.id === col.id) {
+                        const pool = colRegistry.filter(c => c.id !== col.id && c.layers > 0);
+                        const fallbackPool = pool.length > 0 ? pool : colRegistry.filter(c => c.id !== col.id);
+                        destCol = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+                    }
+                    col.layerVectors[layerIdx][vecIdx] = { text: actionReason, destId: destCol.id, isLoading: false, isCollapsed: false };
+                } else {
+                    // Safe restore if AI hallucinates format
+                    col.layerVectors[layerIdx][vecIdx] = oldVec;
+                    col.layerVectors[layerIdx][vecIdx].isLoading = false;
+                }
+            } catch (e) {
+                // Safe restore if network fails
+                col.layerVectors[layerIdx][vecIdx] = oldVec;
+                col.layerVectors[layerIdx][vecIdx].isLoading = false;
+            }
+            
+            if (STATE.selectedColId === colId && STATE.selectedLayerIdx === layerIdx) {
+                renderVectors(colId, layerIdx);
+            }
+        }
+
+        window.renderVectors = function(colId, layerIdx) {
+            const list = document.getElementById('vector-list');
+            list.innerHTML = '';
+            
+            const col = colRegistry[colId];
+            const vectors = col.layerVectors[layerIdx];
+            
+            if(!vectors || vectors.length === 0) return;
+
+            vectors.forEach((vecObj, idx) => {
+                const destCol = colRegistry[vecObj.destId];
+                const destColor = destCol.tag ? TAG_COLORS[destCol.tag] : TAG_COLORS.DEFAULT;
+                const cssColor = '#' + destColor.toString(16).padStart(6, '0');
+                
+                if (vecObj.isCollapsed) {
+                    const expandBtn = document.createElement('button');
+                    expandBtn.className = 'vector-collapsed-tab';
+                    expandBtn.style.backgroundColor = cssColor;
+                    expandBtn.innerHTML = `↳ [${destCol.coord}]`;
+                    expandBtn.onclick = () => { vecObj.isCollapsed = false; renderVectors(colId, layerIdx); triggerHaptic(10); };
+                    list.appendChild(expandBtn);
+                    return;
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'vector-wrapper';
+                wrapper.style.animationDelay = `${idx * 0.1}s`;
+
+                if (vecObj.isLoading) {
+                    wrapper.innerHTML = `<div class="vector-loading" style="width:100%;">⟳ CALCULATING ALTERNATIVE...</div>`;
+                    list.appendChild(wrapper);
+                    return;
+                }
+                
+                const executeJump = () => {
+                    triggerHaptic(20);
+                    col.layerVectors[layerIdx].splice(idx, 1); 
+                    renderVectors(colId, layerIdx); 
+                    
+                    buildPath(col, layerIdx, destCol, STATE.inputMode);
+                    const transclusionPrompt = `${vecObj.text}`;
+                    onManualSpawnPicked(destCol.id);
+                    if (window.RRCRuntime && RRC_TRACKER) {
+                        window.RRCRuntime.recordVectorUse(RRC_TRACKER);
+                    }
+                    processCommand(transclusionPrompt, destCol.id, { source: "vector" });
+                };
+
+                const contentBtn = document.createElement('button');
+                contentBtn.className = 'vector-content';
+                contentBtn.innerHTML = `<span class="vector-therefore" style="color:${cssColor}">↳ JUMP TO [${destCol.coord}]</span><span class="vector-reason">${vecObj.text}</span>`;
+                contentBtn.onclick = executeJump;
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'vector-actions';
+                actionsDiv.style.backgroundColor = cssColor;
+                
+                const btnRegen = document.createElement('button');
+                btnRegen.className = 'v-ctrl';
+                btnRegen.innerHTML = '⟳';
+                btnRegen.title = 'Regenerate Vector';
+                btnRegen.onclick = () => fetchSingleVector(colId, layerIdx, idx);
+
+                const btnMinimize = document.createElement('button');
+                btnMinimize.className = 'v-ctrl';
+                btnMinimize.innerHTML = '−';
+                btnMinimize.title = 'Minimize Vector';
+                btnMinimize.onclick = () => { vecObj.isCollapsed = true; renderVectors(colId, layerIdx); triggerHaptic(10); };
+
+                actionsDiv.appendChild(btnRegen);
+                actionsDiv.appendChild(btnMinimize);
+
+                wrapper.appendChild(contentBtn);
+                wrapper.appendChild(actionsDiv);
+                
+                list.appendChild(wrapper);
+
+                // Inline Chat Vector
+                if(!vecObj.loggedToChat) {
+                    vecObj.loggedToChat = true;
+                    const chatBtn = document.createElement('div');
+                    chatBtn.className = 'msg msg-chat-vector';
+                    chatBtn.dataset.colId = colId; 
+                    chatBtn.innerHTML = `<span class="vec-target" style="color:${cssColor}">↳ JUMP TO [${destCol.coord}]</span><span style="font-weight:normal;">${vecObj.text}</span>`;
+                    chatBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        chatBtn.style.display = 'none'; 
+                        executeJump();
+                    };
+                    chatLog.appendChild(chatBtn);
+                    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
+                }
+            });
+        };
+
+        window.tagLayer = function(tag, options = {}) {
+            if (STATE.selectedColId === -1) return;
+            triggerHaptic(15);
+            const col = colRegistry[STATE.selectedColId];
+            applyColumnTag(col, tag);
+            if (window.RRCRuntime && RRC_TRACKER) {
+                window.RRCRuntime.recordTagMutation(RRC_TRACKER, tag);
+            }
+            
+            appendLog(`>> NODE ${col.coord} SHIFTED TO [${tag}]`, 'sys');
+            setMode(tag); 
+            triggerRipple(col.x, col.z, 1.5, TAG_COLORS[tag]);
+            updateMinimap();
+
+            const stubContextRaw = activeStubText ? activeStubText : col.messages[col.layers-1];
+            const stubParts = splitAtomicLines(stubContextRaw || "");
+            const stubContext = (stubParts[stubParts.length - 1] || stubParts[0] || "").trim();
+            const noSpawn = Boolean(options.noSpawn);
+            processCommand(`Therefore, ${stubContext}`, col.id, {
+                source: options.source || "user",
+                forceSpawn: noSpawn ? false : (options.forceSpawn !== undefined ? Boolean(options.forceSpawn) : true),
+                noSpawn,
+                requireTherefore: options.requireTherefore !== undefined ? Boolean(options.requireTherefore) : true
+            });
+        };
+
+        window.branchStub = function() {
+            if (!activeStubText) return;
+            triggerHaptic([20, 30, 20]);
+            const stub = activeStubText;
+            collapseStack(); 
+            
+            const emptyNodes = colRegistry.filter(c => c.layers === 0);
+            const targetCol = emptyNodes.length > 0 ? emptyNodes[Math.floor(Math.random() * emptyNodes.length)] : colRegistry[Math.floor(Math.random() * colRegistry.length)];
+            
+            appendLog(`>> BRANCHING STUB TO NEW TOWER AT ${targetCol.coord}`, 'sys');
+            
+            cmdInput.value = stub;
+            processCommand(stub, targetCol.id); 
+            cmdInput.value = "";
+        };
+
+        // --- INTERACTION LOGIC ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        function onInteract(clientX, clientY) {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes);
+            if (intersects.length > 0) {
+                const data = intersects[0].object.userData;
+                const targetLayer = data.layer >= 0 ? data.layer : Math.max(0, colRegistry[data.colId].layers - 1);
+                expandStack(data.colId, targetLayer);
+            } else {
+                collapseStack();
+            }
+        }
+
+        window.addEventListener('pointerdown', (e) => { 
+            if (e.target.tagName === 'CANVAS') {
+                if (STATE.recordingActive && STATE.recordingCameraLock) return;
+                pointerDownPos = { x: e.clientX, y: e.clientY };
+                isDraggingCanvas = false;
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (e.target.tagName === 'CANVAS') {
+                const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+                if (dist > CAMERA_TUNING.dragThresholdPx) {
+                    isDraggingCanvas = true; 
+                    if (!(STATE.recordingActive && STATE.recordingCameraLock)) {
+                        STATE.autoPan = false;
+                    }
+                }
+            }
+            
+            if(e.target.tagName !== 'CANVAS') return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes);
+            const readout = document.getElementById('hover-readout');
+            
+            if (intersects.length > 0) {
+                hoveredColId = intersects[0].object.userData.colId;
+                const col = colRegistry[hoveredColId];
+                if(col.layers > 0) {
+                    readout.innerText = `NODE ${col.coord} : ${col.title} [${col.tag}]`;
+                    readout.style.opacity = 1;
+                    readout.style.left = `${e.clientX}px`;
+                    readout.style.top = `${e.clientY - 30}px`;
+                } else {
+                    readout.style.opacity = 0;
+                }
+            } else {
+                hoveredColId = -1;
+                readout.style.opacity = 0;
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (e.target.tagName === 'CANVAS' && !isDraggingCanvas) {
+                triggerHaptic(10);
+                onInteract(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('wheel', (e) => {
+            if (e.altKey) {
+                e.preventDefault();
+                STATE.tension = Math.max(0.6, Math.min(5.0, STATE.tension - e.deltaY * 0.005));
+            }
+        }, {passive: false});
+
+        // --- CHAT FILTERING & STUB SELECTION ---
+        function filterChatByNode(colId) {
+            const allMsgs = document.querySelectorAll('.msg[data-col-id]');
+            if (colId === -1) {
+                allMsgs.forEach(m => m.classList.remove('msg-dimmed'));
+            } else {
+                allMsgs.forEach(m => {
+                    const mColId = parseInt(m.dataset.colId);
+                    const mOriginId = m.dataset.originId ? parseInt(m.dataset.originId) : -1;
+                    
+                    if (mColId === colId || mOriginId === colId) {
+                        m.classList.remove('msg-dimmed');
+                    } else {
+                        m.classList.add('msg-dimmed');
+                    }
+                });
+            }
+        }
+
+        window.expandStack = function(colId, layerIdx) {
+            const col = colRegistry[colId];
+            if (col.layers === 0) return; 
+            normalizeColumnStubs(col);
+            if (layerIdx === undefined || layerIdx < 0) layerIdx = col.layers - 1;
+
+            STATE.selectedColId = colId;
+            STATE.selectedLayerIdx = layerIdx;
+            STATE.readingColId = colId;
+            STATE.readingLayerIdx = layerIdx;
+            STATE.targetMode = 'NODE';
+            STATE.autoPan = true; 
+            setMode(col.tag); 
+            
+            document.getElementById('layer-controls').style.display = 'flex';
+            
+            if (!col.layerVectors[layerIdx] || col.layerVectors[layerIdx].length === 0) {
+                fetchVectorsForLayer(colId, layerIdx);
+            } else {
+                renderVectors(colId, layerIdx);
+            }
+
+            updateMinimap();
+            triggerRipple(col.x, col.z, 0.8, TAG_COLORS[col.tag]);
+            
+            focusBeam.position.set(col.x, 150, col.z);
+            focusBeam.material.color.setHex(TAG_COLORS[col.tag]);
+            focusBeam.visible = true;
+
+            filterChatByNode(colId);
+
+            document.querySelectorAll('.msg-selected').forEach(el => el.classList.remove('msg-selected'));
+            const msgs = document.querySelectorAll(`.msg[data-col-id="${colId}"][data-layer-idx="${layerIdx}"]`);
+            if (msgs.length > 0) {
+                const targetMsg = msgs[0];
+                targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetMsg.classList.add('msg-selected');
+                
+                const rawText = col.messages[layerIdx];
+                activeStubText = rawText; 
+                cmdInput.placeholder = `Branching from: "${rawText.substring(0, 30)}..."`;
+            }
+        };
+
+        window.collapseStack = function() {
+            triggerHaptic(10);
+            STATE.selectedColId = -1;
+            STATE.selectedLayerIdx = -1;
+            STATE.readingColId = -1;
+            STATE.readingLayerIdx = -1;
+            STATE.targetMode = 'GLOBAL';
+            STATE.autoPan = true;
+            setMode('DEFAULT');
+            document.getElementById('layer-controls').style.display = 'none';
+            focusBeam.visible = false;
+            updateMinimap();
+            filterChatByNode(-1); 
+            
+            document.querySelectorAll('.msg-selected').forEach(el => el.classList.remove('msg-selected'));
+            activeStubText = "";
+            cmdInput.placeholder = "Drop a Stone...";
+        };
+
+
+        // --- PASS 1: THE INGESTION ENGINE (POETIC RIPPLE SIMULATOR) ---
+        const chatLog = document.getElementById('chat-log');
+        const ENGINE_BUILD = "2026-03-02-rrc-runtime-candidate";
+        if (chatLog?.firstElementChild) {
+            chatLog.firstElementChild.textContent = `>>> RIPPLE RRC CANDIDATE ONLINE [${ENGINE_BUILD}]`;
+        }
+        applyUIProfile("AUTO", false);
+        applyRunMode("MANUAL", false);
+        updateUIProfileLabel();
+        updateAutoRippleUI();
+        updateRecordingUI();
+        updateRecordingToolsUI();
+        updateTTSUI();
+        updateAudioLabel();
+        updateFullscreenUI();
+        updateGuidanceUI();
+        initRRC();
+        if (STATE.ttsSupported) {
+            window.speechSynthesis.onvoiceschanged = () => updateTTSUI();
+        }
+        const cmdInput = document.getElementById('cmd-input');
+        const cmdSubmit = document.getElementById('cmd-submit');
+
+        function appendLog(text, type='sys', animated=false, colId=null, layerIdx=null, originId=null) {
+            const div = document.createElement('div');
+            div.className = `msg msg-${type} ${animated ? 'typing-indicator' : ''}`;
+            
+            if (colId !== null && colId !== -1 && layerIdx !== null) {
+                div.dataset.colId = colId;
+                div.dataset.layerIdx = layerIdx;
+                div.dataset.coord = colRegistry[colId].coord;
+                if(originId !== null) div.dataset.originId = originId;
+
+                div.onclick = (e) => { 
+                    e.stopPropagation();
+                    triggerHaptic(10);
+                    expandStack(colId, layerIdx); 
+                }; 
+            }
+            
+            div.innerText = (type==='user'?'> ':'') + text;
+            chatLog.appendChild(div);
+            chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
+            const coord = (colId !== null && colId !== -1 && colRegistry[colId]) ? colRegistry[colId].coord : null;
+            pushEvent(type, text, { colId, layerIdx, originId, coord });
+            return div;
+        }
+
+        async function fetchPass1Ripples(promptText, mode, targetCol, strictRetry = false, passOptions = {}) {
+            let modeContext = "";
+            if (mode === 'OBSTACLE') modeContext = "CRITICAL MODE = OBSTACLE. You MUST halt progress. Introduce friction, failure states, walls, or destructive forces specifically focused on the anchor stub.";
+            if (mode === 'GOAL') modeContext = "CRITICAL MODE = GOAL. You MUST create an attractor. Pull the narrative toward a resolution, convergence, or target achievement specifically focused on the anchor stub.";
+            if (mode === 'SHIFT') modeContext = "CRITICAL MODE = SHIFT. You MUST force a lateral pivot. Change the physical rules, introduce a new faction, or flip the perspective specifically focusing on the anchor stub.";
+
+            const contract = getRRCPromptContract();
+            const fragMin = Math.max(1, Number(contract?.fragments?.min || 3));
+            const fragMax = Math.max(fragMin, Number(contract?.fragments?.max || 4));
+            const isAuto = Boolean(passOptions.isAuto);
+            const modeKey = isAuto ? (STATE.autoPolicy === "SEMI" ? "semi_auto" : "full_auto") : "manual";
+            const contractSpawnPolicy = String(contract?.spawn_policy?.[modeKey] || "optional");
+
+            const disableSpawn = Boolean(passOptions.noSpawn) || contractSpawnPolicy === "none";
+            const forceSpawn = Boolean(passOptions.forceSpawn) ||
+                contractSpawnPolicy === "required_min_1" ||
+                (contractSpawnPolicy === "required_on_selected_jump" && Boolean(passOptions.selectedJump));
+            const requireTherefore = Boolean(passOptions.requireTherefore);
+            const rootSeed = String(STATE.rootSeed || "").trim();
+            const spawnRule = disableSpawn
+                ? "2. NO SPAWNING: Do NOT spawn any off-shoot nodes. Focus entirely on the immediate stack's vertical evolution. Do NOT output [SPAWN] tags."
+                : forceSpawn
+                    ? "2. MAP POPULATION (SPAWN REQUIRED): Output 1-2 [SPAWN: [x,y] | short grounded fragment] lines."
+                    : "2. MAP POPULATION (SPAWN OPTIONAL): You may spawn 0-1 adjacent reactions. Format as [SPAWN: [x,y] | short grounded fragment]";
+            const connectiveRule = requireTherefore
+                ? '7. Include exactly one FRAGMENT line that begins with "Therefore," and directly links cause to effect.'
+                : "";
+            const rootRule = rootSeed
+                ? `8. Maintain semantic continuity with this root seed: "${rootSeed}".`
+                : "";
+
+            let anchorContext = activeStubText ? `<Anchor_Stub>CRITICAL: The user is explicitly branching off this specific thought: "${activeStubText}". Make the next ripples a direct consequence of THIS thought.</Anchor_Stub>` : '';
+
+            const sysPrompt = `
+<POML_Ripple_Orchestration>
+    <Meta>
+        <Engine>RIPPLE_PASS_1</Engine>
+        ${anchorContext}
+    </Meta>
+    <System_Role>
+        You are the RIPPLE Architect. Take the user's "Stone" (Premise) and drop it into the topography. Trace its immediate poetic, physical impact.
+    </System_Role>
+    <Formatting_Rules>
+        1. MAIN BLOCKS: Output ${strictRetry ? `EXACTLY ${fragMin}` : `${fragMin}-${fragMax}`} short, concrete fragments (prefer 6-14 words each).
+           Format each on its own line as: [FRAGMENT: <text>]
+        ${spawnRule}
+        3. Do NOT output [VECTOR] tags in this pass.
+        4. If you emit SPAWN, each SPAWN must be on its own line with strict syntax.
+        5. No markdown fences.
+        6. No prose outside [FRAGMENT: ...] and optional [SPAWN: ...].
+        ${connectiveRule}
+        ${rootRule}
+        ${modeContext}
+    </Formatting_Rules>
+</POML_Ripple_Orchestration>`;
+            try {
+                const text = await callOpenAI(promptText, sysPrompt, { temperature: strictRetry ? 0.2 : 0.7, maxTokens: 700 });
+                return text || "...SIGNAL_LOST...";
+            } catch (e) { return "...TIMEOUT..."; }
+        }
+
+        async function processCommand(cmd, forceTargetId = null, options = {}) {
+            if (!cmd.trim()) return;
+            const source = options.source || "user";
+            if (source === "user" && STATE.autoAwaitingSpawnPick) {
+                setAutoAwaitingSpawnPick(false);
+            }
+
+            const looksLikeExport = /#\s*RIPPLE\s+TOPOGRAPHY\s+EXPORT/i.test(cmd) || /##\s*NODE\s*\[\s*\d+\s*,\s*\d+\s*\]/i.test(cmd);
+            if (looksLikeExport && importTopographyMarkdown(cmd)) {
+                cmdInput.value = '';
+                cmdInput.focus();
+                return;
+            }
+            if (source === "user" && !STATE.rootSeed) {
+                STATE.rootSeed = String(cmd || "").trim();
+                appendLog(`ROOT ANCHOR LOCKED: "${STATE.rootSeed.slice(0, 80)}${STATE.rootSeed.length > 80 ? "..." : ""}"`, "sys");
+                if (window.RRCRuntime && RRC_TRACKER) {
+                    window.RRCRuntime.setRootSeed(RRC_TRACKER, STATE.rootSeed);
+                }
+            }
+
+            if (source === "user" && STATE.recordOnFirstPrompt && !STATE.recordingActive) {
+                appendLog("AUTO RECORD ARMED: STARTING ON FIRST PROMPT.", "sys");
+                if (promptRecordingScope(true)) {
+                    await startRecording();
+                    updateRecordingToolsUI();
+                } else {
+                    appendLog("AUTO RECORD CANCELED: SCOPE NOT CONFIRMED.", "sys");
+                }
+            }
+            
+            let targetCol;
+            if (forceTargetId !== null) {
+                targetCol = colRegistry[forceTargetId];
+            } else if (STATE.targetMode === 'NODE' && STATE.selectedColId !== -1) {
+                targetCol = colRegistry[STATE.selectedColId];
+            } else {
+                const emptyNodes = colRegistry.filter(c => c.layers === 0);
+                targetCol = emptyNodes.length > 0 ? emptyNodes[Math.floor(Math.random() * emptyNodes.length)] : colRegistry[Math.floor(Math.random() * colRegistry.length)];
+            }
+
+            const stoneText = String(options.stoneText || cmd || "").trim();
+            const stoneLayerIdx = targetCol.layers;
+            addLayerToColumn(targetCol, stoneText, true);
+            appendLog(stoneText, source === "auto" ? 'sys' : 'user', false, targetCol.id, stoneLayerIdx);
+
+            if (STATE.inputMode !== 'DEFAULT') {
+                applyColumnTag(targetCol, STATE.inputMode);
+            }
+
+            triggerRipple(targetCol.x, targetCol.z, 1.2, TAG_COLORS[targetCol.tag]);
+
+            if (STATE.selectedColId !== targetCol.id || STATE.selectedLayerIdx !== stoneLayerIdx) {
+                expandStack(targetCol.id, stoneLayerIdx);
+            }
+
+            isAITyping = true;
+            let currentTypingIndicator = appendLog("TRACING RIPPLES", 'sys', true);
+
+            try {
+                const isAuto = options.source === "auto" || options.source === "auto_vector";
+                const promptContract = getRRCPromptContract();
+                const fragMin = Math.max(1, Number(promptContract?.fragments?.min || 3));
+                const fragMax = Math.max(fragMin, Number(promptContract?.fragments?.max || 4));
+                const policyKey = isAuto ? (STATE.autoPolicy === "SEMI" ? "semi_auto" : "full_auto") : "manual";
+                const contractSpawnPolicy = String(promptContract?.spawn_policy?.[policyKey] || "optional");
+                const requireThereforeInAuto = Boolean(promptContract?.therefore_required_in_auto);
+                const passOptions = {
+                    noSpawn: Boolean(options.noSpawn),
+                    forceSpawn: Boolean(options.forceSpawn) ||
+                        contractSpawnPolicy === "required_min_1" ||
+                        (contractSpawnPolicy === "required_on_selected_jump" && (options.source === "vector" || options.source === "auto_vector")),
+                    requireTherefore: Boolean(options.requireTherefore) || (isAuto && requireThereforeInAuto),
+                    isAuto,
+                    selectedJump: options.source === "vector" || options.source === "auto_vector"
+                };
+
+                let replyText = await fetchPass1Ripples(cmd, STATE.inputMode, targetCol, false, passOptions);
+
+                let spawnMatches = parseTaggedActions(replyText, "SPAWN");
+
+                if (currentTypingIndicator) currentTypingIndicator.remove();
+                
+                let fragments = coercePass1Fragments(replyText, fragMax).filter(f => String(f || "").trim().length >= 3);
+                if (fragments.length < fragMin) {
+                    replyText = await fetchPass1Ripples(cmd, STATE.inputMode, targetCol, true, passOptions);
+                    fragments = coercePass1Fragments(replyText, fragMax).filter(f => String(f || "").trim().length >= 3);
+                }
+
+                fragments = fragments.filter(f => {
+                    const s = String(f || "").trim();
+                    if (!s) return false;
+                    if (/^\s*(trace the next consequence|push this thread|deepen the ripple|reveal a subtle aftermath)\b/i.test(s)) return false;
+                    if (/\bsequence initiated\b/i.test(s)) return false;
+                    return true;
+                });
+
+                if (passOptions.requireTherefore && !fragments.some(f => /^\s*therefore,/i.test(String(f || "")))) {
+                    const seed = String(fragments[0] || splitAtomicLines(cmd).pop() || "the field shifts").replace(/^[\s,.;:]+|[\s,.;:]+$/g, "");
+                    fragments = uniquePreserveOrder([`Therefore, ${seed}`, ...fragments]).slice(0, fragMax);
+                }
+
+                if (passOptions.forceSpawn && !spawnMatches.length) {
+                    const fallback = getNeighboringNode(targetCol);
+                    if (fallback) {
+                        const seed = String(fragments[0] || "nearby pressure intensifies").replace(/^\s*therefore,\s*/i, "").trim();
+                        spawnMatches = [{ coord: fallback.coord, reason: `Therefore, ${seed}` }];
+                    }
+                }
+
+                const policyKeySpawn = isAuto ? (STATE.autoPolicy === "SEMI" ? "semi_auto" : "full_auto") : "manual";
+                const policySpawn = String(getRRCPromptContract()?.spawn_policy?.[policyKeySpawn] || "optional");
+                let minSpawnCount = 0;
+                if (policySpawn === "required_min_1") minSpawnCount = 1;
+                if (policySpawn === "required_on_selected_jump" && passOptions.selectedJump) minSpawnCount = 1;
+                if (passOptions.forceSpawn) minSpawnCount = Math.max(minSpawnCount, 1);
+                if (passOptions.noSpawn) minSpawnCount = 0;
+                if (spawnMatches.length < minSpawnCount) {
+                    const used = new Set(spawnMatches.map(s => String(s.coord || "")));
+                    used.add(targetCol.coord);
+                    const seed = String(fragments[0] || "nearby pressure intensifies").replace(/^\s*therefore,\s*/i, "").trim();
+                    while (spawnMatches.length < minSpawnCount) {
+                        const pool = colRegistry.filter(c => !used.has(c.coord));
+                        const picked = randomChoice(pool.length ? pool : colRegistry.filter(c => c.id !== targetCol.id));
+                        if (!picked) break;
+                        used.add(picked.coord);
+                        spawnMatches.push({ coord: picked.coord, reason: `Therefore, ${seed}` });
+                    }
+                }
+                
+                // Meditative output cadence:
+                // emit one line, then wait until speech completes (or timed fallback) before next.
+                for (const fragment of fragments) {
+                    const line = String(fragment || "").trim();
+                    if (!line) continue;
+                    if (window.RRCRuntime && RRC_TRACKER) {
+                        window.RRCRuntime.recordFragment(RRC_TRACKER, line);
+                    }
+                    const lIdx = targetCol.layers;
+                    addLayerToColumn(targetCol, line, true);
+                    triggerRipple(targetCol.x, targetCol.z, 0.5, TAG_COLORS[targetCol.tag]);
+                    appendLog(line, 'ai', false, targetCol.id, lIdx);
+                    if (isAuto) {
+                        focusCameraOnLayer(targetCol.id, lIdx, true);
+                    }
+                    if (STATE.selectedColId === targetCol.id) {
+                        expandStack(targetCol.id, targetCol.layers - 1);
+                    }
+                    await speakTextAndWait(line, { minPauseMs: 360 });
+                }
+
+                // Spawn lines also serialize to keep reading pace coherent.
+                for (const m of spawnMatches) {
+                    let destCol = colRegistry.find(c => c.coord === m.coord);
+                    if (!destCol || destCol.id === targetCol.id) {
+                        destCol = getNeighboringNode(targetCol);
+                    }
+                    if (!destCol) continue;
+
+                    const spawnText = String(m.reason || "").trim();
+                    if (!spawnText) continue;
+                    if (isAuto) {
+                        applyColumnTag(destCol, pickAutoSpawnTag(targetCol.tag));
+                        enqueueAutoSpawnTarget(destCol.id);
+                    }
+                    const spawnLayerIdx = destCol.layers;
+                    addLayerToColumn(destCol, spawnText, true);
+                    buildPath(targetCol, Math.max(0, targetCol.layers - 1), destCol, targetCol.tag);
+                    triggerRipple(destCol.x, destCol.z, 0.55, TAG_COLORS[destCol.tag]);
+                    appendLog(`[SPAWN @ ${destCol.coord}]: ${spawnText}`, 'spawn', false, destCol.id, spawnLayerIdx, targetCol.id);
+                    appendSpawnFeed(`${spawnText}`, { coord: destCol.coord });
+                    pushEvent('spawn_create', spawnText, { fromCoord: targetCol.coord, coord: destCol.coord, colId: destCol.id, originId: targetCol.id });
+                    if (window.RRCRuntime && RRC_TRACKER) {
+                        window.RRCRuntime.recordSpawn(RRC_TRACKER);
+                        window.RRCRuntime.recordFragment(RRC_TRACKER, spawnText);
+                    }
+                    if (isAuto) {
+                        focusCameraOnLayer(destCol.id, Math.max(0, destCol.layers - 1), true);
+                    }
+                    await speakTextAndWait(spawnText, { minPauseMs: 280 });
+                }
+
+            } catch (e) { 
+                if (currentTypingIndicator) currentTypingIndicator.remove();
+                appendLog("COMM_FAILURE: Ripple calculation aborted.", 'sys'); 
+            }
+            finally { 
+                isAITyping = false; 
+                cmdInput.value = '';
+                cmdInput.focus();
+                if (STATE.autoRippleEnabled) {
+                    if (STATE.autoPolicy === "SEMI" && source === "auto") {
+                        const waitLayer = Math.max(0, targetCol.layers - 1);
+                        expandStack(targetCol.id, waitLayer);
+                        if (!targetCol.layerVectors[waitLayer] || targetCol.layerVectors[waitLayer].length === 0) {
+                            fetchVectorsForLayer(targetCol.id, waitLayer);
+                        } else {
+                            renderVectors(targetCol.id, waitLayer);
+                        }
+                        setAutoAwaitingSpawnPick(true);
+                        appendLog("SEMI-AUTO: pick a JUMP vector to choose the next spawn.", "sys");
+                    } else {
+                        scheduleAutoRipple();
+                    }
+                }
+            }
+        }
+
+        cmdSubmit.addEventListener('click', () => { 
+            triggerHaptic(15);
+            if(!isAITyping && cmdInput.value.trim() !== '') { 
+                markAutoSeededFromUser();
+                processCommand(cmdInput.value, null, { source: "user" }); 
+            }
+        });
+        cmdInput.addEventListener('keypress', (e) => { 
+            if(e.key === 'Enter' && !isAITyping && cmdInput.value.trim() !== '') { 
+                markAutoSeededFromUser();
+                processCommand(cmdInput.value, null, { source: "user" }); 
+            }
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('recording-modal');
+                if (modal && !modal.classList.contains('is-hidden')) {
+                    e.preventDefault();
+                    toggleRecordingModal(false);
+                    return;
+                }
+            }
+            if (e.key.toLowerCase() !== 'a') return;
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+            e.preventDefault();
+            cycleRunMode();
+        });
+        const topoImportFile = document.getElementById('topo-import-file');
+        topoImportFile?.addEventListener('change', async (e) => {
+            const file = e.target?.files?.[0];
+            if (!file) return;
+            const raw = await file.text().catch(() => "");
+            if (!raw) {
+                appendLog("IMPORT FAILED: file is empty or unreadable.", "sys");
+                return;
+            }
+            triggerHaptic(15);
+            const ok = importTopographyMarkdown(raw);
+            if (!ok) {
+                appendLog("IMPORT FAILED: no parseable NODE/STONE/FRAGMENT blocks found.", "sys");
+            }
+        });
+
+        const bootKeyInput = document.getElementById('boot-api-key');
+        bootKeyInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                startExperience();
+            }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            if (isNativeFullscreenActive()) {
+                STATE.pseudoFullscreen = false;
+                document.body.classList.remove('pseudo-fullscreen');
+            }
+            updateFullscreenUI();
+            updateGuidanceUI();
+        });
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (isNativeFullscreenActive()) {
+                STATE.pseudoFullscreen = false;
+                document.body.classList.remove('pseudo-fullscreen');
+            }
+            updateFullscreenUI();
+            updateGuidanceUI();
+        });
+
+        // --- ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (!STATE.isPaused) STATE.simTime += delta;
+
+            const targetFlow = isAITyping ? 1.25 : 0.4;
+            STATE.flowRate += (targetFlow - STATE.flowRate) * 0.05;
+
+            for (let i = activeRipples.length - 1; i >= 0; i--) {
+                activeRipples[i].time += delta;
+                if (activeRipples[i].time > RIPPLE_TUNING.maxRippleLife) activeRipples.splice(i, 1); 
+            }
+
+            miniCells.forEach(mc => {
+                const col = colRegistry[mc.colId];
+                const isColSelected = (STATE.selectedColId === col.id);
+                const isColHovered = (hoveredColId === col.id);
+
+                if (col.layers === 0) {
+                    col.baseMesh.material.opacity = isColHovered ? 0.3 : 0.1;
+                } else {
+                    col.baseMesh.material.opacity = isColSelected ? 0.8 : (isColHovered ? 0.6 : 0.25);
+                }
+                
+                let rippleIntensity = 0;
+                activeRipples.forEach(r => {
+                    const dist = Math.hypot(col.x - r.x, col.z - r.z);
+                    const waveFront = r.time * RIPPLE_TUNING.waveFrontSpeed;
+                    const diff = Math.abs(waveFront - dist);
+                    if (diff < RIPPLE_TUNING.waveFrontWidth) {
+                        rippleIntensity = Math.max(
+                            rippleIntensity,
+                            (1 - diff / RIPPLE_TUNING.waveFrontWidth) * r.intensity * (1 - r.time / RIPPLE_TUNING.maxRippleLife)
+                        );
+                    }
+                });
+
+                if (rippleIntensity > 0.05) {
+                    const baseCellColor = col.layers > 0
+                        ? (col.tag !== 'DEFAULT' ? '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0') : 'var(--cyan)')
+                        : 'rgba(160,176,192,0.35)';
+                    mc.cell.style.transform = `scale(${1 + rippleIntensity * RIPPLE_TUNING.minimapScale})`;
+                    mc.cell.style.backgroundColor = baseCellColor;
+                    mc.cell.style.boxShadow = `0 0 ${RIPPLE_TUNING.minimapGlow * rippleIntensity}px rgba(255,255,255,0.7)`;
+                } else {
+                    mc.cell.style.transform = 'scale(1)';
+                    if (isColSelected) {
+                        mc.cell.style.backgroundColor = 'var(--orange)';
+                        mc.cell.style.boxShadow = '0 0 8px var(--orange)';
+                    } else if (col.layers > 0) {
+                        mc.cell.style.backgroundColor = col.tag !== 'DEFAULT' ? '#' + TAG_COLORS[col.tag].toString(16).padStart(6, '0') : 'var(--cyan)';
+                        mc.cell.style.boxShadow = 'none';
+                    } else {
+                        mc.cell.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                        mc.cell.style.boxShadow = 'none';
+                    }
+                }
+
+                const spacing = STATE.tension; 
+                const wave = Math.sin((col.x * 0.08) + (col.z * 0.08) + (STATE.simTime * STATE.flowRate));
+                
+                let rippleOffset3D = 0;
+                activeRipples.forEach(r => {
+                    const dist = Math.hypot(col.x - r.x, col.z - r.z);
+                    const waveFront = r.time * RIPPLE_TUNING.waveFrontSpeed; 
+                    const diff = waveFront - dist;
+                    if (diff > 0 && diff < RIPPLE_TUNING.waveFrontWidth) { 
+                        rippleOffset3D += Math.sin((diff / RIPPLE_TUNING.waveFrontWidth) * Math.PI)
+                            * RIPPLE_TUNING.verticalDisplacement
+                            * r.intensity
+                            * (1.0 - r.time / RIPPLE_TUNING.maxRippleLife);
+                    }
+                });
+
+                if(col.titleSprite) {
+                    col.titleSprite.position.y += (((col.layers * spacing) + 8 + wave * 0.6) - col.titleSprite.position.y) * 0.1;
+                    col.titleSprite.material.opacity = (isColSelected || isColHovered) ? 1.0 : (col.layers > 0 ? 0.6 : 0.0);
+                }
+
+                col.sprites.forEach((s, l) => {
+                    const isNew = (performance.now() - s.userData.spawnTime < 1000);
+                    const isSpecificLayerSelected = (isColSelected && l === STATE.selectedLayerIdx);
+                    
+                    let targetY = (l * spacing) + (wave * 0.2) + rippleOffset3D; 
+                    if (isNew) targetY += 2.2; 
+
+                    s.position.y += (targetY - s.position.y) * 0.1;
+                    const tagColor = col.tag ? TAG_COLORS[col.tag] : TAG_COLORS.DEFAULT;
+
+                    if (isColSelected) {
+                        s.material.color.setHex(isSpecificLayerSelected ? 0xffffff : tagColor);
+                        s.material.opacity = isSpecificLayerSelected ? 1.0 : 0.85; 
+                    } else if (isColHovered) {
+                        s.material.color.setHex(l === col.layers-1 ? 0xffffff : tagColor);
+                        s.material.opacity = 1.0;
+                    } else if (STATE.selectedColId !== -1) {
+                        s.material.opacity = 0.15; 
+                    } else {
+                        s.material.color.setHex(tagColor);
+                        s.material.opacity = (l === col.layers-1) ? 1.0 : 0.7; 
+                    }
+                });
+            });
+
+            const focusColId = STATE.readingColId !== -1 ? STATE.readingColId : STATE.selectedColId;
+            const focusLayerIdx = STATE.readingLayerIdx !== -1 ? STATE.readingLayerIdx : STATE.selectedLayerIdx;
+            if (focusColId !== -1 && focusLayerIdx !== -1 && STATE.autoPan) {
+                const col = colRegistry[focusColId];
+                if (col) {
+                    if (STATE.recordingActive && STATE.recordingCameraLock) {
+                        applyRecordingCameraRig(col, focusLayerIdx);
+                    } else {
+                        const nextTarget = computeCameraTarget(col, focusLayerIdx);
+                        const lerpAlpha = (STATE.autoRippleEnabled || isAITyping) ? CAMERA_TUNING.readingFollowLerp : CAMERA_TUNING.followLerp;
+                        controls.target.lerp(nextTarget, lerpAlpha);
+                    }
+                }
+            } else if (STATE.selectedColId === -1 && STATE.autoPan) {
+                controls.target.lerp(new THREE.Vector3(0, 0, 0), CAMERA_TUNING.idleLerp);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (STATE.uiProfile !== "CONFERENCE") {
+                applyUIProfile("AUTO", false);
+            }
+            updateGuidanceUI();
+        });
+        
+        animate();
+    </script>
+</body>
+</html>

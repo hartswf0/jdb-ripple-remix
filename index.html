@@ -3,584 +3,560 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RIPPLES // Launch Deck</title>
+  <title>RIPPLES // Launch</title>
   <style>
     :root {
-      --bg: #060909;
-      --panel: rgba(8, 16, 14, 0.92);
-      --panel-2: rgba(7, 12, 11, 0.9);
-      --line: #1d3a32;
-      --text: #d9efe4;
-      --muted: #8fb6a6;
-      --green: #35d28a;
-      --cyan: #65e4ff;
-      --gold: #f0c86a;
-      --rose: #ff7f7f;
-      --shadow: 0 14px 50px rgba(0, 0, 0, 0.35);
+      --bg: #030508;
+      --bg-2: #060c14;
+      --panel: rgba(6, 10, 18, 0.94);
+      --line: rgba(0, 229, 255, 0.2);
+      --line-strong: rgba(0, 229, 255, 0.42);
+      --text: #d4e1ed;
+      --muted: #8ba4ba;
+      --cyan: #00e5ff;
+      --green: #00ff88;
+      --shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
       min-height: 100%;
       background:
-        radial-gradient(circle at 15% 10%, rgba(53, 210, 138, 0.12), transparent 42%),
-        radial-gradient(circle at 85% 18%, rgba(101, 228, 255, 0.1), transparent 38%),
-        radial-gradient(circle at 50% 100%, rgba(240, 200, 106, 0.06), transparent 45%),
-        var(--bg);
+        radial-gradient(circle at 18% 12%, rgba(0, 229, 255, 0.1), transparent 34%),
+        radial-gradient(circle at 84% 78%, rgba(0, 255, 136, 0.08), transparent 36%),
+        linear-gradient(180deg, var(--bg-2), var(--bg));
       color: var(--text);
-      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-family: "Courier New", Courier, monospace;
     }
 
     body {
-      padding: 24px;
+      padding: 14px;
     }
 
-    .wrap {
-      max-width: 1180px;
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.12;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.04) 0,
+        rgba(255, 255, 255, 0.04) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      z-index: 1;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      max-width: 980px;
       margin: 0 auto;
+      display: grid;
+      gap: 12px;
     }
 
     .hero {
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(13, 24, 21, 0.96), rgba(8, 14, 12, 0.94));
+      background: var(--panel);
       box-shadow: var(--shadow);
-      border-radius: 18px;
-      padding: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background:
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent 28%),
-        repeating-linear-gradient(
-          to bottom,
-          rgba(255, 255, 255, 0.015),
-          rgba(255, 255, 255, 0.015) 1px,
-          transparent 1px,
-          transparent 4px
-        );
-      opacity: 0.6;
-    }
-
-    .hero-row {
-      position: relative;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      justify-content: space-between;
-      flex-wrap: wrap;
+      border-radius: 12px;
+      padding: 14px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(1.35rem, 3vw, 2rem);
-      line-height: 1.1;
-      letter-spacing: 0.02em;
+      font-size: clamp(1.2rem, 4.5vw, 1.8rem);
+      letter-spacing: 0.04em;
+      color: var(--cyan);
     }
 
     .subtitle {
       margin: 8px 0 0;
+      font-size: 0.86rem;
+      line-height: 1.4;
       color: var(--muted);
       max-width: 70ch;
-      line-height: 1.45;
-      font-size: 0.95rem;
     }
 
-    .badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    .quick {
       margin-top: 12px;
-    }
-
-    .badge {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 0.75rem;
-      color: var(--muted);
-      background: rgba(5, 10, 9, 0.7);
-      white-space: nowrap;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .btn {
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(6, 12, 20, 0.92);
+      color: var(--text);
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 38px;
-      padding: 0 14px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      color: var(--text);
-      text-decoration: none;
-      background: rgba(8, 13, 12, 0.85);
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      text-align: center;
+      padding: 0 10px;
+      font-size: 0.84rem;
+      transition: border-color 140ms ease, color 140ms ease, transform 140ms ease;
     }
 
-    .btn:hover {
+    .btn:hover,
+    .btn:focus-visible {
+      border-color: var(--line-strong);
+      color: #fff;
       transform: translateY(-1px);
-      border-color: rgba(101, 228, 255, 0.55);
-      background: rgba(11, 19, 17, 0.95);
+      outline: none;
     }
 
-    .btn-primary {
-      border-color: rgba(53, 210, 138, 0.45);
-      box-shadow: inset 0 0 0 1px rgba(53, 210, 138, 0.15);
+    .btn.primary {
+      border-color: rgba(0, 255, 136, 0.45);
+      color: var(--green);
     }
 
-    .btn-warn {
-      border-color: rgba(240, 200, 106, 0.45);
-      color: var(--gold);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .panel {
-      grid-column: span 12;
+    .group {
       border: 1px solid var(--line);
-      border-radius: 14px;
-      background: linear-gradient(180deg, var(--panel), var(--panel-2));
-      box-shadow: var(--shadow);
+      background: var(--panel);
+      border-radius: 12px;
       overflow: hidden;
+      box-shadow: var(--shadow);
     }
 
-    .panel-head {
+    details {
+      border-top: 1px solid rgba(0, 229, 255, 0.12);
+    }
+
+    details:first-of-type {
+      border-top: none;
+    }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      min-height: 48px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(29, 58, 50, 0.65);
-      background: rgba(10, 18, 16, 0.8);
+      gap: 10px;
+      padding: 0 14px;
+      font-size: 0.86rem;
+      color: #cce0ef;
+      background: rgba(5, 10, 16, 0.6);
+      user-select: none;
     }
 
-    .panel-title {
-      margin: 0;
-      font-size: 0.95rem;
-      color: var(--text);
-      letter-spacing: 0.03em;
+    summary::-webkit-details-marker {
+      display: none;
     }
 
-    .panel-note {
-      color: var(--muted);
-      font-size: 0.75rem;
-      white-space: nowrap;
+    summary::after {
+      content: "+";
+      color: var(--cyan);
+      font-size: 1rem;
+      line-height: 1;
     }
 
-    .cards {
+    details[open] summary::after {
+      content: "-";
+    }
+
+    .links {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      padding: 14px;
+      gap: 8px;
+      padding: 10px;
     }
 
-    .card {
-      border: 1px solid rgba(29, 58, 50, 0.95);
-      border-radius: 12px;
-      padding: 12px;
+    .item {
+      border: 1px solid rgba(0, 229, 255, 0.18);
+      border-radius: 8px;
       text-decoration: none;
       color: inherit;
-      background:
-        linear-gradient(180deg, rgba(12, 21, 18, 0.95), rgba(8, 13, 12, 0.9));
-      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-      min-height: 112px;
+      background: rgba(5, 10, 16, 0.72);
+      min-height: 56px;
+      padding: 9px 10px;
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      gap: 6px;
+      align-content: center;
+      gap: 4px;
+      transition: border-color 140ms ease, background 140ms ease;
     }
 
-    .card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(101, 228, 255, 0.55);
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+    .item:hover,
+    .item:focus-visible {
+      border-color: var(--line-strong);
+      background: rgba(7, 14, 22, 0.9);
+      outline: none;
     }
 
-    .card kbd {
-      justify-self: start;
-      font: inherit;
-      font-size: 0.7rem;
-      color: var(--cyan);
-      border: 1px solid rgba(101, 228, 255, 0.3);
-      border-radius: 999px;
-      padding: 2px 8px;
-      background: rgba(8, 14, 15, 0.8);
+    .item-title {
+      font-size: 0.84rem;
+      color: #e2edf6;
+      line-height: 1.25;
     }
 
-    .card h3 {
-      margin: 0;
-      font-size: 0.95rem;
-      line-height: 1.2;
-      color: var(--text);
-    }
-
-    .card p {
-      margin: 0;
+    .item-path {
+      font-size: 0.74rem;
       color: var(--muted);
-      font-size: 0.82rem;
-      line-height: 1.35;
+      overflow-wrap: anywhere;
+      line-height: 1.25;
     }
 
-    .card .path {
-      color: var(--green);
-      font-size: 0.76rem;
-      word-break: break-all;
-    }
-
-    .split {
+    .analysis-grid {
       display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 14px;
-      margin-top: 14px;
-    }
-
-    .info {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: linear-gradient(180deg, var(--panel), var(--panel-2));
-      box-shadow: var(--shadow);
-      padding: 14px;
-    }
-
-    .info h2 {
-      margin: 0 0 8px;
-      font-size: 0.95rem;
-    }
-
-    .info p {
-      margin: 0 0 8px;
-      color: var(--muted);
-      line-height: 1.45;
-      font-size: 0.85rem;
-    }
-
-    .info code, .info pre {
-      font-family: inherit;
-    }
-
-    .info pre {
-      margin: 8px 0 0;
+      gap: 10px;
       padding: 10px;
-      border-radius: 10px;
-      background: rgba(5, 9, 8, 0.92);
-      border: 1px solid rgba(29, 58, 50, 0.8);
-      color: var(--text);
-      overflow-x: auto;
-      font-size: 0.8rem;
     }
 
-    .warning {
-      border-color: rgba(240, 200, 106, 0.35);
+    .analysis-card {
+      border: 1px solid rgba(0, 229, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(5, 10, 16, 0.74);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
     }
 
-    .warning h2 {
-      color: var(--gold);
+    .analysis-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
-    .warning p strong {
-      color: var(--rose);
-      font-weight: 600;
+    .analysis-title {
+      font-size: 0.84rem;
+      color: #e2edf6;
+      text-decoration: none;
+    }
+
+    .analysis-title:hover,
+    .analysis-title:focus-visible {
+      color: #fff;
+      outline: none;
+    }
+
+    .analysis-file {
+      font-size: 0.72rem;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .analysis-block {
+      border-top: 1px solid rgba(0, 229, 255, 0.14);
+      padding-top: 7px;
+    }
+
+    .analysis-label {
+      display: block;
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+      color: var(--cyan);
+      margin-bottom: 4px;
+    }
+
+    .analysis-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 0.75rem;
+      line-height: 1.35;
+      color: #cfe0ed;
+      display: grid;
+      gap: 3px;
+    }
+
+    .analysis-field {
+      font-size: 0.75rem;
+      line-height: 1.35;
+      color: #cfe0ed;
+    }
+
+    .analysis-field b {
+      color: #f0f8ff;
+      font-weight: 700;
     }
 
     .foot {
-      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(5, 10, 16, 0.8);
+      padding: 10px 12px;
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
+      line-height: 1.4;
       text-align: center;
     }
 
-    @media (min-width: 900px) {
-      .panel.span-7 { grid-column: span 7; }
-      .panel.span-5 { grid-column: span 5; }
-    }
-
-    @media (max-width: 900px) {
-      body { padding: 14px; }
-      .split { grid-template-columns: 1fr; }
-      .panel-note { white-space: normal; }
-      .hero-actions { width: 100%; }
-      .hero-actions .btn { flex: 1 1 180px; }
+    @media (min-width: 760px) {
+      body { padding: 20px; }
+      .quick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .analysis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <section class="hero" aria-labelledby="deck-title">
-      <div class="hero-row">
-        <div>
-          <h1 id="deck-title">RIPPLES // Launch Deck</h1>
-          <p class="subtitle">
-            Single entry point for all local interfaces, experiments, and prompt/docs files in this repo.
-            Canonical design spine is <code>PROMPT-BETA.MD</code>; all interface variants and tooling should map back to that spec.
-            Use this page as the root index for GitHub Pages or local browsing.
-          </p>
-          <div class="badges" aria-label="Project badges">
-            <span class="badge">Primary UI: indexgpt.html</span>
-            <span class="badge">Workbench: evo.html</span>
-            <span class="badge">Spec Spine: PROMPT-BETA.MD</span>
-            <span class="badge">Autonomous Field: ripple-engine.html</span>
-            <span class="badge">LLM bridge files present</span>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="title">
+      <h1 id="title">RIPPLES // Launch</h1>
+      <p class="subtitle">
+        Clean entry point for interfaces, prompts, and bridge files. Mobile-first navigation with minimal visual overhead.
+      </p>
+      <nav class="quick" aria-label="Quick launch">
+        <a class="btn primary" href="ripple-engine.html">Open Ripple Engine</a>
+        <a class="btn" href="indexgpt.html">Open Main Simulation</a>
+        <a class="btn" href="ripples-integrated.html">Open Integrated</a>
+        <a class="btn" href="PROMPT-BETA.MD">Open Prompt Beta</a>
+      </nav>
+    </section>
+
+    <section class="group" aria-label="Launcher groups">
+      <details open>
+        <summary>Core Interfaces</summary>
+        <div class="links">
+          <a class="item" href="ripple-rrc.html"><span class="item-title">Ripple RRC Candidate</span><span class="item-path">ripple-rrc.html</span></a>
+          <a class="item" href="ripple-engine.html"><span class="item-title">Ripple Engine</span><span class="item-path">ripple-engine.html</span></a>
+          <a class="item" href="ripples-integrated.html"><span class="item-title">Ripples Integrated</span><span class="item-path">ripples-integrated.html</span></a>
+          <a class="item" href="indexgpt.html"><span class="item-title">Main Simulation</span><span class="item-path">indexgpt.html</span></a>
+          <a class="item" href="evo.html"><span class="item-title">EVO Workbench</span><span class="item-path">evo.html</span></a>
+        </div>
+      </details>
+
+      <details>
+        <summary>Additional Interfaces</summary>
+        <div class="links">
+          <a class="item" href="prompt-beta-causal.html"><span class="item-title">Prompt Beta Causal</span><span class="item-path">prompt-beta-causal.html</span></a>
+          <a class="item" href="promp-c-angel-trace.html"><span class="item-title">PROMP-C Angel Trace</span><span class="item-path">promp-c-angel-trace.html</span></a>
+          <a class="item" href="system-core-instrument.html"><span class="item-title">System Core Instrument</span><span class="item-path">system-core-instrument.html</span></a>
+          <a class="item" href="evo-02.html"><span class="item-title">EVO-02</span><span class="item-path">evo-02.html</span></a>
+          <a class="item" href="evo-03.html"><span class="item-title">EVO-03</span><span class="item-path">evo-03.html</span></a>
+          <a class="item" href="ort.html"><span class="item-title">ORT</span><span class="item-path">ort.html</span></a>
+        </div>
+      </details>
+
+      <details>
+        <summary>Analyst Lens by Engine Line</summary>
+        <div class="links" style="padding-bottom:0;">
+          <div class="item" style="min-height:auto;">
+            <span class="item-title">MASTER_ANALYST_PROMPT v1.0 Applied</span>
+            <span class="item-path">Format: NON_OBVIOUS_INSIGHTS / TENSIONS_CONTRADICTIONS / SO_WHAT / WHATS_MISSING</span>
           </div>
         </div>
-        <div class="hero-actions" aria-label="Quick launch">
-          <a class="btn btn-primary" href="indexgpt.html">Open Main Simulation</a>
-          <a class="btn" href="ripple-engine.html">Open Ripple Engine</a>
-          <a class="btn" href="evo.html">Open EVO Workbench</a>
-          <a class="btn" href="PROMPT-BETA.MD">Open Prompt Beta</a>
-          <a class="btn btn-warn" href="README.md">Open README</a>
+        <div class="analysis-grid">
+          <article class="analysis-card">
+            <div class="analysis-head">
+              <a class="analysis-title" href="ripple-engine.html">Ripple Engine</a>
+              <span class="analysis-file">ripple-engine.html</span>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">NON_OBVIOUS_INSIGHTS</span>
+              <ul class="analysis-list">
+                <li>Forced spawn and therefore constraints shift the system from lyric drift toward topological expansion.</li>
+                <li>Run mode + policy flags form an explicit control state machine, not just a UI toggle layer.</li>
+                <li>Recording is treated as a first-class artifact pipeline (video + transcript + event context), not an afterthought export.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">TENSIONS_CONTRADICTIONS</span>
+              <ul class="analysis-list">
+                <li>Stricter tagged generation improves structure but can reduce raw poetic volatility.</li>
+                <li>High control density supports performance capture but increases onboarding friction on mobile.</li>
+                <li>Context recording is richer but depends on browser capture permissions and user flow timing.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">SO_WHAT</span>
+              <div class="analysis-field"><b>Core_Implication:</b> Use this line as production baseline when coherent auto-growth and conference-grade capture both matter.</div>
+              <div class="analysis-field"><b>Why_It_Matters:</b> It is the only branch that jointly optimizes narrative structure, autonomous policy control, and recording traceability.</div>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">WHATS_MISSING</span>
+              <div class="analysis-field"><b>Missing_Question:</b> What measurable threshold defines “good” ripple quality over long autonomous runs?</div>
+              <div class="analysis-field"><b>Critical_Assumption:</b> The model will reliably obey strict tag contracts under thematic pressure.</div>
+              <div class="analysis-field"><b>Next_Inquiry:</b> Add per-run quality scoring (spawn rate, topical continuity, repetition index) and tune policies against it.</div>
+            </div>
+          </article>
+
+          <article class="analysis-card">
+            <div class="analysis-head">
+              <a class="analysis-title" href="r-eng-02.html">R-ENG-02</a>
+              <span class="analysis-file">r-eng-02.html</span>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">NON_OBVIOUS_INSIGHTS</span>
+              <ul class="analysis-list">
+                <li>This is operationally a near-parity fork of the main engine with minimal but meaningful control-surface deltas.</li>
+                <li>A single extra focus/control affordance changes camera-legibility behavior more than expected during live runs.</li>
+                <li>The branch functions as a staging lane for interaction tweaks before promotion to core.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">TENSIONS_CONTRADICTIONS</span>
+              <ul class="analysis-list">
+                <li>Slight UI divergence can create operator confusion despite near-identical internals.</li>
+                <li>Parallel maintenance doubles risk of bugfix drift.</li>
+                <li>Added controls help experts but can reintroduce bottom-bar complexity pressure.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">SO_WHAT</span>
+              <div class="analysis-field"><b>Core_Implication:</b> Treat this file as an experiment branch with explicit merge criteria, not a separate product line.</div>
+              <div class="analysis-field"><b>Why_It_Matters:</b> Without clear promotion rules, small deltas silently fragment operator habits and bug triage.</div>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">WHATS_MISSING</span>
+              <div class="analysis-field"><b>Missing_Question:</b> Which interaction changes are canonical for all engine lines?</div>
+              <div class="analysis-field"><b>Critical_Assumption:</b> Users can mentally map both interfaces without error cost.</div>
+              <div class="analysis-field"><b>Next_Inquiry:</b> Define a branch-to-core checklist and parity test for UI controls and camera behavior.</div>
+            </div>
+          </article>
+
+          <article class="analysis-card">
+            <div class="analysis-head">
+              <a class="analysis-title" href="rp-02.html">RP-02</a>
+              <span class="analysis-file">rp-02.html</span>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">NON_OBVIOUS_INSIGHTS</span>
+              <ul class="analysis-list">
+                <li>The settings-heavy shell prioritizes operator agency, but generation remains loosely constrained.</li>
+                <li>Auto behavior uses random policy switches, which broadens exploration but weakens thematic continuity.</li>
+                <li>Spawn logic is opportunistic and generic, so topology can grow without deep causal anchoring.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">TENSIONS_CONTRADICTIONS</span>
+              <ul class="analysis-list">
+                <li>Rich controls imply precision while prompt contract remains permissive.</li>
+                <li>UI ambition and spatial overlays can compete with map readability.</li>
+                <li>Voice/recording options exist, but capture semantics are simpler than core engine expectations.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">SO_WHAT</span>
+              <div class="analysis-field"><b>Core_Implication:</b> Use RP-02 for exploratory live ideation, not for reproducible structured runs.</div>
+              <div class="analysis-field"><b>Why_It_Matters:</b> It is fast to steer artistically, but less reliable for coherent long-form autonomous mapping.</div>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">WHATS_MISSING</span>
+              <div class="analysis-field"><b>Missing_Question:</b> What should trigger spawn versus vertical continuation in policy terms?</div>
+              <div class="analysis-field"><b>Critical_Assumption:</b> Randomized branching will still preserve narrative legibility.</div>
+              <div class="analysis-field"><b>Next_Inquiry:</b> Add root-anchor scoring and spawn utility ranking before committing each auto action.</div>
+            </div>
+          </article>
+
+          <article class="analysis-card">
+            <div class="analysis-head">
+              <a class="analysis-title" href="rp-03.html">RP-03</a>
+              <span class="analysis-file">rp-03.html</span>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">NON_OBVIOUS_INSIGHTS</span>
+              <ul class="analysis-list">
+                <li>This line is optimized for interaction clarity: fewer subsystems, clearer vector reading loop.</li>
+                <li>Exact fragment count constraints create stable pacing but can flatten expressive variance.</li>
+                <li>Simple auto continuation (“Therefore, …”) reinforces local coherence while underexploring map breadth.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">TENSIONS_CONTRADICTIONS</span>
+              <ul class="analysis-list">
+                <li>Minimalism improves reliability but leaves recording/performance workflows underpowered.</li>
+                <li>Strong vector UX exists without corresponding spawn ecology mechanics.</li>
+                <li>Clean interaction model may conceal strategic limits in autonomous complexity.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">SO_WHAT</span>
+              <div class="analysis-field"><b>Core_Implication:</b> RP-03 is the best lightweight line for readable demos and quick operator training.</div>
+              <div class="analysis-field"><b>Why_It_Matters:</b> Lower subsystem count means fewer runtime surprises in constrained presentation settings.</div>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">WHATS_MISSING</span>
+              <div class="analysis-field"><b>Missing_Question:</b> How should this branch evolve when recording and multi-mode autonomy become mandatory?</div>
+              <div class="analysis-field"><b>Critical_Assumption:</b> Simplicity will remain enough as use cases move from demo to archival performance.</div>
+              <div class="analysis-field"><b>Next_Inquiry:</b> Add modular hooks for capture and spawn policy without breaking the lean control model.</div>
+            </div>
+          </article>
+
+          <article class="analysis-card">
+            <div class="analysis-head">
+              <a class="analysis-title" href="rp-04.html">RP-04</a>
+              <span class="analysis-file">rp-04.html</span>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">NON_OBVIOUS_INSIGHTS</span>
+              <ul class="analysis-list">
+                <li>RP-04 currently behaves as a snapshot branch, preserving earlier RP-02 decisions.</li>
+                <li>Name progression suggests newest state, but implementation lags recent RP-02 layout and control fixes.</li>
+                <li>Its strongest value is controlled A/B comparison, not feature leadership.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">TENSIONS_CONTRADICTIONS</span>
+              <ul class="analysis-list">
+                <li>Version naming implies advancement while branch reality reflects archival state.</li>
+                <li>Duplicate near-copies increase maintenance burden without differentiated purpose.</li>
+                <li>Users can mistake old behavior for current baseline.</li>
+              </ul>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">SO_WHAT</span>
+              <div class="analysis-field"><b>Core_Implication:</b> Either designate RP-04 as a frozen reference or retire it from primary launch paths.</div>
+              <div class="analysis-field"><b>Why_It_Matters:</b> Clear branch intent reduces operator confusion and keeps bugfix effort focused.</div>
+            </div>
+            <div class="analysis-block">
+              <span class="analysis-label">WHATS_MISSING</span>
+              <div class="analysis-field"><b>Missing_Question:</b> What explicit lifecycle status does each RP line carry (active, staging, frozen)?</div>
+              <div class="analysis-field"><b>Critical_Assumption:</b> Team members infer branch status from filename alone.</div>
+              <div class="analysis-field"><b>Next_Inquiry:</b> Add status badges and update cadence notes on the launcher for each variant.</div>
+            </div>
+          </article>
         </div>
-      </div>
+      </details>
+
+      <details>
+        <summary>Blue Orchid and Moss Line</summary>
+        <div class="links">
+          <a class="item" href="blue-orchid.html"><span class="item-title">Blue Orchid</span><span class="item-path">blue-orchid.html</span></a>
+          <a class="item" href="blue-orchid-super.html"><span class="item-title">Blue Orchid Super</span><span class="item-path">blue-orchid-super.html</span></a>
+          <a class="item" href="blue-orchid-cinematic-souls.html"><span class="item-title">Blue Orchid Cinematic Souls</span><span class="item-path">blue-orchid-cinematic-souls.html</span></a>
+          <a class="item" href="moss.html"><span class="item-title">Moss</span><span class="item-path">moss.html</span></a>
+          <a class="item" href="moss-omni.html"><span class="item-title">Moss Omni</span><span class="item-path">moss-omni.html</span></a>
+          <a class="item" href="moss-wings-bayesian.html"><span class="item-title">Moss Wings Bayesian</span><span class="item-path">moss-wings-bayesian.html</span></a>
+          <a class="item" href="moss-om-reality-warper.html"><span class="item-title">Moss OM Reality Warper</span><span class="item-path">moss-om-reality-warper.html</span></a>
+        </div>
+      </details>
+
+      <details>
+        <summary>Prompts, Docs, and Bridge Files</summary>
+        <div class="links">
+          <a class="item" href="PROMPT-BETA.MD"><span class="item-title">Prompt Beta</span><span class="item-path">PROMPT-BETA.MD</span></a>
+          <a class="item" href="PROMP-C.MD"><span class="item-title">PROMP-C</span><span class="item-path">PROMP-C.MD</span></a>
+          <a class="item" href="SYSTEM.MD"><span class="item-title">System Prompt</span><span class="item-path">SYSTEM.MD</span></a>
+          <a class="item" href="RIPPLE-STANDARD.MD"><span class="item-title">RRC-1 Standard</span><span class="item-path">RIPPLE-STANDARD.MD</span></a>
+          <a class="item" href="rrc-1.json"><span class="item-title">RRC-1 Config</span><span class="item-path">rrc-1.json</span></a>
+          <a class="item" href="rrc-runtime.js"><span class="item-title">RRC Runtime</span><span class="item-path">rrc-runtime.js</span></a>
+          <a class="item" href="PROMPT-OM-STRUCTURAL.MD"><span class="item-title">Prompt OM Structural</span><span class="item-path">PROMPT-OM-STRUCTURAL.MD</span></a>
+          <a class="item" href="README.md"><span class="item-title">README</span><span class="item-path">README.md</span></a>
+          <a class="item" href="api.md"><span class="item-title">API Config</span><span class="item-path">api.md</span></a>
+          <a class="item" href="api.example.md"><span class="item-title">API Config Example</span><span class="item-path">api.example.md</span></a>
+          <a class="item" href="gpt.js"><span class="item-title">gpt.js</span><span class="item-path">gpt.js</span></a>
+          <a class="item" href="gpt.css"><span class="item-title">gpt.css</span><span class="item-path">gpt.css</span></a>
+          <a class="item" href="ripple-ai.js"><span class="item-title">ripple-ai.js</span><span class="item-path">ripple-ai.js</span></a>
+          <a class="item" href="ripple-llm-adapter.js"><span class="item-title">ripple-llm-adapter.js</span><span class="item-path">ripple-llm-adapter.js</span></a>
+        </div>
+      </details>
     </section>
 
-    <section class="grid" aria-label="RIPPLES file launcher">
-      <section class="panel span-7">
-        <div class="panel-head">
-          <h2 class="panel-title">Interfaces (Primary + Supported)</h2>
-          <div class="panel-note">HTML entry points</div>
-        </div>
-        <div class="cards">
-          <a class="card" href="ripples-integrated.html">
-            <kbd>Integrated</kbd>
-            <h3>RIPPLES Fully Integrated</h3>
-            <p>Unified mobile-first workflow: operate + ANGEL TRACE + audit replay in one interface.</p>
-            <div class="path">ripples-integrated.html</div>
-          </a>
-          <a class="card" href="ripple-engine.html">
-            <kbd>Primary Field</kbd>
-            <h3>Ripple Engine</h3>
-            <p>Autonomous topographic ripple field with atomic stub parsing, import/export canon, and always-visible auto mode.</p>
-            <div class="path">ripple-engine.html</div>
-          </a>
-          <a class="card" href="moss-om-reality-warper.html">
-            <kbd>Lineage OM</kbd>
-            <h3>MOSS × Orchid Reality Warper</h3>
-            <p>Patch-driven causal engine: compile semantic patches, mutate physics, and audit resulting ripple deltas.</p>
-            <div class="path">moss-om-reality-warper.html</div>
-          </a>
-          <a class="card" href="indexgpt.html">
-            <kbd>Primary</kbd>
-            <h3>Simulation Interface</h3>
-            <p>Main RIPPLES causal worldtext interface using <code>gpt.js</code> and <code>gpt.css</code>.</p>
-            <div class="path">indexgpt.html</div>
-          </a>
-          <a class="card" href="evo.html">
-            <kbd>Workbench</kbd>
-            <h3>RIPPLES EVO</h3>
-            <p>Perspective workbench with embedded/standalone launch hooks into the main simulation.</p>
-            <div class="path">evo.html</div>
-          </a>
-          <a class="card" href="prompt-beta-causal.html">
-            <kbd>Prompt</kbd>
-            <h3>Prompt Beta Causal</h3>
-            <p>Mobile-friendly causal instrument aligned to <code>PROMPT-BETA.MD</code>.</p>
-            <div class="path">prompt-beta-causal.html</div>
-          </a>
-          <a class="card" href="promp-c-angel-trace.html">
-            <kbd>Prompt</kbd>
-            <h3>PROMP-C Angel Trace</h3>
-            <p>Mobile-friendly event-to-output runner for ANGEL TRACE sections.</p>
-            <div class="path">promp-c-angel-trace.html</div>
-          </a>
-          <a class="card" href="system-core-instrument.html">
-            <kbd>Prompt</kbd>
-            <h3>System Core Instrument</h3>
-            <p>Mobile-friendly full contract implementation aligned to <code>SYSTEM.MD</code>.</p>
-            <div class="path">system-core-instrument.html</div>
-          </a>
-          <a class="card" href="blue-orchid-super.html">
-            <kbd>LLM</kbd>
-            <h3>Blue Orchid Super</h3>
-            <p>Super modeler variant wired to the local LLM bridge scripts.</p>
-            <div class="path">blue-orchid-super.html</div>
-          </a>
-          <a class="card" href="blue-orchid-cinematic-souls.html">
-            <kbd>LLM</kbd>
-            <h3>Blue Orchid Cinematic Souls</h3>
-            <p>Blue Orchid lineage with Soul_DNA structural analysis mode and inverse-generative compare workflow.</p>
-            <div class="path">blue-orchid-cinematic-souls.html</div>
-          </a>
-          <a class="card" href="blue-orchid.html">
-            <kbd>LLM</kbd>
-            <h3>Blue Orchid</h3>
-            <p>Blue Hour Lidar interface using Tone.js + RIPPLES bridge scripts.</p>
-            <div class="path">blue-orchid.html</div>
-          </a>
-          <a class="card" href="moss-omni.html">
-            <kbd>Monitor</kbd>
-            <h3>Moss Omni</h3>
-            <p>Expanded ORCA moss monitor variant with adapter support.</p>
-            <div class="path">moss-omni.html</div>
-          </a>
-          <a class="card" href="moss.html">
-            <kbd>Monitor</kbd>
-            <h3>Moss</h3>
-            <p>ORCA moss monitor baseline version.</p>
-            <div class="path">moss.html</div>
-          </a>
-          <a class="card" href="moss-wings-bayesian.html">
-            <kbd>Monitor</kbd>
-            <h3>Moss Wings Bayesian</h3>
-            <p>Reimagined MOSS as inverse-generative Wings architecture with soul seeds, scene evidence LRs, and bounded drift.</p>
-            <div class="path">moss-wings-bayesian.html</div>
-          </a>
-        </div>
-      </section>
-
-      <section class="panel span-5">
-        <div class="panel-head">
-          <h2 class="panel-title">Variants / Experiments</h2>
-          <div class="panel-note">Legacy and alternate UI tracks</div>
-        </div>
-        <div class="cards">
-          <a class="card" href="evo-02.html">
-            <kbd>Variant</kbd>
-            <h3>EVO-02</h3>
-            <p>Recursive Life / World Jockey edition.</p>
-            <div class="path">evo-02.html</div>
-          </a>
-          <a class="card" href="evo-03.html">
-            <kbd>Variant</kbd>
-            <h3>EVO-03</h3>
-            <p>World Jockey v2 experimental interface.</p>
-            <div class="path">evo-03.html</div>
-          </a>
-          <a class="card" href="ort.html">
-            <kbd>Experimental</kbd>
-            <h3>OMNISCIENCE (ORT)</h3>
-            <p>React/Tailwind/Babel in-browser prototype.</p>
-            <div class="path">ort.html</div>
-          </a>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2 class="panel-title">Docs / Prompt Corpus / API Config</h2>
-          <div class="panel-note">All tracks should resolve to PROMPT-BETA + SYSTEM contracts</div>
-        </div>
-        <div class="cards">
-          <a class="card" href="PROMPT-BETA.MD">
-            <kbd>Spec Spine</kbd>
-            <h3>Prompt Beta (Canonical)</h3>
-            <p>Primary contract for causal legibility, perspective integrity, and audit-ready ripple outputs.</p>
-            <div class="path">PROMPT-BETA.MD</div>
-          </a>
-          <a class="card" href="README.md">
-            <kbd>Docs</kbd>
-            <h3>README</h3>
-            <p>Project overview and repo-level notes.</p>
-            <div class="path">README.md</div>
-          </a>
-          <a class="card" href="SYSTEM.MD">
-            <kbd>Prompt</kbd>
-            <h3>System Prompt</h3>
-            <p>Worldtext generation system prompt and ontology.</p>
-            <div class="path">SYSTEM.MD</div>
-          </a>
-          <a class="card" href="PROMP-C.MD">
-            <kbd>Prompt</kbd>
-            <h3>PROMP-C</h3>
-            <p>Angel perspective ripple orchestrator prompt.</p>
-            <div class="path">PROMP-C.MD</div>
-          </a>
-          <a class="card" href="PROMPT-OM-STRUCTURAL.MD">
-            <kbd>Prompt</kbd>
-            <h3>Prompt OM Structural</h3>
-            <p>Strict architecture for structural iGSS analysis and inverse-generative diagnostics.</p>
-            <div class="path">PROMPT-OM-STRUCTURAL.MD</div>
-          </a>
-          <a class="card" href="api.md">
-            <kbd>Config</kbd>
-            <h3>API Config</h3>
-            <p>Local API/provider configuration used by the adapter bridge.</p>
-            <div class="path">api.md</div>
-          </a>
-          <a class="card" href="api.example.md">
-            <kbd>Config</kbd>
-            <h3>API Config Example</h3>
-            <p>Template/example formats for key and provider setup.</p>
-            <div class="path">api.example.md</div>
-          </a>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2 class="panel-title">Core JS / CSS Assets</h2>
-          <div class="panel-note">Reference files loaded by the interfaces</div>
-        </div>
-        <div class="cards">
-          <a class="card" href="gpt.js">
-            <kbd>Core</kbd>
-            <h3>gpt.js</h3>
-            <p>Main simulation logic for <code>indexgpt.html</code>.</p>
-            <div class="path">gpt.js</div>
-          </a>
-          <a class="card" href="gpt.css">
-            <kbd>Core</kbd>
-            <h3>gpt.css</h3>
-            <p>Stylesheet for the main simulation interface.</p>
-            <div class="path">gpt.css</div>
-          </a>
-          <a class="card" href="ripple-ai.js">
-            <kbd>Bridge</kbd>
-            <h3>ripple-ai.js</h3>
-            <p>Expanded RIPPLES AI bridge (legacy + adapter-aware paths).</p>
-            <div class="path">ripple-ai.js</div>
-          </a>
-          <a class="card" href="ripple-llm-adapter.js">
-            <kbd>Bridge</kbd>
-            <h3>ripple-llm-adapter.js</h3>
-            <p>Multi-provider adapter for OpenAI/Anthropic/Gemini/Ollama workflows.</p>
-            <div class="path">ripple-llm-adapter.js</div>
-          </a>
-        </div>
-      </section>
+    <section class="foot" aria-label="Run note">
+      Local run tip: <code>python3 -m http.server 8000</code> then open <code>http://localhost:8000/index.html</code>.
     </section>
-
-    <section class="split" aria-label="Notes and troubleshooting">
-      <section class="info">
-        <h2>Local Run Note</h2>
-        <p>
-          Some pages use <code>fetch()</code> and will behave better over a local HTTP server than opening files directly with
-          <code>file://</code>.
-        </p>
-        <pre>python3 -m http.server 8000</pre>
-        <p>Then open <code>http://localhost:8000/index.html</code>.</p>
-      </section>
-
-      <section class="info warning">
-        <h2>Console Error Note</h2>
-        <p>
-          Errors like <strong>content.js:... Cannot read properties of undefined (reading 'query')</strong> are usually from a browser extension
-          content script, not this repo. Test in an Incognito/private window with extensions off to confirm.
-        </p>
-        <p>
-          This repo's primary scripts are <code>gpt.js</code>, <code>ripple-ai.js</code>, and <code>ripple-llm-adapter.js</code>.
-        </p>
-      </section>
-    </section>
-
-    <div class="foot">RIPPLES repo root index - all local entry points linked from one page.</div>
   </main>
 </body>
 </html>
