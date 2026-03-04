@@ -642,6 +642,41 @@ body.light-mode #hover-rd {
   cursor:pointer;
 }
 .dock-action:hover { border-color:var(--cyan); color:#fff; }
+.dock-meta {
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(2,4,8,.72);
+  border-radius:2px;
+  padding:7px 8px;
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  display:grid;
+  gap:4px;
+}
+.dock-meta b { color:#fff; font-weight:700; }
+.dock-links {
+  display:grid;
+  gap:6px;
+}
+.dock-link {
+  display:block;
+  width:100%;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(2,4,8,.84);
+  color:var(--ink);
+  text-decoration:none;
+  padding:7px 8px;
+  border-radius:2px;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.dock-link:hover {
+  border-color:var(--cyan);
+  color:#fff;
+}
 .dock-item {
   width:100%;
   border:1px solid rgba(255,255,255,.14);
@@ -767,6 +802,7 @@ body.light-mode #chat-wrap {
 body.light-mode .cluster-item,
 body.light-mode .dock-item,
 body.light-mode .dock-action,
+body.light-mode .dock-link,
 body.light-mode .tl-stack-item {
   background:rgba(253,251,246,.9);
 }
@@ -861,6 +897,63 @@ body.light-mode #api-key-input {
   #tl-l-last,
   #tl-l-shift {
     display:none;
+  }
+
+  #side-tabs-toggle {
+    top:auto;
+    bottom:124px;
+    right:8px;
+    z-index:56;
+    min-width:54px;
+    padding:5px 7px;
+    font-size:6.5px;
+  }
+
+  #side-tabs {
+    top:auto;
+    right:8px;
+    left:8px;
+    bottom:64px;
+    transform:none;
+    display:flex;
+    overflow-x:auto;
+    overflow-y:hidden;
+    gap:6px;
+    z-index:55;
+    padding-right:44px;
+    scrollbar-width:none;
+  }
+
+  #side-tabs::-webkit-scrollbar { display:none; }
+
+  .side-tab {
+    min-width:62px;
+    padding:7px 8px;
+    font-size:7px;
+    flex:0 0 auto;
+  }
+
+  #dock-popup {
+    left:8px;
+    right:8px;
+    width:auto;
+    top:auto;
+    bottom:124px;
+    transform:none;
+    max-height:46vh;
+  }
+
+  #dock-popup-body {
+    max-height:calc(46vh - 34px);
+    padding:8px;
+  }
+
+  .dock-action,
+  .dock-link,
+  .dock-item {
+    font-size:8px;
+    padding:8px 9px;
+    min-height:34px;
   }
 }
 </style>
@@ -961,6 +1054,8 @@ body.light-mode #api-key-input {
 <button id="side-tabs-toggle" type="button">Hide Tabs</button>
 <div id="side-tabs">
   <button class="side-tab" data-tab="menu">Menu</button>
+  <button class="side-tab" data-tab="record">Rec</button>
+  <button class="side-tab" data-tab="export">Export</button>
   <button class="side-tab" data-tab="chat">Chat</button>
   <button class="side-tab" data-tab="eco">Eco</button>
   <button class="side-tab" data-tab="map">Map</button>
@@ -1047,6 +1142,19 @@ const OPENAI = {
 };
 const UI_PREF = {
   lightTheme: 'ripples.ui.lightTheme'
+};
+
+const REC = {
+  active:false,
+  recordOnFirst:false,
+  take:0,
+  recorder:null,
+  stream:null,
+  chunks:[],
+  mimeType:'video/webm',
+  startedAtMs:0,
+  stopResolve:null,
+  lastFiles:[]
 };
 
 // ── STATE ────────────────────────────────────────────────────────
@@ -1624,6 +1732,217 @@ function buildDockEventsList(type){
   }).join('');
 }
 
+function compactStamp(){
+  return new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
+}
+
+function fileExtFromMime(mime='video/webm'){
+  const raw=String(mime||'').toLowerCase();
+  if(raw.includes('mp4')) return 'mp4';
+  if(raw.includes('ogg')) return 'ogv';
+  return 'webm';
+}
+
+function downloadBlob(blob,mime,fileName,keepUrl=true){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if(!keepUrl){
+    setTimeout(()=>URL.revokeObjectURL(url),800);
+    return {name:fileName,url:''};
+  }
+  return {name:fileName,url};
+}
+
+function clearRecordingLinks(){
+  REC.lastFiles.forEach(f=>{
+    if(f?.url){
+      try{ URL.revokeObjectURL(f.url); }catch{}
+    }
+  });
+  REC.lastFiles=[];
+}
+
+function setLastFile(kind,file){
+  const prev=REC.lastFiles.find(f=>f.kind===kind);
+  if(prev?.url){
+    try{ URL.revokeObjectURL(prev.url); }catch{}
+  }
+  REC.lastFiles=[...REC.lastFiles.filter(f=>f.kind!==kind),{kind,...file}];
+}
+
+function buildTimelineExport(){
+  return {
+    engine:'rcc-eco',
+    exported_at:new Date().toISOString(),
+    sim_seconds:Number(S.simTime.toFixed(3)),
+    total_events:TIMELINE_EVENTS.length,
+    events:TIMELINE_EVENTS.map(ev=>({
+      id:ev.id,
+      type:ev.type,
+      text:ev.text,
+      coord:ev.coord||'',
+      from_coord:ev.fromCoord||'',
+      layer:Number.isInteger(ev.layer)?ev.layer:-1,
+      ts:ev.ts||'',
+      sim:Number(ev.sim||0)
+    }))
+  };
+}
+
+function buildTranscriptMarkdown(){
+  const out=[
+    '# RIPPLE SESSION TRANSCRIPT',
+    '',
+    `- build: rcc-eco`,
+    `- exported_at: ${new Date().toISOString()}`,
+    `- events: ${TIMELINE_EVENTS.length}`,
+    `- sim_time: ${clockStr(S.simTime)}`,
+    ''
+  ];
+  TIMELINE_EVENTS.forEach(ev=>{
+    const coord=ev.coord?` ${ev.coord}`:'';
+    const from=ev.fromCoord?` <- ${ev.fromCoord}`:'';
+    const ts=ev.ts||clockStr(ev.sim||0);
+    out.push(`- [${ts}] [${String(ev.type||'sys').toUpperCase()}]${coord}${from} ${ev.text||''}`.trim());
+  });
+  return out.join('\n');
+}
+
+function exportTranscript(){
+  const name=`rcc-eco_${compactStamp()}.transcript.md`;
+  const file=downloadBlob(new Blob([buildTranscriptMarkdown()],{type:'text/markdown'}),'text/markdown',name,true);
+  setLastFile('transcript',file);
+  chatMsg(`EXPORT READY: ${name}`,'sys','','',{record:false});
+  if(DOCK_STATE.popupMode) renderDockPopup();
+}
+
+function exportTimelineJson(){
+  const name=`rcc-eco_${compactStamp()}.timeline.json`;
+  const payload=JSON.stringify(buildTimelineExport(),null,2);
+  const file=downloadBlob(new Blob([payload],{type:'application/json'}),'application/json',name,true);
+  setLastFile('timeline',file);
+  chatMsg(`EXPORT READY: ${name}`,'sys','','',{record:false});
+  if(DOCK_STATE.popupMode) renderDockPopup();
+}
+
+function recordingLabel(){
+  return REC.active ? `REC LIVE · TAKE ${String(REC.take).padStart(2,'0')}` : 'REC OFF';
+}
+
+function createSafeRecorder(stream){
+  const prefs=[
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  for(const p of prefs){
+    if(window.MediaRecorder?.isTypeSupported?.(p)){
+      return {recorder:new MediaRecorder(stream,{mimeType:p}), mimeType:p};
+    }
+  }
+  const recorder=new MediaRecorder(stream);
+  return {recorder,mimeType:recorder.mimeType||'video/webm'};
+}
+
+async function startSceneRecording(reason='manual'){
+  if(REC.active) return true;
+  if(typeof MediaRecorder==='undefined'){
+    chatMsg('RECORDING UNSUPPORTED IN THIS BROWSER.','sys','','',{record:false});
+    return false;
+  }
+  if(!renderer?.domElement?.captureStream){
+    chatMsg('SCENE CAPTURE UNAVAILABLE: captureStream missing.','sys','','',{record:false});
+    return false;
+  }
+
+  try{
+    REC.stream=renderer.domElement.captureStream(30);
+    const videoTracks=REC.stream.getVideoTracks?.()||[];
+    if(!videoTracks.length){
+      chatMsg('RECORDING FAILED: no video track from canvas.','sys','','',{record:false});
+      REC.stream=null;
+      return false;
+    }
+    const safe=createSafeRecorder(REC.stream);
+    REC.recorder=safe.recorder;
+    REC.mimeType=safe.mimeType||'video/webm';
+    REC.chunks=[];
+
+    REC.recorder.ondataavailable=(e)=>{
+      if(e.data && e.data.size>0) REC.chunks.push(e.data);
+    };
+    REC.recorder.onerror=(e)=>{
+      const err=e?.error?.message||e?.name||'unknown';
+      chatMsg(`RECORDER ERROR: ${err}`,'sys','','',{record:false});
+    };
+    REC.recorder.onstop=()=>{
+      const took=Math.max(0,Date.now()-REC.startedAtMs);
+      REC.active=false;
+      const files=[];
+      if(REC.chunks.length){
+        const mime=String(REC.mimeType||'video/webm');
+        const ext=fileExtFromMime(mime);
+        const stamp=compactStamp();
+        const take=String(Math.max(1,REC.take)).padStart(2,'0');
+        const videoName=`rcc-eco_take${take}_${stamp}.${ext}`;
+        const videoBlob=new Blob(REC.chunks,{type:mime});
+        files.push({kind:'video',...downloadBlob(videoBlob,mime,videoName,true)});
+      }
+      const transcriptName=`rcc-eco_take${String(Math.max(1,REC.take)).padStart(2,'0')}_${compactStamp()}.transcript.md`;
+      files.push({kind:'transcript',...downloadBlob(new Blob([buildTranscriptMarkdown()],{type:'text/markdown'}),'text/markdown',transcriptName,true)});
+      clearRecordingLinks();
+      files.forEach(f=>setLastFile(f.kind,f));
+      chatMsg(`RECORDING STOPPED (${Math.round(took/1000)}s). FILES READY.`,'sys','','',{record:false});
+
+      if(REC.stream){
+        REC.stream.getTracks().forEach(t=>t.stop());
+      }
+      REC.stream=null;
+      REC.chunks=[];
+      REC.recorder=null;
+      if(typeof REC.stopResolve==='function'){
+        const done=REC.stopResolve;
+        REC.stopResolve=null;
+        done(true);
+      }
+      if(DOCK_STATE.popupMode) renderDockPopup();
+      syncSideTabs();
+    };
+
+    REC.take+=1;
+    REC.startedAtMs=Date.now();
+    REC.active=true;
+    REC.recorder.start(800);
+    chatMsg(`RECORDING STARTED (${reason.toUpperCase()})`,'sys','','',{record:false});
+    if(DOCK_STATE.popupMode) renderDockPopup();
+    syncSideTabs();
+    return true;
+  }catch(err){
+    chatMsg(`RECORDING FAILED: ${String(err?.message||err)}`,'sys','','',{record:false});
+    if(REC.stream){
+      REC.stream.getTracks().forEach(t=>t.stop());
+    }
+    REC.stream=null;
+    REC.recorder=null;
+    REC.active=false;
+    syncSideTabs();
+    return false;
+  }
+}
+
+async function stopSceneRecording(){
+  if(!REC.active || !REC.recorder) return false;
+  return await new Promise(resolve=>{
+    REC.stopResolve=resolve;
+    try{ REC.recorder.stop(); }catch{ resolve(false); }
+  });
+}
+
 function renderDockPopup(){
   if(!DOCK_STATE.popupMode){
     dockPopupEl.classList.remove('show');
@@ -1634,6 +1953,8 @@ function renderDockPopup(){
   if(mode==='menu'){
     dockPopupTitleEl.textContent='Quick Menu';
     dockPopupBodyEl.innerHTML=`
+      <button class="dock-action" data-act="record-panel">Recording Controls</button>
+      <button class="dock-action" data-act="export-panel">Export Controls</button>
       <button class="dock-action" data-act="terrain">Terrain ${S.terrainVisible?'On':'Off'}</button>
       <button class="dock-action" data-act="columns">Columns ${S.columnsVisible?'On':'Off'}</button>
       <button class="dock-action" data-act="links">Links ${S.linksVisible?'On':'Off'}</button>
@@ -1649,7 +1970,9 @@ function renderDockPopup(){
     dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const act=btn.dataset.act;
-        if(act==='terrain') document.getElementById('btn-terrain').click();
+        if(act==='record-panel') toggleDockPopup('record');
+        else if(act==='export-panel') toggleDockPopup('export');
+        else if(act==='terrain') document.getElementById('btn-terrain').click();
         else if(act==='columns') document.getElementById('btn-columns').click();
         else if(act==='links') document.getElementById('btn-links').click();
         else if(act==='autoplay') document.getElementById('btn-autoplay').click();
@@ -1660,6 +1983,65 @@ function renderDockPopup(){
         else if(act==='map') setPanelVisible('map',!panelVisible('map'));
         else if(act==='stack') setPanelVisible('stack',!panelVisible('stack'));
         else if(act==='tabs') setTabsHidden(!DOCK_STATE.tabsHidden);
+        renderDockPopup();
+      });
+    });
+    return;
+  }
+
+  if(mode==='record'){
+    dockPopupTitleEl.textContent='Recording';
+    dockPopupBodyEl.innerHTML=`
+      <div class="dock-meta">
+        <div><b>${recordingLabel()}</b></div>
+        <div>Mode: Scene Canvas</div>
+        <div>Record First Stone: <b>${REC.recordOnFirst?'On':'Off'}</b></div>
+      </div>
+      <button class="dock-action" data-act="rec-toggle">${REC.active?'Stop Recording':'Start Recording'}</button>
+      <button class="dock-action" data-act="rec-first">${REC.recordOnFirst?'Disable':'Enable'} Record First Stone</button>
+      <button class="dock-action" data-act="rec-clear">Clear Saved Recording Links</button>
+      <div class="dock-links">
+        ${REC.lastFiles.map(f=>`<a class="dock-link" href="${htmlSafe(f.url||'#')}" ${f.url?'target="_blank" rel="noopener"':''}>Open ${htmlSafe(f.name||f.kind||'file')}</a>`).join('')}
+      </div>
+    `;
+    dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
+      btn.addEventListener('click',async ()=>{
+        const act=btn.dataset.act;
+        if(act==='rec-toggle'){
+          if(REC.active) await stopSceneRecording();
+          else await startSceneRecording('manual');
+        }else if(act==='rec-first'){
+          REC.recordOnFirst=!REC.recordOnFirst;
+          chatMsg(`RECORD FIRST STONE ${REC.recordOnFirst?'ON':'OFF'}`,'sys','','',{record:false});
+        }else if(act==='rec-clear'){
+          clearRecordingLinks();
+          chatMsg('CLEARED SAVED RECORDING LINKS.','sys','','',{record:false});
+        }
+        renderDockPopup();
+        syncSideTabs();
+      });
+    });
+    return;
+  }
+
+  if(mode==='export'){
+    dockPopupTitleEl.textContent='Export';
+    dockPopupBodyEl.innerHTML=`
+      <div class="dock-meta">
+        <div><b>Events: ${TIMELINE_EVENTS.length}</b></div>
+        <div>Live cursor: ${Math.round(S.pct*100)}%</div>
+      </div>
+      <button class="dock-action" data-act="exp-transcript">Export Transcript (.md)</button>
+      <button class="dock-action" data-act="exp-json">Export Timeline (.json)</button>
+      <div class="dock-links">
+        ${REC.lastFiles.map(f=>`<a class="dock-link" href="${htmlSafe(f.url||'#')}" ${f.url?'target="_blank" rel="noopener"':''}>Open ${htmlSafe(f.name||f.kind||'file')}</a>`).join('')}
+      </div>
+    `;
+    dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const act=btn.dataset.act;
+        if(act==='exp-transcript') exportTranscript();
+        else if(act==='exp-json') exportTimelineJson();
         renderDockPopup();
       });
     });
@@ -1703,6 +2085,8 @@ function syncSideTabs(){
     const key=tab.dataset.tab;
     if(key==='therefore') tab.textContent=`TF ${tfCount}`;
     else if(key==='spawn') tab.textContent=`SP ${spCount}`;
+    else if(key==='record') tab.textContent=REC.active?'REC ON':'REC';
+    else if(key==='export') tab.textContent='EXPORT';
     else if(key==='menu') tab.textContent='Menu';
     else if(key==='chat') tab.textContent='Chat';
     else if(key==='eco') tab.textContent='Eco';
@@ -2521,8 +2905,14 @@ EMPTY_COORDS: ${emptyCoords.length?emptyCoords.join(', '):'none'}`;
   return out;
 }
 
-async function processStone(cmd){
+async function processStone(cmd,opts={}){
   if(!cmd.trim()||S.isTyping) return;
+
+  if(REC.recordOnFirst && !REC.active && !opts.auto){
+    REC.recordOnFirst=false;
+    await startSceneRecording('first-stone');
+  }
+
   S.isTyping=true;
   document.getElementById('stone-input').value='';
 
@@ -2803,7 +3193,7 @@ if(sideTabsEl){
         setPanelVisible(mode,!panelVisible(mode));
         return;
       }
-      if(['menu','therefore','spawn'].includes(mode)){
+      if(['menu','record','export','therefore','spawn'].includes(mode)){
         toggleDockPopup(mode);
       }
     });
@@ -2812,32 +3202,15 @@ if(sideTabsEl){
 
 function bindQuickMenuGesture(el){
   if(!el) return;
-  let holdTimer=0;
-  let downX=0, downY=0;
-  const clearHold=()=>{ if(holdTimer){ clearTimeout(holdTimer); holdTimer=0; } };
+  const isTouchFirstLayout=()=>window.matchMedia('(max-width: 900px), (any-pointer: coarse)').matches;
 
   el.addEventListener('contextmenu',e=>{
     e.preventDefault();
+    // Keep critical quick menu desktop-only; disable mobile long-press/double-tap entry.
+    const touchOrigin=Boolean(e?.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
+    if(isTouchFirstLayout() || touchOrigin) return;
     toggleDockPopup('menu');
   });
-
-  el.addEventListener('pointerdown',e=>{
-    if(e.pointerType!=='touch' || e.button!==0) return;
-    downX=e.clientX; downY=e.clientY;
-    clearHold();
-    holdTimer=window.setTimeout(()=>{
-      toggleDockPopup('menu');
-      holdTimer=0;
-    },520);
-  },{passive:true});
-
-  el.addEventListener('pointermove',e=>{
-    if(!holdTimer) return;
-    if(Math.hypot(e.clientX-downX,e.clientY-downY)>10) clearHold();
-  },{passive:true});
-
-  el.addEventListener('pointerup',clearHold,{passive:true});
-  el.addEventListener('pointercancel',clearHold,{passive:true});
 }
 
 [...document.querySelectorAll('#hdr-right .hdr-btn, #side-tabs .side-tab, #side-tabs-toggle, #chat-toggle-btn')]
@@ -2905,7 +3278,7 @@ function loop(){
   // autoplay
   if(S.autoplay && !S.isTyping && performance.now()>=S.autoNextAt){
     S.autoNextAt=performance.now()+2600+Math.random()*2400;
-    processStone(buildAutoStone());
+    processStone(buildAutoStone(),{auto:true});
   }
 
   // portal animation
